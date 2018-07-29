@@ -3,4 +3,11 @@ name = "lambda_calculus"
 version = "0.1.0"
 authors = ["haraldmaida"]
 
+description = "A lambda calculus parser and interpreter"
+
 [dependencies]
+combine = "3.3"
+
+[dev-dependencies]
+galvanic-assert = "0.8"
+proptest = "0.8"
