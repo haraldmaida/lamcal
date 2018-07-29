@@ -1,9 +1,19 @@
 [package]
-name = "lambda_calculus"
-version = "0.1.0"
+name = "lamcal"
+version = "0.1.0"  # remember to update html_root_url
 authors = ["haraldmaida"]
 
 description = "A lambda calculus parser and interpreter"
+
+repository = "https://github.com/haraldmaida/lamcal"
+documentation = "https://docs.rs/lamcal"
+readme = "README.md"
+keywords = ["functional", "combinator", "mathematics", "parser", "interpreter"]
+categories = ["science"]
+license = "Apache-2.0"
+
+[badges]
+maintenance = { status = "experimental" }
 
 [dependencies]
 combine = "3.3"

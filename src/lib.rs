@@ -1,5 +1,7 @@
 //! A lambda calculus parser and interpreter.
 
+#![doc(html_root_url = "https://docs.rs/lamcal/0.1.0")]
+
 #![warn(
     missing_copy_implementations,
     missing_debug_implementations,

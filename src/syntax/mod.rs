@@ -21,7 +21,7 @@ pub fn apply(expr1: Expr, expr2: Expr) -> Expr {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     /// a variable
-    Var { name: String },
+    Var(String),
     /// a lambda abstraction
     Lambda { param: Var, body: Box<Expr> },
     /// a function application
@@ -31,7 +31,7 @@ pub enum Expr {
 impl Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Expr::Var { name } => write!(f, "{}", name),
+            Expr::Var(name) => write!(f, "{}", name),
             Expr::Lambda { param, body } => write!(f, "λ{}.{}", param, body),
             Expr::Apply { expr1, expr2 } => write!(f, "({}) {}", expr1, expr2),
         }
@@ -40,7 +40,7 @@ impl Display for Expr {
 
 impl Expr {
     pub fn var(name: impl Into<String>) -> Self {
-        Expr::Var { name: name.into() }
+        Expr::Var(name.into())
     }
 
     pub fn lambda(param: Var, body: Expr) -> Self {
@@ -60,7 +60,7 @@ impl Expr {
 
 impl From<Var> for Expr {
     fn from(var: Var) -> Self {
-        Expr::Var { name: var.0 }
+        Expr::Var(var.0)
     }
 }
 
