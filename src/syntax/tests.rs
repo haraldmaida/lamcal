@@ -37,7 +37,7 @@ mod expr {
             param in "[a-z][a-z0-9]*",
             body in "λ([a-z][a-z0-9]*)\\.(λ([a-z][a-z0-9]*)\\.)|([a-z][a-z0-9]*)"
         ) {
-            let display = Expr::lambda(Var(param.to_string()), Expr::var(body.to_string())).to_string();
+            let display = Expr::lam(Var(param.to_string()), Expr::var(body.to_string())).to_string();
 
             prop_assert_eq!(display, format!("λ{}.{}", param, body));
         }
@@ -49,7 +49,7 @@ mod expr {
             expr1 in "\\(λ([a-z][a-z0-9]*)\\.(λ([a-z][a-z0-9]*)\\.)|([a-z][a-z0-9]*)\\)",
             expr2 in "[a-z][a-z0-9]*"
         ) {
-            let display = Expr::apply(Expr::var(expr1.to_string()), Expr::var(expr2.to_string())).to_string();
+            let display = Expr::app(Expr::var(expr1.to_string()), Expr::var(expr2.to_string())).to_string();
 
             prop_assert_eq!(display, format!("({}) {}", expr1, expr2));
         }

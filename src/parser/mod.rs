@@ -23,8 +23,8 @@ where
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
     choice((
-        abstraction().map(|(param, body)| Expr::lambda(param, body)),
-        application().map(|(expr1, expr2)| Expr::apply(expr1, expr2)),
+        abstraction().map(|(param, body)| Expr::lam(param, body)),
+        application().map(|(expr1, expr2)| Expr::app(expr1, expr2)),
         variable().map(From::from),
     )).skip(spaces())
 }
@@ -73,8 +73,9 @@ where
     (
         one_of("abcdefghijklmnopqrstuvwxyz".chars()),
         many(one_of("abcdefghijklmnopqrstuvwxyz0123456789'".chars())),
-    ).map(|(first, mut rest): (char, String)| {
-        rest.insert(0, first);
-        Var(rest)
-    })
+    )
+        .map(|(first, mut rest): (char, String)| {
+            rest.insert(0, first);
+            Var(rest)
+        })
 }

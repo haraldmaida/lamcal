@@ -47,7 +47,7 @@ mod variable {
         fn result_of_to_string_is_parseable_as_variable(
             name in "[a-z][a-z0-9]*'*"
         ) {
-            let variable: Var = Var::new(&name[..]);
+            let variable = Var::new(&name[..]);
 
             let display: String = variable.to_string();
             let (parsed, remaining) = super::variable().parse(&display[..]).unwrap();
@@ -92,7 +92,7 @@ mod application {
 
     use super::*;
 
-    use syntax::{apply, lam, var};
+    use syntax::{app, lam, var};
 
     #[test]
     fn parse_empty_string() {
@@ -110,7 +110,7 @@ mod application {
         ) {
             let lambda: Expr = lam(param, var(body));
             let z: Expr = var(name);
-            let application: Expr = apply(lambda, z);
+            let application: Expr = app(lambda, z);
 
             let display: String = application.to_string();
             let (parsed, remaining) = expression().parse(&display[..]).unwrap();

@@ -1,7 +1,6 @@
 //! A lambda calculus parser and interpreter.
 
 #![doc(html_root_url = "https://docs.rs/lamcal/0.1.0")]
-
 #![warn(
     missing_copy_implementations,
     missing_debug_implementations,
@@ -25,7 +24,8 @@ extern crate proptest;
 extern crate combine;
 
 pub mod parser;
+pub mod reduction;
 pub mod syntax;
 
 pub use parser::{expression, ParseError, Parser, Stream};
-pub use syntax::{apply, lam, var, Expr, Var};
+pub use syntax::{app, lam, var, Expr, Var};
