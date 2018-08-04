@@ -6,6 +6,10 @@ use std::collections::HashSet;
 use syntax::{Expr, Var as VarT};
 
 /// Performs an α-reduction on a given lambda expression.
+///
+/// When called with an owned `Expr` the given expression is modified in place
+/// and returned again. When called with a reference to an `Expr` a cloned
+/// expression with the conversions applied is returned.
 pub fn convert(expr: impl Into<Expr>) -> Expr {
     let mut expr = expr.into();
     traverse_expression(&mut expr, Context::new());
@@ -19,9 +23,9 @@ pub fn reduce(expr: impl Into<Expr>) -> Expr {
 
 /// Examples:
 ///
-/// (λy.λx.x y) x
-/// (λy.x y) x
-/// (λy.y x)(λy.y x)
+/// (λy.λx.x y) x  =>  (λy.λx1.x1 y) x
+/// (λy.y x) x  =>  (λy.y x1) x
+/// (λy.y x)(λy.y x)  =>  (λy.y x)(λy.y x)
 fn traverse_expression(expr: &mut Expr, mut ctx: Context) {
     use self::Expr::*;
     match *expr {
