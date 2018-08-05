@@ -58,43 +58,6 @@ impl Term {
     pub fn app(expr1: Term, expr2: Term) -> Self {
         Term::App(Box::new(expr1), Box::new(expr2))
     }
-
-    /// Returns whether this `Term` is a [beta redex].
-    ///
-    /// A beta redex is a term of the form (λx.A) M
-    ///
-    /// The term redex, short for reducible expression, refers to subterms that
-    /// can be reduced by one of the reduction rules.
-    ///
-    /// [beta redex]: https://en.wikipedia.org/wiki/Beta_normal_form#Beta_reduction
-    pub fn is_beta_redex(&self) -> bool {
-        use self::Term::*;
-        match *self {
-            App(ref expr1, _) => match **expr1 {
-                Lam(_, _) => true,
-                _ => false,
-            },
-            _ => false,
-        }
-    }
-
-    /// Returns whether this `Term` is a [beta normal form].
-    ///
-    /// A beta normal form is a term that does not contain any beta redex,
-    /// i.e. that cannot be further reduced.
-    ///
-    /// [beta normal form]: https://en.wikipedia.org/wiki/Beta_normal_form
-    pub fn is_beta_normal(&self) -> bool {
-        if self.is_beta_redex() {
-            false
-        } else {
-            use self::Term::*;
-            match *self {
-                App(ref expr1, ref expr2) => expr1.is_beta_normal() && expr2.is_beta_normal(),
-                _ => true,
-            }
-        }
-    }
 }
 
 impl<'a> From<&'a Term> for Term {

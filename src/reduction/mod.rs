@@ -5,14 +5,85 @@ use std::collections::HashSet;
 
 use term::{app, Term, Var as VarT};
 
+impl Term {
+    /// Returns whether this `Term` is a [beta redex].
+    ///
+    /// A beta redex is a term of the form (λx.A) M
+    ///
+    /// The term redex, short for reducible expression, refers to subterms that
+    /// can be reduced by one of the reduction rules.
+    ///
+    /// [beta redex]: https://en.wikipedia.org/wiki/Beta_normal_form#Beta_reduction
+    pub fn is_beta_redex(&self) -> bool {
+        use self::Term::*;
+        match *self {
+            App(ref expr1, _) => match **expr1 {
+                Lam(_, _) => true,
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    /// Returns whether this `Term` is a [beta normal form].
+    ///
+    /// A beta normal form is a term that does not contain any beta redex,
+    /// i.e. that cannot be further reduced.
+    ///
+    /// [beta normal form]: https://en.wikipedia.org/wiki/Beta_normal_form
+    pub fn is_beta_normal(&self) -> bool {
+        if self.is_beta_redex() {
+            false
+        } else {
+            use self::Term::*;
+            match *self {
+                App(ref expr1, ref expr2) => expr1.is_beta_normal() && expr2.is_beta_normal(),
+                _ => true,
+            }
+        }
+    }
+
+    /// Performs an [α-reduction] on this `Term`.
+    ///
+    /// [α-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B1-conversion
+    pub fn alpha(&mut self) {
+        alpha_rec(self, Context::new())
+    }
+
+    /// [Substitutes] all occurrences `var` as free variables with the
+    /// expression `rhs` recursively on the structure of this `Term`.
+    ///
+    /// [substitutes]: https://en.wikipedia.org/wiki/Lambda_calculus#Substitution
+    pub fn subst(&mut self, var: &VarT, rhs: &Term) {
+        substitute_rec(self, var, rhs)
+    }
+
+    /// Applies the expression `rhs` to the param of this lambda abstraction if
+    /// this `Term` is of variant `Term::Lam` by recursively substituting all
+    /// occurrences of the bound variable in the body of the lambda abstraction
+    /// with the expression `rhs`.
+    ///
+    /// If this `Term` is not a lambda abstraction this function does nothing.
+    pub fn apply(&mut self, rhs: &Term) {
+        apply_rec(self, rhs, "")
+    }
+
+    /// Performs a [β-reduction] on this `Term`.
+    ///
+    /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
+    pub fn reduce(&mut self) {
+        unimplemented!()
+    }
+}
+
 /// Performs an α-reduction on a given lambda expression.
 ///
 /// When called with an owned `Expr` the given expression is modified in place
 /// and returned again. When called with a reference to an `Expr` a cloned
 /// expression with the conversions applied is returned.
-pub fn convert(expr: impl Into<Term>) -> Term {
+pub fn alpha(expr: impl Into<Term>) -> Term {
     let mut expr = expr.into();
-    convert_rec(&mut expr, Context::new());
+    alpha_rec(&mut expr, Context::new());
     expr
 }
 
@@ -21,7 +92,7 @@ pub fn convert(expr: impl Into<Term>) -> Term {
 /// (λy.λx.x y) x  =>  (λy.λx1.x1 y) x
 /// (λy.y x) x  =>  (λy.y x1) x
 /// (λy.y x)(λy.y x)  =>  (λy.y x)(λy.y x)
-fn convert_rec(expr: &mut Term, mut ctx: Context) {
+fn alpha_rec(expr: &mut Term, mut ctx: Context) {
     use self::Term::*;
     match *expr {
         Var(ref mut name) => if ctx.free.contains(name) && !ctx.bound.contains(name) {
@@ -32,7 +103,7 @@ fn convert_rec(expr: &mut Term, mut ctx: Context) {
                 alpha_convert(name);
             };
             ctx.bound.insert(name.to_owned());
-            convert_rec(body, ctx);
+            alpha_rec(body, ctx);
         },
         App(ref mut expr1, ref mut expr2) => {
             let traverse1 = if let &Var(ref name1) = &**expr1 {
@@ -46,10 +117,10 @@ fn convert_rec(expr: &mut Term, mut ctx: Context) {
                 true
             };
             if traverse1 {
-                convert_rec(expr1, ctx.clone());
+                alpha_rec(expr1, ctx.clone());
             }
             if traverse2 {
-                convert_rec(expr2, ctx);
+                alpha_rec(expr2, ctx);
             }
         },
     }
@@ -96,7 +167,7 @@ impl Context {
 ///
 /// [substitution]: https://en.wikipedia.org/wiki/Lambda_calculus#Substitution
 pub fn substitute(expr: impl Into<Term>, var: &VarT, repl: &Term) -> Term {
-    if let Term::App(mut a_expr, _) = convert(app(expr.into(), var.clone().into())) {
+    if let Term::App(mut a_expr, _) = alpha(app(expr.into(), var.clone().into())) {
         substitute_rec(&mut a_expr, var, repl);
         *a_expr
     } else {
@@ -140,7 +211,7 @@ fn substitute_rec(expr: &mut Term, var: &VarT, repl: &Term) {
 /// and returned again. When called with a reference to an `Expr` a cloned
 /// expression with the substitution applied is returned.
 pub fn apply(expr: impl Into<Term>, subst: &Term) -> Term {
-    if let Term::App(mut a_expr, _) = convert(app(expr.into(), subst.clone().into())) {
+    if let Term::App(mut a_expr, _) = alpha(app(expr.into(), subst.clone().into())) {
         apply_rec(&mut a_expr, subst, "");
         *a_expr
     } else {
