@@ -25,7 +25,7 @@ extern crate combine;
 
 pub mod parser;
 pub mod reduction;
-pub mod syntax;
+pub mod term;
 
 pub use parser::{expression, ParseError, Parser, Stream};
-pub use syntax::{app, lam, var, Term, Var};
+pub use term::{app, lam, var, Term, Var};

@@ -4,7 +4,7 @@ mod convert {
 
     use super::*;
 
-    use syntax::{app, lam, var};
+    use term::{app, lam, var};
 
     #[test]
     fn renames_bound_x_to_x1_in_lambda1() {

@@ -3,7 +3,7 @@ mod tests;
 
 use std::collections::HashSet;
 
-use syntax::{Term, Var as VarT};
+use term::{Term, Var as VarT};
 
 /// Performs an α-reduction on a given lambda expression.
 ///
@@ -14,11 +14,6 @@ pub fn convert(expr: impl Into<Term>) -> Term {
     let mut expr = expr.into();
     traverse_expression(&mut expr, Context::new());
     expr
-}
-
-/// Performs a β-reduction on a given lambda expression.
-pub fn reduce(expr: impl Into<Term>) -> Term {
-    unimplemented!()
 }
 
 /// Examples:
@@ -87,4 +82,9 @@ impl Context {
             bound: HashSet::new(),
         }
     }
+}
+
+/// Performs a β-reduction on a given lambda expression.
+pub fn reduce(expr: impl Into<Term>) -> Term {
+    unimplemented!()
 }

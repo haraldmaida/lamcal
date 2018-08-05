@@ -7,7 +7,7 @@ use combine::char::{char, spaces};
 use combine::combinator::{between, choice, many, one_of};
 pub use combine::{ParseError, Parser, Stream};
 
-use syntax::{Term, Var};
+use term::{Term, Var};
 
 parser!{
     pub fn expression[I]()(I) -> Term

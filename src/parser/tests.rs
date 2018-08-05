@@ -62,7 +62,7 @@ mod abstraction {
 
     use super::*;
 
-    use syntax::{lam, var};
+    use term::{lam, var};
 
     #[test]
     fn parse_empty_string() {
@@ -92,7 +92,7 @@ mod application {
 
     use super::*;
 
-    use syntax::{app, lam, var};
+    use term::{app, lam, var};
 
     #[test]
     fn parse_empty_string() {
