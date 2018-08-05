@@ -3,21 +3,21 @@ mod tests;
 
 use std::collections::HashSet;
 
-use syntax::{Expr, Var as VarT};
+use syntax::{Term, Var as VarT};
 
 /// Performs an α-reduction on a given lambda expression.
 ///
 /// When called with an owned `Expr` the given expression is modified in place
 /// and returned again. When called with a reference to an `Expr` a cloned
 /// expression with the conversions applied is returned.
-pub fn convert(expr: impl Into<Expr>) -> Expr {
+pub fn convert(expr: impl Into<Term>) -> Term {
     let mut expr = expr.into();
     traverse_expression(&mut expr, Context::new());
     expr
 }
 
 /// Performs a β-reduction on a given lambda expression.
-pub fn reduce(expr: impl Into<Expr>) -> Expr {
+pub fn reduce(expr: impl Into<Term>) -> Term {
     unimplemented!()
 }
 
@@ -26,8 +26,8 @@ pub fn reduce(expr: impl Into<Expr>) -> Expr {
 /// (λy.λx.x y) x  =>  (λy.λx1.x1 y) x
 /// (λy.y x) x  =>  (λy.y x1) x
 /// (λy.y x)(λy.y x)  =>  (λy.y x)(λy.y x)
-fn traverse_expression(expr: &mut Expr, mut ctx: Context) {
-    use self::Expr::*;
+fn traverse_expression(expr: &mut Term, mut ctx: Context) {
+    use self::Term::*;
     match *expr {
         Var(ref mut name) => if ctx.free.contains(name) && !ctx.bound.contains(name) {
             alpha_convert(name);

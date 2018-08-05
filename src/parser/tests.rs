@@ -77,7 +77,7 @@ mod abstraction {
             param in "[a-z][a-z0-9]*'*",
             body in "[a-z][a-z0-9]*'*"
         ) {
-            let lambda: Expr = lam(param, var(body));
+            let lambda: Term = lam(param, var(body));
 
             let display: String = lambda.to_string();
             let (parsed, remaining) = expression().parse(&display[..]).unwrap();
@@ -108,9 +108,9 @@ mod application {
             body in "[a-z][a-z0-9]*'*",
             name in "[a-z][a-z0-9]*'*"
         ) {
-            let lambda: Expr = lam(param, var(body));
-            let z: Expr = var(name);
-            let application: Expr = app(lambda, z);
+            let lambda: Term = lam(param, var(body));
+            let z: Term = var(name);
+            let application: Term = app(lambda, z);
 
             let display: String = application.to_string();
             let (parsed, remaining) = expression().parse(&display[..]).unwrap();

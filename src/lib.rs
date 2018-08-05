@@ -28,4 +28,4 @@ pub mod reduction;
 pub mod syntax;
 
 pub use parser::{expression, ParseError, Parser, Stream};
-pub use syntax::{app, lam, var, Expr, Var};
+pub use syntax::{app, lam, var, Term, Var};

@@ -7,37 +7,37 @@ use combine::char::{char, spaces};
 use combine::combinator::{between, choice, many, one_of};
 pub use combine::{ParseError, Parser, Stream};
 
-use syntax::{Expr, Var};
+use syntax::{Term, Var};
 
 parser!{
-    pub fn expression[I]()(I) -> Expr
+    pub fn expression[I]()(I) -> Term
     where [I: Stream<Item = char>]
     {
         expression_()
     }
 }
 
-fn expression_<I>() -> impl Parser<Input = I, Output = Expr>
+fn expression_<I>() -> impl Parser<Input = I, Output = Term>
 where
     I: Stream<Item = char>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
     choice((
-        abstraction().map(|(param, body)| Expr::lam(param, body)),
-        application().map(|(expr1, expr2)| Expr::app(expr1, expr2)),
+        abstraction().map(|(param, body)| Term::lam(param, body)),
+        application().map(|(expr1, expr2)| Term::app(expr1, expr2)),
         variable().map(From::from),
     )).skip(spaces())
 }
 
 parser!{
-    pub fn abstraction[I]()(I) -> (Var, Expr)
+    pub fn abstraction[I]()(I) -> (Var, Term)
     where [I: Stream<Item = char>]
     {
         abstraction_()
     }
 }
 
-fn abstraction_<I>() -> impl Parser<Input = I, Output = (Var, Expr)>
+fn abstraction_<I>() -> impl Parser<Input = I, Output = (Var, Term)>
 where
     I: Stream<Item = char>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
@@ -47,14 +47,14 @@ where
 }
 
 parser!{
-    pub fn application[I]()(I) -> (Expr, Expr)
+    pub fn application[I]()(I) -> (Term, Term)
     where [I: Stream<Item = char>]
     {
         application_()
     }
 }
 
-fn application_<I>() -> impl Parser<Input = I, Output = (Expr, Expr)>
+fn application_<I>() -> impl Parser<Input = I, Output = (Term, Term)>
 where
     I: Stream<Item = char>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,

@@ -5,21 +5,21 @@ mod tests;
 
 use std::fmt::{self, Display};
 
-pub fn var(name: impl Into<String>) -> Expr {
-    Expr::var(name)
+pub fn var(name: impl Into<String>) -> Term {
+    Term::var(name)
 }
 
-pub fn lam(param: impl Into<String>, body: Expr) -> Expr {
-    Expr::lam(Var(param.into()), body)
+pub fn lam(param: impl Into<String>, body: Term) -> Term {
+    Term::lam(Var(param.into()), body)
 }
 
-pub fn app(expr1: Expr, expr2: Expr) -> Expr {
-    Expr::app(expr1, expr2)
+pub fn app(expr1: Term, expr2: Term) -> Term {
+    Term::app(expr1, expr2)
 }
 
 /// Definition of an expression in the Lambda Calculus.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Expr {
+pub enum Term {
     /// A variable (x)
     ///
     /// A character or string representing a parameter or mathematical/logical
@@ -29,46 +29,46 @@ pub enum Expr {
     ///
     /// Function definition (M is a lambda term). The variable x becomes bound
     /// in the expression.
-    Lam(Var, Box<Expr>),
+    Lam(Var, Box<Term>),
     /// An application (M N)
     ///
     /// Applying a function to an argument. M and N are lambda terms.
-    App(Box<Expr>, Box<Expr>),
+    App(Box<Term>, Box<Term>),
 }
 
-impl Display for Expr {
+impl Display for Term {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Expr::Var(name) => write!(f, "{}", name),
-            Expr::Lam(param, body) => write!(f, "λ{}.{}", param, body),
-            Expr::App(expr1, expr2) => write!(f, "({}) {}", expr1, expr2),
+            Term::Var(name) => write!(f, "{}", name),
+            Term::Lam(param, body) => write!(f, "λ{}.{}", param, body),
+            Term::App(expr1, expr2) => write!(f, "({}) {}", expr1, expr2),
         }
     }
 }
 
-impl Expr {
+impl Term {
     pub fn var(name: impl Into<String>) -> Self {
-        Expr::Var(name.into())
+        Term::Var(name.into())
     }
 
-    pub fn lam(param: Var, body: Expr) -> Self {
-        Expr::Lam(param, Box::new(body))
+    pub fn lam(param: Var, body: Term) -> Self {
+        Term::Lam(param, Box::new(body))
     }
 
-    pub fn app(expr1: Expr, expr2: Expr) -> Self {
-        Expr::App(Box::new(expr1), Box::new(expr2))
+    pub fn app(expr1: Term, expr2: Term) -> Self {
+        Term::App(Box::new(expr1), Box::new(expr2))
     }
 }
 
-impl<'a> From<&'a Expr> for Expr {
-    fn from(expr: &Expr) -> Self {
+impl<'a> From<&'a Term> for Term {
+    fn from(expr: &Term) -> Self {
         expr.to_owned()
     }
 }
 
-impl From<Var> for Expr {
+impl From<Var> for Term {
     fn from(var: Var) -> Self {
-        Expr::Var(var.0)
+        Term::Var(var.0)
     }
 }
 
