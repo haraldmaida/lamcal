@@ -16,7 +16,7 @@ mod var {
     }
 }
 
-mod expr {
+mod term {
 
     use super::*;
 
@@ -35,7 +35,7 @@ mod expr {
         #[test]
         fn display_string_of_an_abstraction_with_variable_in_body(
             param in "[a-z][a-z0-9]*",
-            body in "λ([a-z][a-z0-9]*)\\.(λ([a-z][a-z0-9]*)\\.)|([a-z][a-z0-9]*)"
+            body in "[a-z][a-z0-9]*"
         ) {
             let display = Term::lam(Var(param.to_string()), Term::var(body.to_string())).to_string();
 
@@ -53,5 +53,24 @@ mod expr {
 
             prop_assert_eq!(display, format!("({}) {}", expr1, expr2));
         }
+    }
+}
+
+mod app_macro {
+
+    use super::*;
+
+    #[test]
+    fn app_with_2_terms() {
+        let expr = app!(var("a"), var("b"));
+
+        assert_eq!(expr, app(var("a"), var("b")));
+    }
+
+    #[test]
+    fn app_with_3_terms() {
+        let expr = app!(var("a"), var("b"), var("c"));
+
+        assert_eq!(expr, app(app(var("a"), var("b")), var("c")));
     }
 }

@@ -23,9 +23,11 @@ extern crate proptest;
 #[macro_use]
 extern crate combine;
 
-pub mod parser;
-pub mod reduction;
-pub mod term;
+#[macro_use]
+mod term;
+mod parser;
+mod reduction;
 
-pub use parser::{expression, ParseError, Parser, Stream};
-pub use term::{app, lam, var, Term, Var};
+pub use self::parser::{expression, ParseError, Parser, Stream};
+pub use self::reduction::{alpha, apply, reduce, substitute, CallByName, NormalOrder, BetaReduce};
+pub use self::term::{app, lam, var, Term, Var};

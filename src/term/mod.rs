@@ -1,7 +1,7 @@
 //! Syntax definitions for the lambda calculus.
-
-#[cfg(test)]
-mod tests;
+//!
+//! This implementation of the lambda calculus uses the classic notation.
+//! Currently the De Bruin index notation is not supported.
 
 use std::fmt::{self, Display};
 
@@ -17,7 +17,7 @@ pub fn app(expr1: Term, expr2: Term) -> Term {
     Term::app(expr1, expr2)
 }
 
-/// Definition of an term in the lambda calculus.
+/// Definition of a term in the lambda calculus.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Term {
     /// A variable (x)
@@ -97,3 +97,17 @@ impl Var {
         self.0
     }
 }
+
+#[macro_export]
+macro_rules! app {
+    ($term1:expr, $($term2:expr),+) => {
+        {
+            let mut term = $term1;
+            $(term = app(term, $term2);)*
+            term
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests;
