@@ -142,11 +142,12 @@ where
 ///
 /// A possible implementations may choose the next letter in the alphabet for
 /// single character names. Another strategy may be to enumerate the variables
-/// by appending an increasing number. As a third example for an implementation
+/// by appending an increasing number. A third example for an implementation
 /// is appending a tick symbol to the variable name.
 ///
 /// [α-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B1-conversion
 pub trait AlphaRename {
+    /// Renames the given variable name according the implemented strategy.
     fn rename(name: &mut String);
 }
 
