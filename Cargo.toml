@@ -21,3 +21,8 @@ combine = "3.3"
 [dev-dependencies]
 galvanic-assert = "0.8"
 proptest = "0.8"
+
+[workspace]
+members = [
+    "repl"
+]

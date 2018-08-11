@@ -1,0 +1,22 @@
+[package]
+name = "lamcal-repl"
+version = "0.1.0"
+authors = ["haraldmaida"]
+
+description = "A lambda calculus repl"
+
+repository = "https://github.com/haraldmaida/lamcal"
+documentation = "https://docs.rs/lamcal-repl"
+readme = "README.md"
+keywords = ["lambda calculus", "repl", "evalute", "interpret", "parse"]
+categories = ["science"]
+license = "Apache-2.0"
+
+[[bin]]
+name = "lamcali"
+path = "src/main.rs"
+
+[dependencies]
+lamcal = { version = "0.1", path = "../" }
+colored = "1.6"
+rustyline = "1.0"
