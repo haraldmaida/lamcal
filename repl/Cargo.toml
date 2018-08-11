@@ -19,4 +19,5 @@ path = "src/main.rs"
 [dependencies]
 lamcal = { version = "0.1", path = "../" }
 colored = "1.6"
+failure = "0.1"
 rustyline = "1.0"
