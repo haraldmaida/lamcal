@@ -1,3 +1,5 @@
+use galvanic_assert::matchers::*;
+
 use super::*;
 
 mod enumerate {
@@ -13,7 +15,7 @@ mod enumerate {
 
         let result = alpha::<Enumerate, _>(expr);
 
-        assert_eq!(result, a_expr);
+        assert_that!(&result, eq(a_expr));
     }
 
     #[test]
@@ -23,7 +25,7 @@ mod enumerate {
 
         let result = alpha::<Enumerate, _>(expr);
 
-        assert_eq!(result, a_expr);
+        assert_that!(&result, eq(a_expr));
     }
 
     #[test]
@@ -45,7 +47,7 @@ mod enumerate {
 
         let result = alpha::<Enumerate, _>(expr);
 
-        assert_eq!(result, a_expr);
+        assert_that!(&result, eq(a_expr));
     }
 
     #[test]
@@ -55,7 +57,7 @@ mod enumerate {
 
         let result = alpha::<Enumerate, _>(expr);
 
-        assert_eq!(result, a_expr);
+        assert_that!(&result, eq(a_expr));
     }
 
     #[test]
@@ -65,6 +67,6 @@ mod enumerate {
 
         let result = alpha::<Enumerate, _>(expr);
 
-        assert_eq!(result, a_expr);
+        assert_that!(&result, eq(a_expr));
     }
 }

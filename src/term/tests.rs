@@ -1,3 +1,5 @@
+use galvanic_assert::matchers::*;
+
 use super::*;
 
 mod var {
@@ -64,13 +66,13 @@ mod app_macro {
     fn app_with_2_terms() {
         let expr = app!(var("a"), var("b"));
 
-        assert_eq!(expr, app(var("a"), var("b")));
+        assert_that!(&expr, eq(app(var("a"), var("b"))));
     }
 
     #[test]
     fn app_with_3_terms() {
         let expr = app!(var("a"), var("b"), var("c"));
 
-        assert_eq!(expr, app(app(var("a"), var("b")), var("c")));
+        assert_that!(&expr, eq(app(app(var("a"), var("b")), var("c"))));
     }
 }
