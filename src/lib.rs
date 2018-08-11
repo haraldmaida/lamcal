@@ -29,5 +29,7 @@ mod parser;
 mod reduction;
 
 pub use self::parser::{expression, ParseError, Parser, Stream};
-pub use self::reduction::{alpha, apply, reduce, substitute, CallByName, NormalOrder, BetaReduce};
+pub use self::reduction::{
+    alpha, apply, reduce, substitute, BetaReduce, CallByName, Enumerate, NormalOrder,
+};
 pub use self::term::{app, lam, var, Term, Var};

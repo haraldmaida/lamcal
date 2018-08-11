@@ -6,6 +6,7 @@
 mod tests;
 
 use std::collections::HashSet;
+use std::marker::PhantomData;
 
 use term::{app, Term, Term::*, Var as VarT};
 
@@ -48,11 +49,14 @@ impl Term {
     /// Performs an [α-reduction] on this `Term`.
     ///
     /// [α-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B1-conversion
-    pub fn alpha(&mut self) {
-        alpha_rec(self, Context::new())
+    pub fn alpha<R>(&mut self)
+    where
+        R: AlphaRename,
+    {
+        alpha_rec::<R>(self, Context::new())
     }
 
-    /// [Substitutes] all occurrences `var` as free variables with the
+    /// [Substitutes] all occurrences of `var` as free variables with the
     /// expression `rhs` recursively on the structure of this `Term`.
     ///
     /// [substitutes]: https://en.wikipedia.org/wiki/Lambda_calculus#Substitution
@@ -83,9 +87,13 @@ impl Term {
 /// When called with an owned `Term` the given expression is modified in place
 /// and returned again. When called with a reference to a `Term` a cloned
 /// expression with the conversions applied is returned.
-pub fn alpha(expr: impl Into<Term>) -> Term {
+pub fn alpha<R, T>(expr: T) -> Term
+where
+    R: AlphaRename,
+    T: Into<Term>,
+{
     let mut expr = expr.into();
-    alpha_rec(&mut expr, Context::new());
+    alpha_rec::<R>(&mut expr, Context::new());
     expr
 }
 
@@ -94,17 +102,20 @@ pub fn alpha(expr: impl Into<Term>) -> Term {
 /// (λy.λx.x y) x  =>  (λy.λx1.x1 y) x
 /// (λy.y x) x  =>  (λy.y x1) x
 /// (λy.y x)(λy.y x)  =>  (λy.y x)(λy.y x)
-fn alpha_rec(expr: &mut Term, mut ctx: Context) {
+fn alpha_rec<R>(expr: &mut Term, mut ctx: Context)
+where
+    R: AlphaRename,
+{
     match *expr {
         Var(ref mut name) => if ctx.free.contains(name) && !ctx.bound.contains(name) {
-            alpha_convert(name);
+            <R as AlphaRename>::rename(name);
         },
         Lam(VarT(ref mut name), ref mut body) => {
             if ctx.free.contains(name) {
-                alpha_convert(name);
+                <R as AlphaRename>::rename(name);
             };
             ctx.bound.insert(name.to_owned());
-            alpha_rec(body, ctx);
+            alpha_rec::<R>(body, ctx);
         },
         App(ref mut expr1, ref mut expr2) => {
             let traverse1 = if let &Var(ref name1) = &**expr1 {
@@ -118,26 +129,53 @@ fn alpha_rec(expr: &mut Term, mut ctx: Context) {
                 true
             };
             if traverse1 {
-                alpha_rec(expr1, ctx.clone());
+                alpha_rec::<R>(expr1, ctx.clone());
             }
             if traverse2 {
-                alpha_rec(expr2, ctx);
+                alpha_rec::<R>(expr2, ctx);
             }
         },
     }
 }
 
-fn alpha_convert(name: &mut String) {
-    let (index, last) = name
-        .chars()
-        .enumerate()
-        .last()
-        .expect("A name should never be empty");
-    if let Some(digit) = last.to_digit(10) {
-        name.remove(index);
-        name.push_str(&(digit + 1).to_string());
-    } else {
-        name.push('1');
+/// Defines a strategy for renaming variables during [α-reduction] of terms.
+///
+/// A possible implementations may choose the next letter in the alphabet for
+/// single character names. Another strategy may be to enumerate the variables
+/// by appending an increasing number. As a third example for an implementation
+/// is appending a tick symbol to the variable name.
+///
+/// [α-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B1-conversion
+pub trait AlphaRename {
+    fn rename(name: &mut String);
+}
+
+/// Implementation of `AlphaRename` that appends an increasing number to the
+/// name.
+///
+/// If the given name ends with a number this number is replaced by the number
+/// increased by one. If the last character is a letter the digit 1 is appended.
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct Enumerate;
+
+impl AlphaRename for Enumerate {
+    fn rename(name: &mut String) {
+        let digits = name
+            .chars()
+            .rev()
+            .take_while(char::is_ascii_digit)
+            .collect::<String>()
+            .chars()
+            .rev()
+            .collect::<String>();
+        // digits should be either a parsable number or an empty string
+        if let Ok(number) = digits.parse::<usize>() {
+            let index = name.len() - digits.len();
+            name.drain(index..);
+            name.extend((number + 1).to_string().chars());
+        } else {
+            name.push('1');
+        }
     }
 }
 
@@ -167,9 +205,12 @@ impl Context {
 /// expression with the substitution applied is returned.
 ///
 /// [substitution]: https://en.wikipedia.org/wiki/Lambda_calculus#Substitution
-pub fn substitute(expr: impl Into<Term>, var: &VarT, repl: &Term) -> Term {
+pub fn substitute<R>(expr: impl Into<Term>, var: &VarT, repl: &Term) -> Term
+where
+    R: AlphaRename,
+{
     let mut t_expr = app(expr.into(), repl.clone().into());
-    alpha_rec(&mut t_expr, Context::new());
+    alpha_rec::<R>(&mut t_expr, Context::new());
     if let App(mut a_expr, _) = t_expr {
         substitute_rec(&mut a_expr, var, repl);
         *a_expr
@@ -212,9 +253,12 @@ fn substitute_rec(expr: &mut Term, var: &VarT, repl: &Term) {
 /// When `expr` is an owned `Term` the given expression is modified in place
 /// and returned again. When called with a reference to a `Term` a cloned
 /// expression with the substitution applied is returned.
-pub fn apply(expr: impl Into<Term>, subst: &Term) -> Term {
+pub fn apply<R>(expr: impl Into<Term>, subst: &Term) -> Term
+where
+    R: AlphaRename,
+{
     let mut t_expr = app(expr.into(), subst.clone().into());
-    alpha_rec(&mut t_expr, Context::new());
+    alpha_rec::<R>(&mut t_expr, Context::new());
     if let App(mut a_expr, _) = t_expr {
         apply_rec(&mut a_expr, subst, "");
         *a_expr
@@ -254,8 +298,12 @@ where
     <S as BetaReduce>::reduce(expr)
 }
 
-/// Defines a [reduction strategy] for β-reduction of terms.
+/// Defines a strategy for [β-reduction] of terms.
 ///
+/// Possible implementations may follow the strategies described in the
+/// [reduction strategy] article on wikipedia.
+///
+/// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
 /// [reduction strategy]: https://en.wikipedia.org/wiki/Reduction_strategy_(lambda_calculus)
 pub trait BetaReduce {
     /// Performs a β-reduction of the given `Term` and returns the result.
@@ -270,27 +318,32 @@ pub trait BetaReduce {
 ///
 /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
-pub struct CallByName;
+pub struct CallByName<R> {
+    _alpha_rename: PhantomData<R>,
+}
 
-impl BetaReduce for CallByName {
+impl<R> BetaReduce for CallByName<R>
+where
+    R: AlphaRename,
+{
     /// Performs a β-reduction on a given lambda expression applying a
     /// call-by-name strategy.
     fn reduce(expr: impl Into<Term>) -> Term {
         let mut b_term = expr.into();
-        alpha_rec(&mut b_term, Context::new());
-        CallByName::reduce_rec(&mut b_term, "");
+        alpha_rec::<R>(&mut b_term, Context::new());
+        CallByName::<R>::reduce_rec(&mut b_term, "");
         b_term
     }
 }
 
-impl CallByName {
+impl<R> CallByName<R> {
     fn reduce_rec(expr: &mut Term, bound: &str) {
         match *expr {
             App(ref mut expr1, ref expr2) => {
-                CallByName::reduce_rec(expr1, bound);
+                CallByName::<R>::reduce_rec(expr1, bound);
                 if expr1.is_beta_redex() {
                     apply_rec(expr1, expr2, bound);
-                    CallByName::reduce_rec(expr1, bound);
+                    CallByName::<R>::reduce_rec(expr1, bound);
                 }
             },
             _ => {},
@@ -302,31 +355,36 @@ impl CallByName {
 ///
 /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
-pub struct NormalOrder;
+pub struct NormalOrder<R> {
+    _alpha_rename: PhantomData<R>,
+}
 
-impl BetaReduce for NormalOrder {
+impl<R> BetaReduce for NormalOrder<R>
+where
+    R: AlphaRename,
+{
     /// Performs a β-reduction on a given lambda expression applying a
     /// normal-order strategy.
     fn reduce(expr: impl Into<Term>) -> Term {
         let mut b_term = expr.into();
-        alpha_rec(&mut b_term, Context::new());
-        NormalOrder::reduce_rec(&mut b_term, "");
+        alpha_rec::<R>(&mut b_term, Context::new());
+        NormalOrder::<R>::reduce_rec(&mut b_term, "");
         b_term
     }
 }
 
-impl NormalOrder {
+impl<R> NormalOrder<R> {
     fn reduce_rec(expr: &mut Term, bound: &str) {
         match *expr {
-            Lam(ref param, ref mut body) => NormalOrder::reduce_rec(body, param.as_ref()),
+            Lam(ref param, ref mut body) => NormalOrder::<R>::reduce_rec(body, param.as_ref()),
             App(ref mut expr1, ref mut expr2) => {
-                CallByName::reduce_rec(expr1, bound);
+                CallByName::<R>::reduce_rec(expr1, bound);
                 if expr1.is_beta_redex() {
                     apply_rec(expr1, expr2, bound);
-                    NormalOrder::reduce_rec(expr1, bound);
+                    NormalOrder::<R>::reduce_rec(expr1, bound);
                 } else {
-                    NormalOrder::reduce_rec(expr1, bound);
-                    NormalOrder::reduce_rec(expr2, bound);
+                    NormalOrder::<R>::reduce_rec(expr1, bound);
+                    NormalOrder::<R>::reduce_rec(expr2, bound);
                 }
             },
             _ => {},
