@@ -3,6 +3,8 @@ extern crate config;
 extern crate failure;
 extern crate rustyline;
 
+extern crate lamcal;
+
 mod settings;
 
 mod build {
@@ -18,6 +20,8 @@ use std::path::PathBuf;
 use colored::*;
 use failure::{Context, Error};
 use rustyline::Editor;
+
+use lamcal::{expression, Parser};
 
 use settings::Settings;
 
@@ -132,23 +136,37 @@ fn stop(prompt: impl ToString) -> Continuation {
 }
 
 fn print_error(error: impl Display) {
-    println!("{} {}", PROMPT_HEAD, format!("error: {}", error).red())
+    println!("{}{}", PROMPT_HEAD, format!("error: {}", error).red())
 }
 
 fn print_warning(warning: impl Display) {
     println!(
-        "{} {}",
+        "{}{}",
         PROMPT_HEAD,
         format!("warning: {}", warning).yellow()
     )
 }
 
 fn print_info(info: impl Display) {
-    println!("{} {}", PROMPT_HEAD, format!("{}", info).blue())
+    println!("{}{}", PROMPT_HEAD, format!("{}", info).blue())
 }
 
 fn evaluate_expression(line: &str) -> Continuation {
-    unimplemented!()
+    match expression().parse(line) {
+        Ok((mut expr, "")) => {
+            expr.reduce();
+            print_info(expr);
+        },
+        Ok((mut expr, rest)) => {
+            expr.reduce();
+            print_info(expr);
+            print_warning(rest);
+        },
+        Err(err) => {
+            print_error(err);
+        },
+    }
+    next("")
 }
 
 fn process_command(line: &str) -> Continuation {

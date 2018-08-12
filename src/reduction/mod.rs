@@ -78,7 +78,7 @@ impl Term {
     ///
     /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
     pub fn reduce(&mut self) {
-        unimplemented!()
+        NormalOrder::<Enumerate>::reduce_rec(self, "")
     }
 }
 
