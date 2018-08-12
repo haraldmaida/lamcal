@@ -5,21 +5,31 @@ extern crate rustyline;
 
 mod settings;
 
+mod build {
+    pub const NAME: &str = env!("CARGO_PKG_NAME");
+    pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+}
+
 use std::env;
+use std::fmt::Display;
 use std::fs;
 use std::path::PathBuf;
 
+use colored::*;
 use failure::{Context, Error};
 use rustyline::Editor;
 
 use settings::Settings;
 
+const PROMPT_HEAD: &str = "λ> ";
+
 fn main() {
+    print_info(welcome_message());
     let settings = if let Ok(settings_file) = settings_file() {
         match Settings::default().merge(&settings_file) {
             Ok(settings) => settings,
             Err(err) => {
-                println!("error: {}", err);
+                print_error(err);
                 return;
             },
         }
@@ -32,11 +42,10 @@ fn main() {
     rl.set_history_max_len(settings.history.max_len);
     match history_file() {
         Ok(history_file) => if let Err(err) = rl.load_history(&history_file) {
-            println!("warning: {}", err);
+            print_warning(err);
         },
-        Err(err) => println!("warning: {}", err),
+        Err(err) => print_warning(err),
     }
-    const PROMPT_HEAD: &str = "λ> ";
     let mut prompt = PROMPT_HEAD.to_owned();
     loop {
         match rl.readline(&prompt) {
@@ -57,16 +66,16 @@ fn main() {
                 }
             },
             Err(err) => {
-                println!("{}", err);
+                print_error(err);
                 break;
             },
         }
     }
     match history_file() {
         Ok(history_file) => if let Err(err) = rl.save_history(&history_file) {
-            println!("error: {}", err);
+            print_error(err);
         },
-        Err(err) => println!("error: {}", err),
+        Err(err) => print_error(err),
     };
     println!("{}", prompt);
 }
@@ -108,18 +117,34 @@ enum Processing {
     Stop,
 }
 
-fn next(prompt: String) -> Continuation {
+fn next(prompt: impl ToString) -> Continuation {
     Continuation {
         processing: Processing::Continue,
-        prompt,
+        prompt: prompt.to_string(),
     }
 }
 
-fn stop(prompt: String) -> Continuation {
+fn stop(prompt: impl ToString) -> Continuation {
     Continuation {
         processing: Processing::Stop,
-        prompt,
+        prompt: prompt.to_string(),
     }
+}
+
+fn print_error(error: impl Display) {
+    println!("{} {}", PROMPT_HEAD, format!("error: {}", error).red())
+}
+
+fn print_warning(warning: impl Display) {
+    println!(
+        "{} {}",
+        PROMPT_HEAD,
+        format!("warning: {}", warning).yellow()
+    )
+}
+
+fn print_info(info: impl Display) {
+    println!("{} {}", PROMPT_HEAD, format!("{}", info).blue())
 }
 
 fn evaluate_expression(line: &str) -> Continuation {
@@ -128,10 +153,26 @@ fn evaluate_expression(line: &str) -> Continuation {
 
 fn process_command(line: &str) -> Continuation {
     match line.trim() {
-        ":h" | ":help" => next(help_message()),
-        ":q" | ":quit" => stop(format!("Good bye!")),
-        _ => next(format!("")),
+        ":h" | ":help" => next(help_message().green()),
+        ":q" | ":quit" => stop(format!("Good bye!").green()),
+        ":v" | ":version" => next(version_message().blue()),
+        cmd => {
+            print_error(format!("unknown command `{}`", cmd));
+            next("")
+        },
     }
+}
+
+fn welcome_message() -> String {
+    format!(
+        "Welcome to {}, the Lambda Calculus Repl, version {}",
+        build::NAME,
+        build::VERSION
+    )
+}
+
+fn version_message() -> String {
+    format!("{} version {}", build::NAME, build::VERSION)
 }
 
 fn help_message() -> String {
