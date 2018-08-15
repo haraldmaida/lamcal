@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests;
 
-use combine::char::{char, space, spaces};
+use combine::char::{char, digit, lower, space, spaces};
 use combine::combinator::{between, choice, many, one_of, try};
 pub use combine::{ParseError, Parser, Stream};
 
@@ -83,12 +83,8 @@ where
     I: Stream<Item = char>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    (
-        one_of("abcdefghijklmnopqrstuvwxyz".chars()),
-        many(one_of("abcdefghijklmnopqrstuvwxyz0123456789'".chars())),
-    )
-        .map(|(first, mut rest): (char, String)| {
-            rest.insert(0, first);
-            Var(rest)
-        })
+    (lower(), many(lower().or(digit()).or(char('\'')))).map(|(first, mut rest): (char, String)| {
+        rest.insert(0, first);
+        Var(rest)
+    })
 }
