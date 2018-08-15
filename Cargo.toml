@@ -16,7 +16,7 @@ license = "Apache-2.0"
 maintenance = { status = "experimental" }
 
 [dependencies]
-combine = "3.3"
+combine = "3.5"
 
 [dev-dependencies]
 galvanic-assert = "0.8"
