@@ -205,7 +205,7 @@ mod expression {
 
             let parsed = expression().parse(&input[..]);
 
-            expect_that!(&parsed, eq(Ok((lam(param, var(param)), ""))));
+            prop_assert_eq!(parsed, Ok((lam(param, var(param)), "")));
         }
     }
 
@@ -221,9 +221,9 @@ mod expression {
 
             let parsed = expression().parse(&input[..]);
 
-            expect_that!(
-                &parsed,
-                eq(Ok((lam(param2, lam(param1, app(var(param2), var(param1)))), "")))
+            prop_assert_eq!(
+                parsed,
+                Ok((lam(param2, lam(param1, app(var(param2), var(param1)))), ""))
             );
         }
     }
@@ -240,9 +240,9 @@ mod expression {
 
             let parsed = expression().parse(&input[..]);
 
-            expect_that!(
-                &parsed,
-                eq(Ok((app(lam(param1, app(var(param1), var(param2))), var(param2)), "")))
+            prop_assert_eq!(
+                parsed,
+                Ok((app(lam(param1, app(var(param1), var(param2))), var(param2)), ""))
             );
         }
     }
@@ -259,9 +259,9 @@ mod expression {
 
             let parsed = expression().parse(&input[..]);
 
-            expect_that!(
-                &parsed,
-                eq(Ok((app(lam(param1, app(var(param1), var(param1))), lam(param2, var(param2))), "")))
+            prop_assert_eq!(
+                parsed,
+                Ok((app(lam(param1, app(var(param1), var(param1))), lam(param2, var(param2))), ""))
             );
         }
     }
@@ -278,9 +278,9 @@ mod expression {
 
             let parsed = expression().parse(&input[..]);
 
-            expect_that!(
-                &parsed,
-                eq(Ok((app(lam(param1, app(var(param1), var(param1))), lam(param2, var(param2))), "")))
+            prop_assert_eq!(
+                parsed,
+                Ok((app(lam(param1, app(var(param1), var(param1))), lam(param2, var(param2))), ""))
             );
         }
     }
