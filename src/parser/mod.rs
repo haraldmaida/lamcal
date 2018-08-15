@@ -3,8 +3,8 @@
 #[cfg(test)]
 mod tests;
 
-use combine::char::{char, spaces};
-use combine::combinator::{between, choice, many, one_of};
+use combine::char::{char, space, spaces};
+use combine::combinator::{between, choice, many, one_of, try};
 pub use combine::{ParseError, Parser, Stream};
 
 use term::{Term, Var};
@@ -22,11 +22,12 @@ where
     I: Stream<Item = char>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    choice((
-        abstraction().map(|(param, body)| Term::lam(param, body)),
-        application().map(|(expr1, expr2)| Term::app(expr1, expr2)),
-        variable().map(From::from),
-    )).skip(spaces())
+    spaces()
+        .with(choice((
+            abstraction().map(|(param, body)| Term::lam(param, body)),
+            application().map(|(expr1, expr2)| Term::app(expr1, expr2)),
+            variable().map(From::from),
+        ))).skip(spaces())
 }
 
 parser!{
@@ -42,7 +43,12 @@ where
     I: Stream<Item = char>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    (one_of("λ\\".chars()), variable(), char('.'), expression())
+    (
+        one_of("λ\\".chars()).skip(spaces()),
+        variable().skip(spaces()),
+        char('.').skip(spaces()),
+        expression(),
+    )
         .map(|(_, input, _, body)| (input, body))
 }
 
@@ -59,10 +65,17 @@ where
     I: Stream<Item = char>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    (
-        between(char('('), char(')'), expression()),
-        spaces().with(expression()),
-    )
+    choice((
+        (
+            between(char('('), char(')'), expression()),
+            spaces().with(expression()),
+        ),
+        try((
+            variable().map(From::from),
+            space(),
+            spaces().with(expression()),
+        )).map(|(var, _, expr)| (var, expr)),
+    ))
 }
 
 pub fn variable<I>() -> impl Parser<Input = I, Output = Var>
