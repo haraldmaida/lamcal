@@ -3,8 +3,10 @@
 #[cfg(test)]
 mod tests;
 
-use combine::char::{char, digit, lower, space, spaces};
-use combine::combinator::{between, choice, many, one_of, try};
+use std::iter::IntoIterator;
+
+use combine::char::{char, digit, lower, spaces};
+use combine::combinator::{between, choice, many, many1, one_of, try};
 pub use combine::{ParseError, Parser, Stream};
 
 use term::{Term, Var};
@@ -22,12 +24,17 @@ where
     I: Stream<Item = char>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    spaces()
-        .with(choice((
-            abstraction().map(|(param, body)| Term::lam(param, body)),
-            application().map(|(expr1, expr2)| Term::app(expr1, expr2)),
-            variable().map(From::from),
-        ))).skip(spaces())
+    many1(spaces().with(choice((
+        try(abstraction().map(|(param, body)| Term::lam(param, body))),
+        try(application().map(|(expr1, expr2)| Term::app(expr1, expr2))),
+        try(variable().map(From::from)),
+    )))).map(|seq: Vec<Term>| {
+        seq.into_iter()
+            .fold(None, |acc, expr2| match acc {
+                Some(expr1) => Some(Term::app(expr1, expr2)),
+                None => Some(expr2),
+            }).unwrap()
+    })
 }
 
 parser!{
@@ -44,10 +51,10 @@ where
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
     (
-        one_of("λ\\".chars()).skip(spaces()),
-        variable().skip(spaces()),
-        char('.').skip(spaces()),
-        expression(),
+        spaces().with(one_of("λ\\".chars())),
+        spaces().with(variable()),
+        spaces().with(char('.')),
+        spaces().with(expression()),
     )
         .map(|(_, input, _, body)| (input, body))
 }
@@ -65,17 +72,10 @@ where
     I: Stream<Item = char>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    choice((
-        (
-            between(char('('), char(')'), expression()),
-            spaces().with(expression()),
-        ),
-        try((
-            variable().map(From::from),
-            space(),
-            spaces().with(expression()),
-        )).map(|(var, _, expr)| (var, expr)),
-    ))
+    (
+        spaces().with(between(char('('), char(')'), spaces().with(expression()))),
+        spaces().with(expression().skip(spaces())),
+    )
 }
 
 pub fn variable<I>() -> impl Parser<Input = I, Output = Var>
@@ -83,8 +83,10 @@ where
     I: Stream<Item = char>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    (lower(), many(lower().or(digit()).or(char('\'')))).map(|(first, mut rest): (char, String)| {
-        rest.insert(0, first);
-        Var(rest)
-    })
+    spaces().with((lower(), many(lower().or(digit()).or(char('\'')))).map(
+        |(first, mut rest): (char, String)| {
+            rest.insert(0, first);
+            Var(rest)
+        },
+    ))
 }

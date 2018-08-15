@@ -180,6 +180,23 @@ mod expression {
 
     proptest! {
         #[test]
+        fn parse_sequence_of_three_variables(
+            name1 in "[a-z][a-z0-9]*'*",
+            name2 in "[a-z][a-z0-9]*'*",
+            name3 in "[a-z][a-z0-9]*'*"
+        ) {
+            let name1 = &name1[..];
+            let name2 = &name2[..];
+            let name3 = &name3[..];
+            let input = format!("{} {} {}", name1, name2, name3);
+            let parsed = expression().parse(&input[..]);
+
+            prop_assert_eq!(parsed, Ok((app(app(var(name1), var(name2)), var(name3)), "")));
+        }
+    }
+
+    proptest! {
+        #[test]
         fn parse_identity(
             name in "[a-z][a-z0-9]*'*"
         ) {
@@ -257,7 +274,7 @@ mod expression {
         ) {
             let param1 = &name1[..];
             let param2 = &name2[..];
-            let input = format!(" (  λ {} .  {}   {} )\t λ  {}  . {}  ", param1, param1, param1, param2, param2);
+            let input = format!(" (  λ {} .  {}   {} )\t λ  {}  . {}", param1, param1, param1, param2, param2);
 
             let parsed = expression().parse(&input[..]);
 
