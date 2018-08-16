@@ -6,10 +6,20 @@ mod tests;
 use std::iter::IntoIterator;
 
 use combine::char::{char, digit, lower, spaces};
-use combine::combinator::{between, choice, many, many1, one_of, try};
-pub use combine::{ParseError, Parser, Stream};
+use combine::combinator::{between, choice, many, many1, one_of, satisfy};
+use combine::stream::state::{DefaultPositioned, Positioner, SourcePosition, State};
+pub use combine::{ParseError, Parser, Stream, StreamOnce};
 
 use term::{Term, Var};
+//
+//pub fn parse<I>(input: I) -> Result<Term, I::Error>
+//where
+//    I: Stream<Item = char> + StreamOnce<Item = char, Position =
+// SourcePosition> + DefaultPositioned,    I::Positioner: Positioner<char>,
+//    I::Error: ParseError<char, I::Range, SourcePosition>,
+//{
+//    expression().parse(State::new(input))
+//}
 
 parser!{
     pub fn expression[I]()(I) -> Term
@@ -25,9 +35,9 @@ where
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
     many1(spaces().with(choice((
-        try(abstraction().map(|(param, body)| Term::lam(param, body))),
-        try(application().map(|(expr1, expr2)| Term::app(expr1, expr2))),
-        try(variable().map(From::from)),
+        variable().map(From::from),
+        abstraction().map(|(param, body)| Term::lam(param, body)),
+        application().map(|(expr1, expr2)| Term::app(expr1, expr2)),
     )))).map(|seq: Vec<Term>| {
         seq.into_iter()
             .fold(None, |acc, expr2| match acc {
@@ -51,7 +61,7 @@ where
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
     (
-        spaces().with(one_of("λ\\".chars())),
+        one_of("λ\\".chars()),
         spaces().with(variable()),
         spaces().with(char('.')),
         spaces().with(expression()),
@@ -73,8 +83,12 @@ where
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
     (
-        spaces().with(between(char('('), char(')'), spaces().with(expression()))),
-        spaces().with(expression().skip(spaces())),
+        between(
+            char('('),
+            char(')'),
+            spaces().with(expression().skip(spaces().silent())),
+        ),
+        spaces().with(expression()),
     )
 }
 
@@ -83,10 +97,13 @@ where
     I: Stream<Item = char>,
     I::Error: ParseError<I::Item, I::Range, I::Position>,
 {
-    spaces().with((lower(), many(lower().or(digit()).or(char('\'')))).map(
-        |(first, mut rest): (char, String)| {
+    (
+        satisfy(|c: char| c.is_lowercase() && c != 'λ' && c != '\\')
+            .expected("a lower case letter, but not 'λ' or '\'"),
+        many(lower().or(digit()).or(char('\''))),
+    )
+        .map(|(first, mut rest): (char, String)| {
             rest.insert(0, first);
             Var(rest)
-        },
-    ))
+        })
 }
