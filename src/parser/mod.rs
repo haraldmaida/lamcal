@@ -211,21 +211,12 @@ where
     }
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn pos(line: usize, column: usize) -> CharPosition {
     CharPosition {
         line,
         column,
         newline: false,
-    }
-}
-
-#[allow(dead_code)]
-pub fn posn(line: usize, column: usize, newline: bool) -> CharPosition {
-    CharPosition {
-        line,
-        column,
-        newline,
     }
 }
 
@@ -303,7 +294,14 @@ pub enum Token {
 
 impl Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        unimplemented!()
+        let display = match *self {
+            Lambda => "lambda",
+            Dot => "'.'",
+            LParen => "'('",
+            RParen => "')'",
+            Identifier(_) => "identifier",
+        };
+        write!(f, "{}", display)
     }
 }
 
