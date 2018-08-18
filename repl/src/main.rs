@@ -135,27 +135,27 @@ fn stop(prompt: impl ToString) -> Continuation {
     }
 }
 
+fn print(text: impl Display) {
+    println!("{}", text)
+}
+
 fn print_error(error: impl Display) {
-    println!("{}{}", PROMPT_HEAD, format!("error: {}", error).red())
+    println!("{} {}", "error:".red(), error)
 }
 
 fn print_warning(warning: impl Display) {
-    println!(
-        "{}{}",
-        PROMPT_HEAD,
-        format!("warning: {}", warning).yellow()
-    )
+    println!("{} {}", "warning:".yellow(), warning)
 }
 
 fn print_info(info: impl Display) {
-    println!("{}{}", PROMPT_HEAD, format!("{}", info).blue())
+    println!("{} {}", "info:".blue(), info)
 }
 
 fn evaluate_expression(line: &str) -> Continuation {
     match parse(line.chars()) {
         Ok(mut expr) => {
             expr.reduce();
-            print_info(expr);
+            print(expr);
         },
         Err(err) => {
             print_error(err);
