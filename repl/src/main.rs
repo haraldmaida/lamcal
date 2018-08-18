@@ -81,7 +81,6 @@ fn main() {
         },
         Err(err) => print_error(err),
     };
-    println!("{}", prompt);
 }
 
 fn app_dir() -> Result<PathBuf, Error> {
