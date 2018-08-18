@@ -161,7 +161,7 @@ where
                             position,
                             token,
                             "the '.' character as start of the lambda body",
-                            "a lambda expression must contain a body, that is an expression following the '.' character",
+                            "a lambda abstraction must contain a body, that is an expression following the '.' character",
                         ))
                     },
                     None => {
@@ -170,7 +170,7 @@ where
                             position,
                             "end of input",
                             "the '.' character as start of the lambda body",
-                            "a lambda expression must contain a body, that is an expression following the '.' character",
+                            "a lambda abstraction must contain a body, that is an expression following the '.' character",
                         ))
                     }
                 }
@@ -254,6 +254,12 @@ impl Default for CharPosition {
             column: 0,
             newline: true,
         }
+    }
+}
+
+impl Display for CharPosition {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}:{}", self.line, self.column)
     }
 }
 
@@ -352,7 +358,14 @@ impl ParseError {
 
 impl Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        unimplemented!()
+        writeln!(f, "[{}]: {}", self.kind, self.kind.explain())?;
+        writeln!(f, "      {}\tfound:   \t{}", self.position, self.found)?;
+        writeln!(f, "        \texpected:\t{}", self.expected)?;
+        if !self.hint.is_empty() {
+            writeln!(f, "      hint: {}", self.hint)
+        } else {
+            write!(f, "")
+        }
     }
 }
 
@@ -365,4 +378,28 @@ pub enum ErrorKind {
     LambdaHeadExpected,
     UnexpectedEndOfInput,
     UnexpectedToken,
+}
+
+impl Display for ErrorKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl ErrorKind {
+    pub fn explain(&self) -> &str {
+        match *self {
+            EmptyExpression => "can not parse empty expression",
+            IdentifierExpected => "expected a valid identifier",
+            InvalidCharacter => "invalid character found",
+            LambdaBodyExpected => {
+                "expected a '.' character as start of the body of the lambda abstraction"
+            },
+            LambdaHeadExpected => {
+                "expected an identifier as bound variable in the lambda abstraction"
+            },
+            UnexpectedEndOfInput => "unexpected end of input",
+            UnexpectedToken => "unexpected token found",
+        }
+    }
 }
