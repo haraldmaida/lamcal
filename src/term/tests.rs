@@ -7,11 +7,11 @@ mod var {
     proptest! {
         #[test]
         fn display_string_is_the_variable_name(
-            variable in "[a-z][a-z0-9]*"
+            name in "[a-z][a-z0-9_']*"
         ) {
-            let display = Var(variable.to_string()).to_string();
+            let display = Var(name.to_string()).to_string();
 
-            prop_assert_eq!(display, variable);
+            prop_assert_eq!(display, name);
         }
     }
 }
@@ -21,37 +21,65 @@ mod term {
     use super::*;
 
     proptest! {
+
         #[test]
         fn display_string_of_a_variable(
-            variable in "[a-z][a-z0-9]*"
+            name in "[a-z][a-z0-9_']*"
         ) {
-            let display = Term::var(variable.to_string()).to_string();
+            let name = &name[..];
 
-            prop_assert_eq!(display, variable);
+            let display = var(name).to_string();
+
+            prop_assert_eq!(display, name);
         }
-    }
 
-    proptest! {
         #[test]
         fn display_string_of_an_abstraction_with_variable_in_body(
-            param in "[a-z][a-z0-9]*",
-            body in "[a-z][a-z0-9]*"
+            param in "[a-z][a-z0-9_']*",
+            body in "[a-z][a-z0-9_']*"
         ) {
-            let display = Term::lam(Var(param.to_string()), Term::var(body.to_string())).to_string();
+            let param = &param[..]; let body = &body[..];
+
+            let display = lam(param, var(body)).to_string();
 
             prop_assert_eq!(display, format!("λ{}.{}", param, body));
         }
-    }
 
-    proptest! {
         #[test]
         fn display_string_of_an_application(
-            expr1 in "\\(λ([a-z][a-z0-9]*)\\.(λ([a-z][a-z0-9]*)\\.)|([a-z][a-z0-9]*)\\)",
-            expr2 in "[a-z][a-z0-9]*"
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
         ) {
-            let display = Term::app(Term::var(expr1.to_string()), Term::var(expr2.to_string())).to_string();
+            let name1 = &name1[..]; let name2 = &name2[..];
 
-            prop_assert_eq!(display, format!("({}) {}", expr1, expr2));
+            let display = app(lam(name1, var(name1)), var(name2)).to_string();
+
+            prop_assert_eq!(display, format!("(λ{}.{}) {}", name1, name1, name2));
+        }
+
+        #[test]
+        fn display_string_of_an_application_omitting_outermost_parens(
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
+        ) {
+            let name1 = &name1[..]; let name2 = &name2[..];
+
+            let display = app(var(name1), var(name2)).to_string();
+
+            prop_assert_eq!(display, format!("{} {}", name1, name2));
+        }
+
+        #[test]
+        fn display_string_of_an_application_omitting_parens_in_abtraction_body(
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
+            name3 in "[a-z][a-z0-9_']*",
+        ) {
+            let name1 = &name1[..]; let name2 = &name2[..]; let name3 = &name3[..];
+
+            let display = app(lam(name1, app(var(name1), var(name2))), var(name3)).to_string();
+
+            prop_assert_eq!(display, format!("(λ{}.{} {}) {}", name1, name1, name2, name3));
         }
     }
 }

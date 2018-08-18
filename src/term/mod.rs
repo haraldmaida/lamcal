@@ -38,10 +38,14 @@ pub enum Term {
 
 impl Display for Term {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::Term::*;
         match self {
-            Term::Var(name) => write!(f, "{}", name),
-            Term::Lam(param, body) => write!(f, "λ{}.{}", param, body),
-            Term::App(expr1, expr2) => write!(f, "({}) {}", expr1, expr2),
+            Var(name) => write!(f, "{}", name),
+            Lam(param, body) => write!(f, "λ{}.{}", param, body),
+            App(expr1, expr2) => match **expr1 {
+                Lam(_, _) => write!(f, "({}) {}", expr1, expr2),
+                _ => write!(f, "{} {}", expr1, expr2),
+            },
         }
     }
 }
