@@ -359,8 +359,8 @@ impl ParseError {
 impl Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "[{}]: {}", self.kind, self.kind.explain())?;
-        writeln!(f, "   {}\tfound:   \t{}", self.position, self.found)?;
-        writeln!(f, "     \texpected:\t{}", self.expected)?;
+        writeln!(f, "   {}   \t   found:\t{}", self.position, self.found)?;
+        writeln!(f, "        \texpected:\t{}", self.expected)?;
         if !self.hint.is_empty() {
             writeln!(f, "   hint: {}", self.hint)
         } else {

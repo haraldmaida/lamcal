@@ -56,7 +56,7 @@ fn main() {
             Ok(line) => {
                 rl.add_history_entry(&line);
                 let continuation = if line.is_empty() {
-                    next(format!(""))
+                    next(PROMPT_HEAD.to_owned())
                 } else if line.starts_with(':') {
                     process_command(&line)
                 } else {
@@ -121,14 +121,14 @@ enum Processing {
     Stop,
 }
 
-fn next(prompt: impl ToString) -> Continuation {
+fn next(prompt: impl Display) -> Continuation {
     Continuation {
         processing: Processing::Continue,
         prompt: prompt.to_string(),
     }
 }
 
-fn stop(prompt: impl ToString) -> Continuation {
+fn stop(prompt: impl Display) -> Continuation {
     Continuation {
         processing: Processing::Stop,
         prompt: prompt.to_string(),
@@ -140,15 +140,15 @@ fn print(text: impl Display) {
 }
 
 fn print_error(error: impl Display) {
-    println!("{} {}", "error:".red(), error)
+    println!("{} {}", format!("error:").red(), error)
 }
 
 fn print_warning(warning: impl Display) {
-    println!("{} {}", "warning:".yellow(), warning)
+    println!("{} {}", format!("warning:").yellow(), warning)
 }
 
 fn print_info(info: impl Display) {
-    println!("{} {}", "info:".blue(), info)
+    println!("{} {}", format!("info:").blue(), info)
 }
 
 fn evaluate_expression(line: &str) -> Continuation {
@@ -166,9 +166,18 @@ fn evaluate_expression(line: &str) -> Continuation {
 
 fn process_command(line: &str) -> Continuation {
     match line.trim() {
-        ":h" | ":help" => next(help_message().green()),
-        ":q" | ":quit" => stop(format!("Good bye!").green()),
-        ":v" | ":version" => next(version_message().blue()),
+        ":h" | ":help" => {
+            print(help_message().green());
+            next("")
+        },
+        ":q" | ":quit" => {
+            print(format!("Good bye!").green());
+            stop("")
+        },
+        ":v" | ":version" => {
+            print(version_message().blue());
+            next("")
+        },
         cmd => {
             print_error(format!("unknown command `{}`", cmd));
             next("")
