@@ -211,6 +211,28 @@ where
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Token {
+    Lambda,
+    Dot,
+    LParen,
+    RParen,
+    Identifier(String),
+}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let display = match *self {
+            Lambda => "lambda",
+            Dot => "'.'",
+            LParen => "'('",
+            RParen => "')'",
+            Identifier(_) => "identifier",
+        };
+        write!(f, "{}", display)
+    }
+}
+
 #[cfg(test)]
 pub fn pos(line: usize, column: usize) -> CharPosition {
     CharPosition {
@@ -280,28 +302,6 @@ impl CharPosition {
             },
             _ => {},
         }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Token {
-    Lambda,
-    Dot,
-    LParen,
-    RParen,
-    Identifier(String),
-}
-
-impl Display for Token {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let display = match *self {
-            Lambda => "lambda",
-            Dot => "'.'",
-            LParen => "'('",
-            RParen => "')'",
-            Identifier(_) => "identifier",
-        };
-        write!(f, "{}", display)
     }
 }
 
