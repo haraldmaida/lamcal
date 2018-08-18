@@ -53,7 +53,7 @@ install:
   - docker -v
   - docker-compose -v
 
-build: false
+build: off
 
 test_script:
   - pwd
@@ -63,7 +63,7 @@ test_script:
   - cargo test --lib --all-features --verbose %cargoflags%
   - cargo build --lib --verbose %cargoflags%
   - cargo test --lib --verbose %cargoflags%
-# arangodb docker image not working on windows server 2016 
+# arangodb docker image not working on windows server 2016
 #  - cargo build --verbose %cargoflags%
 #  - cargo test --verbose %cargoflags%
 #  - docker-compose down
