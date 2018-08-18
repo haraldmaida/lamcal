@@ -16,10 +16,9 @@ license = "Apache-2.0"
 maintenance = { status = "experimental" }
 
 [dependencies]
-combine = "3.5"
+failure = "0.1"
 
 [dev-dependencies]
-galvanic-assert = "0.8"
 proptest = "0.8"
 
 [workspace]

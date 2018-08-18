@@ -21,7 +21,7 @@ use colored::*;
 use failure::{Context, Error};
 use rustyline::Editor;
 
-use lamcal::{expression, Parser};
+use lamcal::parse;
 
 use settings::Settings;
 
@@ -152,15 +152,10 @@ fn print_info(info: impl Display) {
 }
 
 fn evaluate_expression(line: &str) -> Continuation {
-    match expression().parse(line) {
-        Ok((mut expr, "")) => {
+    match parse(line.chars()) {
+        Ok(mut expr) => {
             expr.reduce();
             print_info(expr);
-        },
-        Ok((mut expr, rest)) => {
-            expr.reduce();
-            print_info(expr);
-            print_warning(rest);
         },
         Err(err) => {
             print_error(err);

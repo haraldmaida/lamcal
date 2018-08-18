@@ -15,20 +15,17 @@
 
 #[cfg(test)]
 #[macro_use]
-extern crate galvanic_assert;
-#[cfg(test)]
-#[macro_use]
 extern crate proptest;
 
 #[macro_use]
-extern crate combine;
+extern crate failure;
 
 #[macro_use]
 mod term;
 mod parser;
 mod reduction;
 
-pub use self::parser::{expression, ParseError, Parser, Stream};
+pub use self::parser::{parse, parse_str, parse_tokens, tokenize, tokenize_str, ParseError};
 pub use self::reduction::{
     alpha, apply, reduce, substitute, BetaReduce, CallByName, Enumerate, NormalOrder,
 };

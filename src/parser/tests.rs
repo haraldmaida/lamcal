@@ -1,397 +1,442 @@
-use galvanic_assert::matchers::*;
-
-use combine::error::StringStreamError;
-
 use super::*;
 
-mod variable {
+mod tokenize {
 
     use super::*;
 
     #[test]
-    fn parse_empty_string() {
-        let parsed = variable().parse("");
+    fn empty_string() {
+        let input = "";
 
-        assert_that!(&parsed, eq(Err(StringStreamError::UnexpectedParse)));
+        let tokens = tokenize(input.chars());
+
+        assert_eq!(tokens, Ok(vec![]));
     }
 
     proptest! {
-        #[test]
-        fn parse_one_letter_name(
-            name in "[a-z]"
-        ) {
-            let parsed = variable().parse(&name[..]);
 
-            prop_assert_eq!(parsed, Ok((Var(name.to_string()), "")));
+        #[test]
+        fn identifier(
+            name in "[a-z][a-z0-9_']*",
+        ) {
+            let input = format!("{}", name);
+
+            let tokens = tokenize(input.chars());
+
+            prop_assert_eq!(tokens, Ok(vec![(Identifier(name), pos(1, 1))]));
         }
 
         #[test]
-        fn parse_one_digit_name(
-            name in "[0-9]"
+        fn identifier_starting_with_an_invalid_character(
+            name in "[0-9_'][a-z0-9_']*",
         ) {
-            let parsed = variable().parse(&name[..]);
+            let input = format!("{}", name);
 
-            prop_assert_eq!(parsed, Err(StringStreamError::UnexpectedParse));
+            let tokens = tokenize(input.chars());
+
+            prop_assert_eq!(tokens, Err(ParseError::new(
+                InvalidCharacter,
+                pos(1, 1),
+                name.chars().next().unwrap(),
+                "any lower case letter or \'λ\', \'.\', \'(\', \')\'",
+                "",
+            )));
         }
 
         #[test]
-        fn parse_multi_character_name(
-            name in "[a-z][a-z0-9]*'*"
+        fn identifier_surrounded_by_whitespace(
+            name in "[a-z][a-z0-9_']*",
+            pre_whitespace in "[ \\t]+",
+            post_whitespace in "[ \\t]+",
         ) {
-            let parsed = variable().parse(&name[..]);
+            let input = format!("{}{}{}", pre_whitespace, name, post_whitespace);
+            let col = 1 + pre_whitespace.len();
 
-            prop_assert_eq!(parsed, Ok((Var(name.to_string()), "")));
+            let tokens = tokenize(input.chars());
+
+            prop_assert_eq!(tokens, Ok(vec![(Identifier(name), pos(1, col))]));
         }
 
         #[test]
-        fn result_of_to_string_is_parseable_as_variable(
-            name in "[a-z][a-z0-9]*'*"
+        fn lambda_with_bound_identifier(
+            lambda in "[λ\\\\]",
+            name in "[a-z][a-z0-9_']*",
         ) {
-            let expr = Var::new(&name[..]);
+            let input = format!("{}{}", lambda, name);
 
-            let display: String = expr.to_string();
-            let parsed = variable().parse(&display[..]);
+            let tokens = tokenize(input.chars());
 
-            prop_assert_eq!(parsed, Ok((expr, "")));
+            prop_assert_eq!(tokens, Ok(vec![(Lambda, pos(1, 1)), (Identifier(name), pos(1, 2))]));
+        }
+
+        #[test]
+        fn a_sequence_of_two_identifiers(
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
+            whitespace in "[ \\t]+",
+        ) {
+            let input = format!("{}{}{}", name1, whitespace, name2);
+            let col2 = 1 + name1.len() + whitespace.len();
+
+            let tokens = tokenize(input.chars());
+
+            prop_assert_eq!(tokens, Ok(vec![(Identifier(name1), pos(1, 1)), (Identifier(name2), pos(1, col2))]));
+        }
+
+        #[test]
+        fn a_sequence_of_three_identifiers(
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
+            name3 in "[a-z][a-z0-9_']*",
+            whitespace1 in "[ \\t]+",
+            whitespace2 in "[ \\t]+",
+        ) {
+            let input = format!("{}{}{}{}{}", name1, whitespace1, name2, whitespace2, name3);
+            let col2 = 1 + name1.len() + whitespace1.len();
+            let col3 = col2 + name2.len() + whitespace2.len();
+
+            let tokens = tokenize(input.chars());
+
+            prop_assert_eq!(tokens, Ok(vec![(Identifier(name1), pos(1, 1)), (Identifier(name2), pos(1, col2)), (Identifier(name3), pos(1, col3 ))]));
+        }
+
+        #[test]
+        fn a_sequence_of_two_identifiers_with_parens(
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
+            whitespace in "[ \\t]*",
+        ) {
+            let input = format!("({}){}{}", name1, whitespace, name2);
+            let col3 = 2 + name1.len();
+            let col4 = col3 + 1 + whitespace.len();
+
+            let tokens = tokenize(input.chars());
+
+            prop_assert_eq!(tokens, Ok(vec![(LParen, pos(1, 1)), (Identifier(name1), pos(1, 2)), (RParen, pos(1, col3)), (Identifier(name2), pos(1, col4))]));
+        }
+
+        #[test]
+        fn an_identifier_bound_to_an_abstraction(
+            lambda in "[λ\\\\]",
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
+        ) {
+            let input = format!("{}{}.{}", lambda, name1, name2);
+            let col3 = 2 + name1.len();
+            let col4 = col3 + 1;
+
+            let tokens = tokenize(input.chars());
+
+            prop_assert_eq!(tokens, Ok(vec![(Lambda, pos(1, 1)), (Identifier(name1), pos(1, 2)), (Dot, pos(1, col3)), (Identifier(name2), pos(1, col4))]));
+        }
+
+        #[test]
+        fn an_abstraction_with_a_sequence_of_identifiers_in_the_body(
+            lambda in "[λ\\\\]",
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
+            name3 in "[a-z][a-z0-9_']*",
+            whitespace in "[ \\t]+",
+        ) {
+            let input = format!("{}{}.{}{}{}", lambda, name1, name2, whitespace, name3);
+            let col3 = 2 + name1.len();
+            let col4 = col3 + 1;
+            let col5 = col4 + name2.len() + whitespace.len();
+
+            let tokens = tokenize(input.chars());
+
+            prop_assert_eq!(tokens, Ok(vec![(Lambda, pos(1, 1)), (Identifier(name1), pos(1, 2)), (Dot, pos(1, col3)), (Identifier(name2), pos(1, col4)), (Identifier(name3), pos(1, col5))]));
         }
     }
 }
 
-mod abstraction {
+mod parse_tokens {
 
     use super::*;
 
-    use term::{lam, var};
-
     #[test]
-    fn parse_empty_string() {
-        let lambda = abstraction().parse("");
+    fn parse_empty_token_list() {
+        let tokens = vec![];
 
-        assert_that!(&lambda, eq(Err(StringStreamError::UnexpectedParse)));
+        let parsed = parse_tokens(tokens);
+
+        assert_eq!(parsed, Err(ParseError::new(
+            EmptyExpression,
+            CharPosition::default(),
+            "invalid lambda expression",
+            "at least one variable, abstraction or application",
+            "a lambda expression must consist of at least one term, like a variable, an abstraction or an application"
+        )));
     }
+}
+
+mod parse {
+
+    use super::*;
+
+    use term::{app, lam, var};
 
     proptest! {
+
         #[test]
-        fn result_of_to_string_is_parseable_as_abstraction(
-            param in "[a-z][a-z0-9]*'*",
-            body in "[a-z][a-z0-9]*'*"
+        fn result_of_to_string_is_parsable_as_variable(
+            name in "[a-z][a-z0-9_']*",
         ) {
-            let expr: Term = lam(param, var(body));
+            let expr = var(name);
 
-            let display: String = expr.to_string();
-            let parsed = expression().parse(&display[..]);
+            let result = parse(expr.to_string().chars());
 
-            prop_assert_eq!(parsed, Ok((expr, "")));
+            prop_assert_eq!(result, Ok(expr));
         }
-    }
 
-    proptest! {
+        #[test]
+        fn result_of_to_string_is_parsable_as_abstraction(
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
+        ) {
+            let expr = lam(name1, var(name2));
+
+            let result = parse(expr.to_string().chars());
+
+            prop_assert_eq!(result, Ok(expr));
+        }
+
+        #[test]
+        fn result_of_to_string_is_parsable_as_application_of_var_to_lambda(
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
+            name3 in "[a-z][a-z0-9_']*",
+        ) {
+            let expr = app(lam(name1, var(name2)), var(name3));
+
+            let result = parse(expr.to_string().chars());
+
+            prop_assert_eq!(result, Ok(expr));
+        }
+
+        #[test]
+        fn result_of_to_string_is_parsable_as_application_of_lambda_to_lambda(
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
+            name3 in "[a-z][a-z0-9_']*",
+            name4 in "[a-z][a-z0-9_']*",
+        ) {
+            let expr = app(lam(name1, var(name2)), lam(name3, var(name4)));
+
+            let result = parse(expr.to_string().chars());
+
+            prop_assert_eq!(result, Ok(expr));
+        }
+
+        #[test]
+        fn result_of_to_string_is_parsable_as_application_of_var_to_var(
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
+        ) {
+            let expr = app(var(name1), var(name2));
+
+            let result = parse(expr.to_string().chars());
+
+            prop_assert_eq!(result, Ok(expr));
+        }
+
+        #[test]
+        fn result_of_to_string_is_parsable_as_application_of_var_to_application(
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
+            name3 in "[a-z][a-z0-9_']*",
+        ) {
+            let expr = app(app(var(name1), var(name2)), var(name3));
+
+            let result = parse(expr.to_string().chars());
+
+            prop_assert_eq!(result, Ok(expr));
+        }
+
         #[test]
         fn ignores_whitespace_between_lambda_and_bound_variable(
-            whitespace in "[\\s]*",
-            param in "[a-z][a-z0-9]*'*",
-            body in "[a-z][a-z0-9]*'*"
+            whitespace in "[\\s]+",
+            param in "[a-z][a-z0-9_']*",
+            body in "[a-z][a-z0-9_']*",
         ) {
             let input = format!("λ{}{}.{}", whitespace, param, body);
 
-            let bound = Var::new(param.to_string());
-            let expr = var(body);
+            let parsed = parse(input.chars());
 
-            let parsed = abstraction().parse(&input[..]);
-
-            prop_assert_eq!(parsed, Ok(((bound, expr), "")));
+            prop_assert_eq!(parsed, Ok(lam(param, var(body))));
         }
-    }
 
-    proptest! {
         #[test]
-        fn ignores_whitespace_between_dot_and_body(
-            whitespace in "[\\s]*",
-            param in "[a-z][a-z0-9]*'*",
-            body in "[a-z][a-z0-9]*'*"
+        fn ignores_whitespace_between_bound_variable_and_dot(
+            whitespace in "[\\s]+",
+            param in "[a-z][a-z0-9_']*",
+            body in "[a-z][a-z0-9_']*",
+        ) {
+            let input = format!("λ{}{}.{}", param, whitespace, body);
+
+            let parsed = parse(input.chars());
+
+            prop_assert_eq!(parsed, Ok(lam(param, var(body))));
+        }
+
+        #[test]
+        fn ignores_whitespace_between_dot_and_abstraction_body(
+            whitespace in "[\\s]+",
+            param in "[a-z][a-z0-9_']*",
+            body in "[a-z][a-z0-9_']*",
         ) {
             let input = format!("λ{}.{}{}", param, whitespace, body);
 
-            let bound = Var::new(param.to_string());
-            let expr = var(body);
+            let parsed = parse(input.chars());
 
-            let parsed = abstraction().parse(&input[..]);
-
-            prop_assert_eq!(parsed, Ok(((bound, expr), "")));
+            prop_assert_eq!(parsed, Ok(lam(param, var(body))));
         }
-    }
-}
 
-mod application {
-
-    use super::*;
-
-    use term::{app, lam, var};
-
-    #[test]
-    fn parse_empty_string() {
-        let application = application().parse("");
-
-        assert_that!(&application, eq(Err(StringStreamError::UnexpectedParse)));
-    }
-
-    proptest! {
         #[test]
-        fn result_of_to_string_is_parseable_as_application_of_var_to_lambda(
-            param in "[a-z][a-z0-9]*'*",
-            body in "[a-z][a-z0-9]*'*",
-            name in "[a-z][a-z0-9]*'*"
-        ) {
-            let expr: Term = app(lam(param, var(body)), var(name));
-
-            let display: String = expr.to_string();
-            let parsed = expression().parse(&display[..]);
-
-            prop_assert_eq!(parsed, Ok((expr, "")));
-        }
-    }
-
-    proptest! {
-        #[test]
-        fn result_of_to_string_is_parseable_as_application_of_var_to_var(
-            name1 in "[a-z][a-z0-9]*'*",
-            name2 in "[a-z][a-z0-9]*'*"
-        ) {
-            let expr: Term = app(var(name1), var(name2));
-
-            let display: String = expr.to_string();
-            let parsed = expression().parse(&display[..]);
-
-            prop_assert_eq!(parsed, Ok((expr, "")));
-        }
-    }
-
-    proptest! {
-        #[test]
-        fn result_of_to_string_is_parseable_as_application_of_lambda_to_lambda(
-            param1 in "[a-z][a-z0-9]*'*",
-            body1 in "[a-z][a-z0-9]*'*",
-            param2 in "[a-z][a-z0-9]*'*",
-            body2 in "[a-z][a-z0-9]*'*"
-        ) {
-            let lambda1: Term = lam(param1, var(body1));
-            let lambda2: Term = lam(param2, var(body2));
-            let expr: Term = app(lambda1, lambda2);
-
-            let display: String = expr.to_string();
-            let parsed = expression().parse(&display[..]);
-
-            prop_assert_eq!(parsed, Ok((expr, "")));
-        }
-    }
-
-    proptest! {
-        #[test]
-        fn ignores_whitespace_between_open_paren_and_expression(
-            whitespace in "[\\s]*",
-            param in "[a-z][a-z0-9]*'*",
-            body in "[a-z][a-z0-9]*'*",
-            name in "[a-z][a-z0-9]*'*"
+        fn ignores_whitespace_between_opening_paren_and_expression(
+            whitespace in "[\\s]+",
+            param in "[a-z][a-z0-9_']*",
+            body in "[a-z][a-z0-9_']*",
+            name in "[a-z][a-z0-9_']*",
         ) {
             let input = format!("({}λ{}.{}){}", whitespace, param, body, name);
 
-            let expr1 = lam(param, var(body));
-            let expr2 = var(name);
+            let parsed = parse(input.chars());
 
-            let parsed = application().parse(&input[..]);
-
-            prop_assert_eq!(parsed, Ok(((expr1, expr2), "")));
+            prop_assert_eq!(parsed, Ok(app(lam(param, var(body)), var(name))));
         }
-    }
 
-    proptest! {
         #[test]
         fn ignores_whitespace_between_expression_and_closing_paren(
-            whitespace in "[\\s]*",
-            param in "[a-z][a-z0-9]*'*",
-            body in "[a-z][a-z0-9]*'*",
-            name in "[a-z][a-z0-9]*'*"
+            whitespace in "[\\s]+",
+            param in "[a-z][a-z0-9_']*",
+            body in "[a-z][a-z0-9_']*",
+            name in "[a-z][a-z0-9_']*",
         ) {
             let input = format!("(λ{}.{}{}){}", param, body, whitespace, name);
 
-            let expr1 = lam(param, var(body));
-            let expr2 = var(name);
+            let parsed = parse(input.chars());
 
-            let parsed = application().parse(&input[..]);
-
-            prop_assert_eq!(parsed, Ok(((expr1, expr2), "")));
+            prop_assert_eq!(parsed, Ok(app(lam(param, var(body)), var(name))));
         }
-    }
 
-    proptest! {
         #[test]
         fn ignores_whitespace_between_closing_paren_and_expr2(
-            whitespace in "[\\s]*",
-            param in "[a-z][a-z0-9]*'*",
-            body in "[a-z][a-z0-9]*'*",
-            name in "[a-z][a-z0-9]*'*"
+            whitespace in "[\\s]+",
+            param in "[a-z][a-z0-9_']*",
+            body in "[a-z][a-z0-9_']*",
+            name in "[a-z][a-z0-9_']*",
         ) {
             let input = format!("(λ{}.{}){}{}", param, body, whitespace, name);
 
-            let expr1 = lam(param, var(body));
-            let expr2 = var(name);
+            let parsed = parse(input.chars());
 
-            let parsed = application().parse(&input[..]);
-
-            prop_assert_eq!(parsed, Ok(((expr1, expr2), "")));
+            prop_assert_eq!(parsed, Ok(app(lam(param, var(body)), var(name))));
         }
-    }
-}
 
-mod expression {
-
-    use super::*;
-
-    use term::{app, lam, var};
-
-    #[test]
-    fn parse_empty_string() {
-        let expr = expression().parse("");
-
-        assert_that!(&expr, eq(Err(StringStreamError::UnexpectedParse)));
-    }
-
-    proptest! {
         #[test]
-        fn parse_variable_name(
-            name in "[a-z][a-z0-9]*'*"
+        fn parse_variable(
+            name in "[a-z][a-z0-9_']*",
         ) {
-            let parsed = expression().parse(&name[..]);
+            let input = format!("{}", name);
 
-            prop_assert_eq!(parsed, Ok((var(&name[..]), "")));
+            let parsed = parse(input.chars());
+
+            prop_assert_eq!(parsed, Ok(var(name)));
         }
-    }
 
-    proptest! {
+        #[test]
+        fn parse_variable_surrounded_by_whitespace(
+            name in "[a-z][a-z0-9_']*",
+            whitespace1 in "[\\s]*",
+            whitespace2 in "[\\s]*",
+        ) {
+            let input = format!("{}{}{}", whitespace1, name, whitespace2);
+
+            let parsed = parse(input.chars());
+
+            prop_assert_eq!(parsed, Ok(var(name)));
+        }
+
+        #[test]
+        fn parse_sequence_of_two_variables(
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
+            separator in "[\\s]+",
+        ) {
+            let input = format!("{}{}{}", name1, separator, name2);
+
+            let parsed = parse(input.chars());
+
+            prop_assert_eq!(parsed, Ok(app(var(name1), var(name2))));
+        }
+
         #[test]
         fn parse_sequence_of_three_variables(
-            name1 in "[a-z][a-z0-9]*'*",
-            name2 in "[a-z][a-z0-9]*'*",
-            name3 in "[a-z][a-z0-9]*'*"
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
+            name3 in "[a-z][a-z0-9_']*",
+            separator1 in "[\\s]+",
+            separator2 in "[\\s]+",
         ) {
-            let name1 = &name1[..];
-            let name2 = &name2[..];
-            let name3 = &name3[..];
-            let input = format!("{} {} {}", name1, name2, name3);
-            let parsed = expression().parse(&input[..]);
+            let input = format!("{}{}{}{}{}", name1, separator1, name2, separator2, name3);
 
-            prop_assert_eq!(parsed, Ok((app(app(var(name1), var(name2)), var(name3)), "")));
+            let parsed = parse(input.chars());
+
+            prop_assert_eq!(parsed, Ok(app(app(var(name1), var(name2)), var(name3))));
         }
-    }
 
-    proptest! {
         #[test]
-        fn parse_identity(
-            name in "[a-z][a-z0-9]*'*"
+        fn parse_application_ignoring_leading_whitespace(
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
+            whitespace in "[\\s]+",
         ) {
-            let param = &name[..];
-            let input = format!("λ{}.{}", param, param);
+            let name1 = &name1[..]; let name2 = &name2[..];
+            let input = format!("{}(λ{}.{} {}) λ{}.{}", whitespace, name1, name1, name1, name2, name2);
 
-            let parsed = expression().parse(&input[..]);
+            let parsed = parse(input.chars());
 
-            prop_assert_eq!(parsed, Ok((lam(param, var(param)), "")));
+            prop_assert_eq!(parsed, Ok(app(lam(name1, app(var(name1), var(name1))), lam(name2, var(name2)))));
         }
-    }
 
-    proptest! {
+        #[test]
+        fn parse_application_ignoring_trailing_whitespace(
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
+            whitespace in "[\\s]+",
+        ) {
+            let name1 = &name1[..]; let name2 = &name2[..];
+            let input = format!("(λ{}.{} {}) λ{}.{}{}", name1, name1, name1, name2, name2, whitespace);
+
+            let parsed = parse(input.chars());
+
+            prop_assert_eq!(parsed, Ok(app(lam(name1, app(var(name1), var(name1))), lam(name2, var(name2)))));
+        }
+
+        #[test]
+        fn parse_identity_combinator(
+            name in "[a-z][a-z0-9_']*",
+        ) {
+            let name = &name[..];
+            let input = format!("λ{}.{}", name, name);
+
+            let parsed = parse(input.chars());
+
+            prop_assert_eq!(parsed, Ok(lam(name, var(name))));
+        }
+
         #[test]
         fn parse_abstraction_of_abstraction_with_application_in_body(
-            name1 in "[a-z][a-z0-9]*'*",
-            name2 in "[a-z][a-z0-9]*'*"
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
         ) {
-            let param1 = &name1[..];
-            let param2 = &name2[..];
-            let input = format!("λ{}.λ{}.{} {}", param2, param1, param2, param1);
+            let name1 = &name1[..]; let name2 = &name2[..];
+            let input = format!("λ{}.λ{}.{} {}", name2, name1, name2, name1);
 
-            let parsed = expression().parse(&input[..]);
+            let parsed = parse(input.chars());
 
-            prop_assert_eq!(
-                parsed,
-                Ok((lam(param2, lam(param1, app(var(param2), var(param1)))), ""))
-            );
-        }
-    }
-
-    proptest! {
-        #[test]
-        fn parse_application_of_variable_to_abstraction(
-            name1 in "[a-z][a-z0-9]*'*",
-            name2 in "[a-z][a-z0-9]*'*"
-        ) {
-            let param1 = &name1[..];
-            let param2 = &name2[..];
-            let input = format!("(λ{}.{} {}) {}", param1, param1, param2, param2);
-
-            let parsed = expression().parse(&input[..]);
-
-            prop_assert_eq!(
-                parsed,
-                Ok((app(lam(param1, app(var(param1), var(param2))), var(param2)), ""))
-            );
-        }
-    }
-
-    proptest! {
-        #[test]
-        fn parse_application_of_abstraction_to_abstraction(
-            name1 in "[a-z][a-z0-9]*'*",
-            name2 in "[a-z][a-z0-9]*'*"
-        ) {
-            let param1 = &name1[..];
-            let param2 = &name2[..];
-            let input = format!("(λ{}.{} {}) λ{}.{}", param1, param1, param1, param2, param2);
-
-            let parsed = expression().parse(&input[..]);
-
-            prop_assert_eq!(
-                parsed,
-                Ok((app(lam(param1, app(var(param1), var(param1))), lam(param2, var(param2))), ""))
-            );
-        }
-    }
-
-    proptest! {
-        #[test]
-        fn ignores_leading_whitespace(
-            whitespace in "[\\s]*",
-            name1 in "[a-z][a-z0-9]*'*",
-            name2 in "[a-z][a-z0-9]*'*"
-        ) {
-            let param1 = &name1[..];
-            let param2 = &name2[..];
-            let input = format!("{}(λ{}.{} {}) λ{}.{}", whitespace, param1, param1, param1, param2, param2);
-
-            let parsed = expression().parse(&input[..]);
-
-            prop_assert_eq!(
-                parsed,
-                Ok((app(lam(param1, app(var(param1), var(param1))), lam(param2, var(param2))), ""))
-            );
-        }
-    }
-
-    proptest! {
-        #[test]
-        fn ignores_trailing_whitespace(
-            whitespace in "[\\s]*",
-            name1 in "[a-z][a-z0-9]*'*",
-            name2 in "[a-z][a-z0-9]*'*"
-        ) {
-            let param1 = &name1[..];
-            let param2 = &name2[..];
-            let input = format!("(λ{}.{} {}) λ{}.{}{}", param1, param1, param1, param2, param2, whitespace);
-
-            let parsed = expression().parse(&input[..]);
-
-            prop_assert_eq!(
-                parsed,
-                Ok((app(lam(param1, app(var(param1), var(param1))), lam(param2, var(param2))), ""))
-            );
+            prop_assert_eq!(parsed, Ok(lam(name2, lam(name1, app(var(name2), var(name1))))));
         }
     }
 }
