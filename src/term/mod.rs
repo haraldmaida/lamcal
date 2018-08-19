@@ -13,8 +13,8 @@ pub fn lam(param: impl Into<String>, body: Term) -> Term {
     Term::lam(Var(param.into()), body)
 }
 
-pub fn app(expr1: Term, expr2: Term) -> Term {
-    Term::app(expr1, expr2)
+pub fn app(lhs: Term, rhs: Term) -> Term {
+    Term::app(lhs, rhs)
 }
 
 /// Definition of a term in the lambda calculus.
@@ -42,9 +42,9 @@ impl Display for Term {
         match self {
             Var(name) => write!(f, "{}", name),
             Lam(param, body) => write!(f, "λ{}.{}", param, body),
-            App(expr1, expr2) => match **expr1 {
-                Lam(_, _) => write!(f, "({}) {}", expr1, expr2),
-                _ => write!(f, "{} {}", expr1, expr2),
+            App(lhs, rhs) => match **lhs {
+                Lam(_, _) => write!(f, "({}) {}", lhs, rhs),
+                _ => write!(f, "{} {}", lhs, rhs),
             },
         }
     }
@@ -59,8 +59,8 @@ impl Term {
         Term::Lam(param, Box::new(body))
     }
 
-    pub fn app(expr1: Term, expr2: Term) -> Self {
-        Term::App(Box::new(expr1), Box::new(expr2))
+    pub fn app(lhs: Term, rhs: Term) -> Self {
+        Term::App(Box::new(lhs), Box::new(rhs))
     }
 }
 

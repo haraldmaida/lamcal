@@ -185,11 +185,11 @@ where
                         ))
                     }
                 }
-                let num_lparens = ctx.lparens.len();
+                let num_lparens_before = ctx.lparens.len();
                 let (body, rest) = parse_tokens_rec(token_iter, ctx)?;
                 token_iter = rest;
                 term_seq.push(Term::lam(Var(name), body));
-                if num_lparens > ctx.lparens.len() {
+                if num_lparens_before > ctx.lparens.len() {
                     break;
                 }
             },

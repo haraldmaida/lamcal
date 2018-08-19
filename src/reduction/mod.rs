@@ -22,7 +22,7 @@ impl Term {
     /// [beta redex]: https://en.wikipedia.org/wiki/Beta_normal_form#Beta_reduction
     pub fn is_beta_redex(&self) -> bool {
         match *self {
-            App(ref expr1, _) => match **expr1 {
+            App(ref lhs, _) => match **lhs {
                 Lam(_, _) => true,
                 _ => false,
             },
@@ -42,7 +42,7 @@ impl Term {
             false
         } else {
             match *self {
-                App(ref expr1, ref expr2) => expr1.is_beta_normal() && expr2.is_beta_normal(),
+                App(ref lhs, ref rhs) => lhs.is_beta_normal() && rhs.is_beta_normal(),
                 Lam(_, ref body) => body.is_beta_normal(),
                 _ => true,
             }
@@ -101,11 +101,6 @@ where
     expr
 }
 
-/// Examples:
-///
-/// (λy.λx.x y) x  =>  (λy.λx1.x1 y) x
-/// (λy.y x) x  =>  (λy.y x1) x
-/// (λy.y x)(λy.y x)  =>  (λy.y x)(λy.y x)
 fn alpha_rec<A>(expr: &mut Term, mut ctx: Context)
 where
     A: AlphaRename,
@@ -121,22 +116,22 @@ where
             ctx.bound.insert(name.to_owned());
             alpha_rec::<A>(body, ctx);
         },
-        App(ref mut expr1, ref mut expr2) => {
-            let traverse1 = if let &Var(ref name1) = &**expr1 {
+        App(ref mut lhs, ref mut rhs) => {
+            let traverse1 = if let &Var(ref name1) = &**lhs {
                 !ctx.free.insert(name1.to_owned())
             } else {
                 true
             };
-            let traverse2 = if let &Var(ref name2) = &**expr2 {
+            let traverse2 = if let &Var(ref name2) = &**rhs {
                 !ctx.free.insert(name2.to_owned())
             } else {
                 true
             };
             if traverse1 {
-                alpha_rec::<A>(expr1, ctx.clone());
+                alpha_rec::<A>(lhs, ctx.clone());
             }
             if traverse2 {
-                alpha_rec::<A>(expr2, ctx);
+                alpha_rec::<A>(rhs, ctx);
             }
         },
     }
@@ -229,9 +224,9 @@ fn substitute_rec(expr: &mut Term, var: &VarT, repl: &Term) {
             }
             false
         },
-        App(ref mut expr1, ref mut expr2) => {
-            substitute_rec(expr1, var, repl);
-            substitute_rec(expr2, var, repl);
+        App(ref mut lhs, ref mut rhs) => {
+            substitute_rec(lhs, var, repl);
+            substitute_rec(rhs, var, repl);
             false
         },
     };
@@ -294,9 +289,9 @@ fn apply_rec(expr: &mut Term, subst: &Term, bound: &str) {
             apply_rec(body, subst, bound);
             None
         },
-        App(ref mut expr1, ref mut expr2) => {
-            apply_rec(expr1, subst, bound);
-            apply_rec(expr2, subst, bound);
+        App(ref mut lhs, ref mut rhs) => {
+            apply_rec(lhs, subst, bound);
+            apply_rec(rhs, subst, bound);
             None
         },
     } {
@@ -352,13 +347,14 @@ where
 {
     fn reduce_rec(expr: &mut Term) {
         if let Some(replace) = match *expr {
-            App(ref mut expr1, ref expr2) => {
-                CallByName::<A>::reduce_rec(expr1);
-                match **expr1 {
+            App(ref mut lhs, ref rhs) => {
+                CallByName::<A>::reduce_rec(lhs);
+                match **lhs {
                     Lam(_, _) => {
-                        apply_mut::<A>(expr1, expr2);
-                        CallByName::<A>::reduce_rec(expr1);
-                        Some(mem::replace(&mut **expr1, Var(String::new())))
+                        apply_mut::<A>(lhs, rhs);
+                        CallByName::<A>::reduce_rec(lhs);
+                        // delay replacement outside match expression because of borrow checker
+                        Some(mem::replace(&mut **lhs, Var(String::new())))
                     },
                     _ => None,
                 }
@@ -401,17 +397,18 @@ where
                 NormalOrder::<A>::reduce_rec(body);
                 None
             },
-            App(ref mut expr1, ref mut expr2) => {
-                CallByName::<A>::reduce_rec(expr1);
-                match **expr1 {
+            App(ref mut lhs, ref mut rhs) => {
+                CallByName::<A>::reduce_rec(lhs);
+                match **lhs {
                     Lam(_, _) => {
-                        apply_mut::<A>(expr1, expr2);
-                        NormalOrder::<A>::reduce_rec(expr1);
-                        Some(mem::replace(&mut **expr1, Var(String::new())))
+                        apply_mut::<A>(lhs, rhs);
+                        NormalOrder::<A>::reduce_rec(lhs);
+                        // delay replacement outside match expression because of borrow checker
+                        Some(mem::replace(&mut **lhs, Var(String::new())))
                     },
                     _ => {
-                        NormalOrder::<A>::reduce_rec(expr1);
-                        NormalOrder::<A>::reduce_rec(expr2);
+                        NormalOrder::<A>::reduce_rec(lhs);
+                        NormalOrder::<A>::reduce_rec(rhs);
                         None
                     },
                 }

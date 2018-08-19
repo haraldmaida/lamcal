@@ -224,5 +224,24 @@ fn version_message() -> String {
 }
 
 fn help_message() -> String {
-    unimplemented!()
+    r###"Usage:
+    Type a lambda expression in classic notation and press enter to evaluate it.
+    During evaluation beta-reduction is applied recursively to the given lambda
+    expression. To avoid name clashes alpha-conversion is applied when
+    appropriate.
+
+Example:
+    λ> (\x.(\y.x y) a) b [enter]
+    => b a
+
+Commands:
+    :h or :help       displays this help information
+    :q or :quit       quits the repl session
+    :v or :version    prints out the version of lamcali
+    :p <expr>         parses the lambda expression <expr> and prints out the
+                      abstract syntax tree (AST) of the lambda expression
+
+    the [arrow-up] and [arrow-down] keys lets you navigate through the
+    history of typed commands and expressions and recall them.
+    "###.to_string()
 }
