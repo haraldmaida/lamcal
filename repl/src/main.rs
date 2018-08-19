@@ -1,3 +1,17 @@
+//! A command line repl (read-evaluate-print loop) for lambda calculus.
+
+#![warn(
+    missing_copy_implementations,
+    missing_debug_implementations,
+//    missing_docs,
+    trivial_casts,
+    trivial_numeric_casts,
+    unsafe_code,
+    unstable_features,
+    unused_import_braces,
+    unused_qualifications,
+)]
+
 extern crate colored;
 extern crate config;
 extern crate failure;
@@ -21,7 +35,7 @@ use colored::*;
 use failure::{Context, Error};
 use rustyline::Editor;
 
-use lamcal::parse;
+use lamcal::{parse, Enumerate, NormalOrder};
 
 use settings::Settings;
 
@@ -153,7 +167,7 @@ fn print_info(info: impl Display) {
 fn evaluate_expression(line: &str) -> Continuation {
     match parse(line.chars()) {
         Ok(mut expr) => {
-            expr.reduce();
+            expr.reduce::<NormalOrder<Enumerate>>();
             print(expr);
         },
         Err(err) => {

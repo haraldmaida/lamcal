@@ -7,6 +7,7 @@ mod tests;
 
 use std::collections::HashSet;
 use std::marker::PhantomData;
+use std::mem;
 
 use term::{app, Term, Term::*, Var as VarT};
 
@@ -25,6 +26,7 @@ impl Term {
                 Lam(_, _) => true,
                 _ => false,
             },
+            Lam(_, ref body) => body.is_beta_redex(),
             _ => false,
         }
     }
@@ -41,6 +43,7 @@ impl Term {
         } else {
             match *self {
                 App(ref expr1, ref expr2) => expr1.is_beta_normal() && expr2.is_beta_normal(),
+                Lam(_, ref body) => body.is_beta_normal(),
                 _ => true,
             }
         }
@@ -49,11 +52,11 @@ impl Term {
     /// Performs an [α-reduction] on this `Term`.
     ///
     /// [α-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B1-conversion
-    pub fn alpha<R>(&mut self)
+    pub fn alpha<A>(&mut self)
     where
-        R: AlphaRename,
+        A: AlphaRename,
     {
-        alpha_rec::<R>(self, Context::new())
+        alpha_rec::<A>(self, Context::new())
     }
 
     /// [Substitutes] all occurrences of `var` as free variables with the
@@ -77,23 +80,21 @@ impl Term {
     /// Performs a [β-reduction] on this `Term`.
     ///
     /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
-    pub fn reduce(&mut self) {
-        NormalOrder::<Enumerate>::reduce_rec(self, "")
+    pub fn reduce<B>(&mut self)
+    where
+        B: BetaReduce,
+    {
+        let expr = mem::replace(self, Var(String::new()));
+        *self = <B as BetaReduce>::reduce(expr);
     }
 }
 
 /// Performs an α-reduction on a given lambda expression.
-///
-/// When called with an owned `Term` the given expression is modified in place
-/// and returned again. When called with a reference to a `Term` a cloned
-/// expression with the conversions applied is returned.
-pub fn alpha<R, T>(expr: T) -> Term
+pub fn alpha<A>(mut expr: Term) -> Term
 where
-    R: AlphaRename,
-    T: Into<Term>,
+    A: AlphaRename,
 {
-    let mut expr = expr.into();
-    alpha_rec::<R>(&mut expr, Context::new());
+    alpha_rec::<A>(&mut expr, Context::new());
     expr
 }
 
@@ -102,20 +103,20 @@ where
 /// (λy.λx.x y) x  =>  (λy.λx1.x1 y) x
 /// (λy.y x) x  =>  (λy.y x1) x
 /// (λy.y x)(λy.y x)  =>  (λy.y x)(λy.y x)
-fn alpha_rec<R>(expr: &mut Term, mut ctx: Context)
+fn alpha_rec<A>(expr: &mut Term, mut ctx: Context)
 where
-    R: AlphaRename,
+    A: AlphaRename,
 {
     match *expr {
         Var(ref mut name) => if ctx.free.contains(name) && !ctx.bound.contains(name) {
-            <R as AlphaRename>::rename(name);
+            <A as AlphaRename>::rename(name);
         },
         Lam(VarT(ref mut name), ref mut body) => {
             if ctx.free.contains(name) {
-                <R as AlphaRename>::rename(name);
+                <A as AlphaRename>::rename(name);
             };
             ctx.bound.insert(name.to_owned());
-            alpha_rec::<R>(body, ctx);
+            alpha_rec::<A>(body, ctx);
         },
         App(ref mut expr1, ref mut expr2) => {
             let traverse1 = if let &Var(ref name1) = &**expr1 {
@@ -129,10 +130,10 @@ where
                 true
             };
             if traverse1 {
-                alpha_rec::<R>(expr1, ctx.clone());
+                alpha_rec::<A>(expr1, ctx.clone());
             }
             if traverse2 {
-                alpha_rec::<R>(expr2, ctx);
+                alpha_rec::<A>(expr2, ctx);
             }
         },
     }
@@ -201,17 +202,13 @@ impl Context {
 /// This function implements [substitution] in terms of the lambda calculus as
 /// a recursion on the structure of the given `expr`.
 ///
-/// When `expr` is an owned `Term` the given expression is modified in place
-/// and returned again. When called with a reference to a `Term` a cloned
-/// expression with the substitution applied is returned.
-///
 /// [substitution]: https://en.wikipedia.org/wiki/Lambda_calculus#Substitution
-pub fn substitute<R>(expr: impl Into<Term>, var: &VarT, repl: &Term) -> Term
+pub fn substitute<A>(expr: Term, var: &VarT, repl: &Term) -> Term
 where
-    R: AlphaRename,
+    A: AlphaRename,
 {
-    let mut t_expr = app(expr.into(), repl.clone().into());
-    alpha_rec::<R>(&mut t_expr, Context::new());
+    let mut t_expr = app(expr, repl.clone());
+    alpha_rec::<A>(&mut t_expr, Context::new());
     if let App(mut a_expr, _) = t_expr {
         substitute_rec(&mut a_expr, var, repl);
         *a_expr
@@ -241,7 +238,7 @@ fn substitute_rec(expr: &mut Term, var: &VarT, repl: &Term) {
 }
 
 /// Applies the expression `subst` to the expression `expr` if `expr` is a
-/// lambda abstraction (that it is of variant `Expr::Lam`) and returns the
+/// lambda abstraction (that is of variant `Expr::Lam`) and returns the
 /// resulting expression.
 ///
 /// In the result any occurrence of the bound variable of the lambda abstraction
@@ -250,53 +247,67 @@ fn substitute_rec(expr: &mut Term, var: &VarT, repl: &Term) {
 ///
 /// If the given expression `expr` is not a lambda abstraction the expression is
 /// returned unmodified.
-///
-/// When `expr` is an owned `Term` the given expression is modified in place
-/// and returned again. When called with a reference to a `Term` a cloned
-/// expression with the substitution applied is returned.
-pub fn apply<R>(expr: impl Into<Term>, subst: &Term) -> Term
+pub fn apply<A>(expr: Term, subst: &Term) -> Term
 where
-    R: AlphaRename,
+    A: AlphaRename,
 {
-    let mut t_expr = app(expr.into(), subst.clone().into());
-    alpha_rec::<R>(&mut t_expr, Context::new());
+    let mut t_expr = app(expr, subst.clone());
+    alpha_rec::<A>(&mut t_expr, Context::new());
     if let App(mut a_expr, _) = t_expr {
-        apply_rec(&mut a_expr, subst, "");
+        apply_mut::<A>(&mut a_expr, subst);
         *a_expr
     } else {
         unreachable!("we just created a Term::App before")
     }
 }
 
+fn apply_mut<A>(expr: &mut Term, subst: &Term)
+where
+    A: AlphaRename,
+{
+    alpha_rec::<A>(expr, Context::new());
+    if let Some(bound) = match *expr {
+        Lam(ref param, _) => Some(param.as_ref().to_owned()),
+        _ => None,
+    } {
+        apply_rec(expr, subst, &bound);
+        if let Some(replace) = match *expr {
+            Lam(_, ref mut body) => Some(mem::replace(&mut **body, Var(String::new()))),
+            _ => None,
+        } {
+            *expr = replace;
+        }
+    }
+}
+
 fn apply_rec(expr: &mut Term, subst: &Term, bound: &str) {
-    let apply = match *expr {
-        Var(ref name) => name == bound,
-        Lam(ref param, ref mut body) => {
-            apply_rec(body, subst, param.as_ref());
-            false
+    if let Some(replace) = match *expr {
+        Var(ref name) => if name == bound {
+            Some(subst.clone())
+        } else {
+            None
+        },
+        Lam(_, ref mut body) => {
+            apply_rec(body, subst, bound);
+            None
         },
         App(ref mut expr1, ref mut expr2) => {
             apply_rec(expr1, subst, bound);
             apply_rec(expr2, subst, bound);
-            false
+            None
         },
-    };
-    if apply {
-        *expr = subst.clone();
+    } {
+        *expr = replace;
     }
 }
 
 /// Performs a β-reduction on a given lambda expression applying the given
 /// reduction strategy.
-///
-/// When `expr` is an owned `Term` the given expression is modified in place
-/// and returned again. When called with a reference to a `Term` a cloned
-/// expression with the reduction applied is returned.
-pub fn reduce<S>(expr: impl Into<Term>) -> Term
+pub fn reduce<B>(expr: Term) -> Term
 where
-    S: BetaReduce,
+    B: BetaReduce,
 {
-    <S as BetaReduce>::reduce(expr)
+    <B as BetaReduce>::reduce(expr)
 }
 
 /// Defines a strategy for [β-reduction] of terms.
@@ -308,46 +319,50 @@ where
 /// [reduction strategy]: https://en.wikipedia.org/wiki/Reduction_strategy_(lambda_calculus)
 pub trait BetaReduce {
     /// Performs a β-reduction of the given `Term` and returns the result.
-    ///
-    /// When `expr` is an owned `Term` the given expression is modified in place
-    /// and returned again. When called with a reference to a `Term` a cloned
-    /// expression with the reduction applied is returned.
-    fn reduce(expr: impl Into<Term>) -> Term;
+    fn reduce(expr: Term) -> Term;
 }
 
 /// Implementation of a [β-reduction] applying the call-by-name strategy.
 ///
 /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
-pub struct CallByName<R> {
-    _alpha_rename: PhantomData<R>,
+pub struct CallByName<A> {
+    _alpha_rename: PhantomData<A>,
 }
 
-impl<R> BetaReduce for CallByName<R>
+impl<A> BetaReduce for CallByName<A>
 where
-    R: AlphaRename,
+    A: AlphaRename,
 {
     /// Performs a β-reduction on a given lambda expression applying a
     /// call-by-name strategy.
-    fn reduce(expr: impl Into<Term>) -> Term {
-        let mut b_term = expr.into();
-        alpha_rec::<R>(&mut b_term, Context::new());
-        CallByName::<R>::reduce_rec(&mut b_term, "");
-        b_term
+    fn reduce(mut expr: Term) -> Term {
+        alpha_rec::<A>(&mut expr, Context::new());
+        CallByName::<A>::reduce_rec(&mut expr);
+        expr
     }
 }
 
-impl<R> CallByName<R> {
-    fn reduce_rec(expr: &mut Term, bound: &str) {
-        match *expr {
+impl<A> CallByName<A>
+where
+    A: AlphaRename,
+{
+    fn reduce_rec(expr: &mut Term) {
+        if let Some(replace) = match *expr {
             App(ref mut expr1, ref expr2) => {
-                CallByName::<R>::reduce_rec(expr1, bound);
-                if expr1.is_beta_redex() {
-                    apply_rec(expr1, expr2, bound);
-                    CallByName::<R>::reduce_rec(expr1, bound);
+                CallByName::<A>::reduce_rec(expr1);
+                match **expr1 {
+                    Lam(_, _) => {
+                        apply_mut::<A>(expr1, expr2);
+                        CallByName::<A>::reduce_rec(expr1);
+                        Some(mem::replace(&mut **expr1, Var(String::new())))
+                    },
+                    _ => None,
                 }
             },
-            _ => {},
+            _ => None,
+        } {
+            *expr = replace;
         }
     }
 }
@@ -356,39 +371,51 @@ impl<R> CallByName<R> {
 ///
 /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
-pub struct NormalOrder<R> {
-    _alpha_rename: PhantomData<R>,
+pub struct NormalOrder<A> {
+    _alpha_rename: PhantomData<A>,
 }
 
-impl<R> BetaReduce for NormalOrder<R>
+impl<A> BetaReduce for NormalOrder<A>
 where
-    R: AlphaRename,
+    A: AlphaRename,
 {
     /// Performs a β-reduction on a given lambda expression applying a
     /// normal-order strategy.
-    fn reduce(expr: impl Into<Term>) -> Term {
-        let mut b_term = expr.into();
-        alpha_rec::<R>(&mut b_term, Context::new());
-        NormalOrder::<R>::reduce_rec(&mut b_term, "");
-        b_term
+    fn reduce(mut expr: Term) -> Term {
+        alpha_rec::<A>(&mut expr, Context::new());
+        NormalOrder::<A>::reduce_rec(&mut expr);
+        expr
     }
 }
 
-impl<R> NormalOrder<R> {
-    fn reduce_rec(expr: &mut Term, bound: &str) {
-        match *expr {
-            Lam(ref param, ref mut body) => NormalOrder::<R>::reduce_rec(body, param.as_ref()),
+impl<A> NormalOrder<A>
+where
+    A: AlphaRename,
+{
+    fn reduce_rec(expr: &mut Term) {
+        if let Some(replace) = match *expr {
+            Lam(_, ref mut body) => {
+                NormalOrder::<A>::reduce_rec(body);
+                None
+            },
             App(ref mut expr1, ref mut expr2) => {
-                CallByName::<R>::reduce_rec(expr1, bound);
-                if expr1.is_beta_redex() {
-                    apply_rec(expr1, expr2, bound);
-                    NormalOrder::<R>::reduce_rec(expr1, bound);
-                } else {
-                    NormalOrder::<R>::reduce_rec(expr1, bound);
-                    NormalOrder::<R>::reduce_rec(expr2, bound);
+                CallByName::<A>::reduce_rec(expr1);
+                match **expr1 {
+                    Lam(_, _) => {
+                        apply_mut::<A>(expr1, expr2);
+                        NormalOrder::<A>::reduce_rec(expr1);
+                        Some(mem::replace(&mut **expr1, Var(String::new())))
+                    },
+                    _ => {
+                        NormalOrder::<A>::reduce_rec(expr1);
+                        NormalOrder::<A>::reduce_rec(expr2);
+                        None
+                    },
                 }
             },
-            _ => {},
+            _ => None,
+        } {
+            *expr = replace;
         }
     }
 }
