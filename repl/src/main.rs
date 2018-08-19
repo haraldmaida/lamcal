@@ -153,15 +153,15 @@ fn print(text: impl Display) {
 }
 
 fn print_error(error: impl Display) {
-    println!("{} {}", format!("error:").red(), error)
+    println!("{} {}", "error:".red(), error)
 }
 
 fn print_warning(warning: impl Display) {
-    println!("{} {}", format!("warning:").yellow(), warning)
+    println!("{} {}", "warning:".yellow(), warning)
 }
 
 fn print_info(info: impl Display) {
-    println!("{} {}", format!("info:").blue(), info)
+    println!("{} {}", "info:".blue(), info)
 }
 
 fn parse_expression(line: &str) -> Continuation {
@@ -196,7 +196,7 @@ fn process_command(line: &str) -> Continuation {
             next("")
         },
         ":q" | ":quit" => {
-            print(format!("Good bye!").green());
+            print("Good bye!".green());
             stop("")
         },
         ":v" | ":version" => {

@@ -117,12 +117,12 @@ where
             alpha_rec::<A>(body, ctx);
         },
         App(ref mut lhs, ref mut rhs) => {
-            let traverse1 = if let &Var(ref name1) = &**lhs {
+            let traverse1 = if let Var(ref name1) = **lhs {
                 !ctx.free.insert(name1.to_owned())
             } else {
                 true
             };
-            let traverse2 = if let &Var(ref name2) = &**rhs {
+            let traverse2 = if let Var(ref name2) = **rhs {
                 !ctx.free.insert(name2.to_owned())
             } else {
                 true
@@ -172,7 +172,7 @@ impl AlphaRename for Enumerate {
         if let Ok(number) = digits.parse::<usize>() {
             let index = name.len() - digits.len();
             name.drain(index..);
-            name.extend((number + 1).to_string().chars());
+            name.push_str(&(number + 1).to_string());
         } else {
             name.push('1');
         }

@@ -28,8 +28,7 @@ pub fn tokenize(
     let mut position = CharPosition::default();
     let mut name_pos = position;
     let mut name = String::new();
-    let mut char_iter = input.into_iter();
-    while let Some(chr) = char_iter.next() {
+    for chr in input {
         position.next(chr);
         match chr {
             'λ' | '\\' => {
@@ -230,9 +229,7 @@ where
         if term_seq.is_empty() {
             Ok((first_term, token_iter))
         } else {
-            let term = term_seq
-                .into_iter()
-                .fold(first_term, |acc, expr2| Term::app(acc, expr2));
+            let term = term_seq.into_iter().fold(first_term, Term::app);
             Ok((term, token_iter))
         }
     }
@@ -329,11 +326,8 @@ impl CharPosition {
         } else {
             self.column += 1;
         }
-        match chr {
-            '\n' => {
-                self.newline = true;
-            },
-            _ => {},
+        if chr == '\n' {
+            self.newline = true;
         }
     }
 }
@@ -430,8 +424,8 @@ impl Display for ErrorKind {
 }
 
 impl ErrorKind {
-    pub fn explain(&self) -> &str {
-        match *self {
+    pub fn explain(self) -> &'static str {
+        match self {
             EmptyExpression => "can not parse empty expression",
             IdentifierExpected => "expected a valid identifier",
             InvalidCharacter => "invalid character found",
