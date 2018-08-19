@@ -20,6 +20,7 @@ failure = "0.1"
 
 [dev-dependencies]
 proptest = "0.8"
+version-sync = "0.5"
 
 [workspace]
 members = [
