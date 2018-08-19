@@ -228,7 +228,7 @@ mod beta_normal_order {
             lam("x", app(lam("y", app(var("x"), var("y"))), var("a"))),
             var("b"),
         );
-        let reduced = CallByName::<Enumerate>::reduce(expr);
+        let reduced = NormalOrder::<Enumerate>::reduce(expr);
 
         assert_eq!(reduced, app(var("b"), var("a")));
     }

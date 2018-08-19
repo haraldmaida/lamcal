@@ -164,6 +164,18 @@ fn print_info(info: impl Display) {
     println!("{} {}", format!("info:").blue(), info)
 }
 
+fn parse_expression(line: &str) -> Continuation {
+    match parse(line.chars()) {
+        Ok(expr) => {
+            print(format!("{:?}", expr));
+        },
+        Err(err) => {
+            print_error(err);
+        },
+    }
+    next("")
+}
+
 fn evaluate_expression(line: &str) -> Continuation {
     match parse(line.chars()) {
         Ok(mut expr) => {
@@ -191,6 +203,7 @@ fn process_command(line: &str) -> Continuation {
             print(version_message().blue());
             next("")
         },
+        cmd if cmd.starts_with(":p ") => parse_expression(&line[3..]),
         cmd => {
             print_error(format!("unknown command `{}`", cmd));
             next("")

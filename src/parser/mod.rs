@@ -118,10 +118,21 @@ pub fn tokenize(
 pub fn parse_tokens(
     tokens: impl IntoIterator<Item = (Token, CharPosition)>,
 ) -> Result<Term, ParseError> {
-    parse_tokens_rec(tokens.into_iter()).map(|(term, _)| term)
+    let mut ctx = Context::new();
+    let parsed_term = parse_tokens_rec(tokens.into_iter(), &mut ctx).map(|(term, _)| term);
+    if !ctx.lparens.is_empty() {
+        return Err(ParseError::new(
+            MissingClosingParen,
+            ctx.lparens.pop().expect("just checked for non empty"),
+            "left paren",
+            "matching right paren",
+            "",
+        ));
+    }
+    parsed_term
 }
 
-fn parse_tokens_rec<I>(mut token_iter: I) -> Result<(Term, I), ParseError>
+fn parse_tokens_rec<I>(mut token_iter: I, ctx: &mut Context) -> Result<(Term, I), ParseError>
 where
     I: Iterator<Item = (Token, CharPosition)>,
 {
@@ -174,16 +185,33 @@ where
                         ))
                     }
                 }
-                let (body, rest) = parse_tokens_rec(token_iter)?;
+                let num_lparens = ctx.lparens.len();
+                let (body, rest) = parse_tokens_rec(token_iter, ctx)?;
                 token_iter = rest;
                 term_seq.push(Term::lam(Var(name), body));
+                if num_lparens > ctx.lparens.len() {
+                    break;
+                }
             },
             LParen => {
-                let (subtree, rest) = parse_tokens_rec(token_iter)?;
+                ctx.lparens.push(position);
+                let (subtree, rest) = parse_tokens_rec(token_iter, ctx)?;
                 token_iter = rest;
                 term_seq.push(subtree);
             },
-            RParen => break,
+            RParen => {
+                if ctx.lparens.is_empty() {
+                    return Err(ParseError::new(
+                        MissingOpeningParen,
+                        position,
+                        "right paren",
+                        "matching left paren",
+                        "",
+                    ));
+                }
+                let _ = ctx.lparens.pop();
+                break;
+            },
             _ => {
                 return Err(ParseError::new(
                     UnexpectedToken,
@@ -195,15 +223,16 @@ where
             },
         }
     }
-    match term_seq.len() {
-        0 => Err(ParseError::new(EmptyExpression, CharPosition::default(), "invalid lambda expression", "at least one variable, abstraction or application", "a lambda expression must consist of at least one term, like a variable, an abstraction or an application")),
-        1 => {
-            Ok((term_seq.remove(0), token_iter))
-        },
-        _ => {
-            let mut term_iter = term_seq.into_iter();
-            let first_term = term_iter.next().expect("length of term sequence should be greater 1 at this point");
-            let term = term_iter.fold(first_term, |acc, expr2| Term::app(acc, expr2));
+    if term_seq.is_empty() {
+        Err(ParseError::new(EmptyExpression, CharPosition::default(), "invalid lambda expression", "at least one variable, abstraction or application", "a lambda expression must consist of at least one term, like a variable, an abstraction or an application"))
+    } else {
+        let first_term = term_seq.remove(0);
+        if term_seq.is_empty() {
+            Ok((first_term, token_iter))
+        } else {
+            let term = term_seq
+                .into_iter()
+                .fold(first_term, |acc, expr2| Term::app(acc, expr2));
             Ok((term, token_iter))
         }
     }
@@ -309,6 +338,18 @@ impl CharPosition {
     }
 }
 
+struct Context {
+    lparens: Vec<CharPosition>,
+}
+
+impl Context {
+    fn new() -> Self {
+        Context {
+            lparens: Vec::with_capacity(8),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParseError {
     kind: ErrorKind,
@@ -376,6 +417,8 @@ pub enum ErrorKind {
     InvalidCharacter,
     LambdaBodyExpected,
     LambdaHeadExpected,
+    MissingOpeningParen,
+    MissingClosingParen,
     UnexpectedEndOfInput,
     UnexpectedToken,
 }
@@ -398,6 +441,8 @@ impl ErrorKind {
             LambdaHeadExpected => {
                 "expected an identifier as bound variable in the lambda abstraction"
             },
+            MissingClosingParen => "opening parenthesis without a matching closing one",
+            MissingOpeningParen => "closing parenthesis without a matching opening one",
             UnexpectedEndOfInput => "unexpected end of input",
             UnexpectedToken => "unexpected token found",
         }

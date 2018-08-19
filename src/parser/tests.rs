@@ -439,4 +439,19 @@ mod parse {
             prop_assert_eq!(parsed, Ok(lam(name2, lam(name1, app(var(name2), var(name1))))));
         }
     }
+
+    #[test]
+    fn parse_complex_example1() {
+        let input = r#"(\x.(\y.x y) a) b"#;
+
+        let parsed = parse(input.chars());
+
+        assert_eq!(
+            parsed,
+            Ok(app(
+                lam("x", app(lam("y", app(var("x"), var("y"))), var("a"))),
+                var("b")
+            ))
+        );
+    }
 }

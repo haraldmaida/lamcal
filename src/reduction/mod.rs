@@ -73,8 +73,11 @@ impl Term {
     /// with the expression `rhs`.
     ///
     /// If this `Term` is not a lambda abstraction this function does nothing.
-    pub fn apply(&mut self, rhs: &Term) {
-        apply_rec(self, rhs, "")
+    pub fn apply<A>(&mut self, rhs: &Term)
+    where
+        A: AlphaRename,
+    {
+        apply_mut::<A>(self, rhs)
     }
 
     /// Performs a [β-reduction] on this `Term`.
