@@ -23,8 +23,9 @@
 [Apache-2.0]: https://www.apache.org/licenses/LICENSE-2.0
 [license]: LICENSE
 [lamcal]: lamcal
+[lamcal-repl]: repl
 
-[lamcal] is a [Lambda Calculus] written in [Rust]. It can be used to
+[lamcal] is a [Lambda Calculus] parser and evaluator written in [Rust]. It can be used to
     
 * parse lambda expressions in classic notation, like `(λx.(λy.x y) a) b` or `(\x.(\y.x y) a) b`
   into terms
