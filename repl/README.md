@@ -22,7 +22,8 @@
 [codecoverage]: https://codecov.io/github/haraldmaida/lamcal?branch=master
 [Apache-2.0]: https://www.apache.org/licenses/LICENSE-2.0
 [license]: LICENSE
-[lamcal-repl]: lamcal-repl
+[lambal]: ..
+[lamcal-repl]: .
 
 [lamcal-repl] is a [Lambda Calculus] REPL command line application written in [Rust]. It can be used
 to play around with lambda calculus expressions interactively.

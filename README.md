@@ -22,7 +22,7 @@
 [codecoverage]: https://codecov.io/github/haraldmaida/lamcal?branch=master
 [Apache-2.0]: https://www.apache.org/licenses/LICENSE-2.0
 [license]: LICENSE
-[lamcal]: lamcal
+[lamcal]: .
 [lamcal-repl]: repl
 
 [lamcal] is a [Lambda Calculus] parser and evaluator written in [Rust]. It can be used to
