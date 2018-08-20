@@ -78,8 +78,8 @@ applied. The result is printed to the console, like so:
 b a
 ```
 
-We can use \ or λ in lambda expressions as the parser understands both backslash '\' as well as the
-lambda symbol 'λ' as the start of an abstraction.
+We can use \ or λ in lambda expressions as the parser understands both backslash as well as the
+lambda symbol as the start of an abstraction.
 
 The repl support commands to control the behavior of the application. Commands always start with a
 colon. Most important commands are:
