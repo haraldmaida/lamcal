@@ -1,20 +1,85 @@
-//! Syntax definitions for the lambda calculus.
+//! Definition of the lambda calculus term.
 //!
 //! This implementation of the lambda calculus uses the classic notation.
 //! Currently the De Bruin index notation is not supported.
 
 use std::fmt::{self, Display};
 
+/// Constructs a variable with the given name.
+///
+/// This is a convenience function for constructing a `Term` of variant
+/// `Term::Var` in a readable form with minimal keystrokes.
+///
+/// It takes any value that can be converted into a `String` and returns
+/// `Term::Var(name)`.
+///
+/// # Example
+///
+/// ```
+/// # extern crate lamcal;
+/// # use lamcal::{var, Term};
+/// let variable = var("x");
+///
+/// assert_eq!(variable, Term::Var("x".to_string()));
+/// ```
 pub fn var(name: impl Into<String>) -> Term {
-    Term::var(name)
+    Term::Var(name.into())
 }
 
+/// Constructs a lambda abstraction with given parameter and body.
+///
+/// This is a convenience function for constructing a `Term` of variant
+/// `Term::Lam` in a readable form with minimal keystrokes.
+///
+/// It takes any value that can be converted into a `String` to form a bound
+/// variable (the parameter of the abstraction) and a `Term` for the body of
+/// the abstraction.
+///
+/// # Example
+///
+/// ```
+/// # extern crate lamcal;
+/// # use lamcal::{lam, var, Term, Var};
+/// let abstraction = lam("x", var("x"));
+///
+/// assert_eq!(
+///     abstraction,
+///     Term::Lam(Var("x".to_string()), Box::new(Term::Var("x".to_string())))
+/// );
+/// ```
 pub fn lam(param: impl Into<String>, body: Term) -> Term {
-    Term::lam(Var(param.into()), body)
+    Term::Lam(Var(param.into()), Box::new(body))
 }
 
+/// Constructs a function application with the `lhs` term to be applied to the
+/// `rhs` term.
+///
+/// This is a convenience function for constructing a `Term` of variant
+/// `Term::App` in a readable form with minimal keystrokes.
+///
+/// It takes two `Term`s as its input and returns a `Term::App` with the first
+/// `Term` to be applied to the second `Term`.
+///
+/// # Example
+///
+/// ```
+/// # extern crate lamcal;
+/// # use lamcal::{app, lam, var, Term, Var};
+/// let application = app(lam("x", var("x")), var("y"));
+///
+/// assert_eq!(
+///     application,
+///     Term::App(
+///         Box::new(Term::Lam(
+///             Var("x".to_string()),
+///             Box::new(Term::Var("x".to_string()))
+///         )),
+///         Box::new(Term::Var("y".to_string()))
+///     )
+/// );
+/// ```
 pub fn app(lhs: Term, rhs: Term) -> Term {
-    Term::app(lhs, rhs)
+    Term::App(Box::new(lhs), Box::new(rhs))
 }
 
 /// Definition of a term in the lambda calculus.
@@ -50,20 +115,6 @@ impl Display for Term {
     }
 }
 
-impl Term {
-    pub fn var(name: impl Into<String>) -> Self {
-        Term::Var(name.into())
-    }
-
-    pub fn lam(param: Var, body: Term) -> Self {
-        Term::Lam(param, Box::new(body))
-    }
-
-    pub fn app(lhs: Term, rhs: Term) -> Self {
-        Term::App(Box::new(lhs), Box::new(rhs))
-    }
-}
-
 impl<'a> From<&'a Term> for Term {
     fn from(expr: &Term) -> Self {
         expr.to_owned()
@@ -93,10 +144,12 @@ impl AsRef<str> for Var {
 }
 
 impl Var {
+    /// Constructs a new variable of given name.
     pub fn new(name: impl Into<String>) -> Self {
         Var(name.into())
     }
 
+    /// Unwraps the name out of the variable.
     pub fn unwrap(self) -> String {
         self.0
     }

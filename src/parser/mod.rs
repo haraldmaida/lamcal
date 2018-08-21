@@ -4,15 +4,27 @@ mod tests;
 use std::fmt::{self, Display};
 use std::iter::IntoIterator;
 
-use term::{Term, Var};
+use term::{app, lam, var, Term};
 
-use self::ErrorKind::*;
+use self::ParseErrorKind::*;
 use self::Token::*;
 
+/// Parses a `str` slice into `Term`.
+///
+/// This is a wrapper function of the more general `parse` function. It calls
+/// the `parse` function by converting the `str` slice into an `Iterator` over
+/// `char`s.
 pub fn parse_str(input: &str) -> Result<Term, ParseError> {
     parse_tokens(tokenize(input.chars())?)
 }
 
+/// Parses the input into a `Term`.
+///
+/// It returns `Ok(Term)` when the given characters can be successfully parsed
+/// or `Err(ParseError)` if an error occurs.
+///
+/// The input can be any data structure that can be converted into an `Iterator`
+/// over `char`s.
 pub fn parse(input: impl IntoIterator<Item = char>) -> Result<Term, ParseError> {
     parse_tokens(tokenize(input)?)
 }
@@ -43,7 +55,7 @@ pub fn tokenize(
                     tokens.push((Identifier(name), name_pos));
                     name = String::new();
                 }
-                tokens.push((Dot, position));
+                tokens.push((BodySeparator, position));
             },
             '(' => {
                 if !name.is_empty() {
@@ -65,7 +77,7 @@ pub fn tokenize(
                     position,
                     format!("{}", chr),
                     "any lower case letter or 'λ', '.', '(', ')'",
-                    "",
+                    None,
                 ));
             } else {
                 if name.is_empty() {
@@ -89,7 +101,7 @@ pub fn tokenize(
                     position,
                     format!("{}", chr),
                     "any lower case letter or 'λ', '.', '(', ')'",
-                    "",
+                    None,
                 ));
             } else {
                 if name.is_empty() {
@@ -103,7 +115,7 @@ pub fn tokenize(
                     position,
                     format!("{}", chr),
                     "any lower case letter, digit or 'λ', '.', '(', ')', '_', '\''",
-                    "",
+                    None,
                 ))
             },
         };
@@ -125,7 +137,7 @@ pub fn parse_tokens(
             ctx.lparens.pop().expect("just checked for non empty"),
             "left paren",
             "matching right paren",
-            "",
+            None,
         ));
     }
     parsed_term
@@ -138,7 +150,7 @@ where
     let mut term_seq = Vec::with_capacity(8);
     while let Some((token, position)) = token_iter.next() {
         match token {
-            Identifier(name) => term_seq.push(Term::var(name)),
+            Identifier(name) => term_seq.push(var(name)),
             Lambda => {
                 let token_opt = token_iter.next();
                 let name = match token_opt {
@@ -149,7 +161,7 @@ where
                             position,
                             token,
                             "an identifier",
-                            "a lambda expression must define a bound variable in its head",
+                            hint("a lambda expression must define a bound variable in its head"),
                         ));
                     },
                     None => {
@@ -158,20 +170,20 @@ where
                             position,
                             "end of input",
                             "an identifier",
-                            "a lambda expression must define a bound variable in its head",
+                            hint("a lambda expression must define a bound variable in its head"),
                         ))
                     },
                 };
                 let token_opt = token_iter.next();
                 match token_opt {
-                    Some((Dot, _)) => {},
+                    Some((BodySeparator, _)) => {},
                     Some((token, position)) => {
                         return Err(ParseError::new(
                             LambdaBodyExpected,
                             position,
                             token,
                             "the '.' character as start of the lambda body",
-                            "a lambda abstraction must contain a body, that is an expression following the '.' character",
+                            hint("a lambda abstraction must contain a body, that is an expression following the '.' character"),
                         ))
                     },
                     None => {
@@ -180,14 +192,14 @@ where
                             position,
                             "end of input",
                             "the '.' character as start of the lambda body",
-                            "a lambda abstraction must contain a body, that is an expression following the '.' character",
+                            hint("a lambda abstraction must contain a body, that is an expression following the '.' character"),
                         ))
                     }
                 }
                 let num_lparens_before = ctx.lparens.len();
                 let (body, rest) = parse_tokens_rec(token_iter, ctx)?;
                 token_iter = rest;
-                term_seq.push(Term::lam(Var(name), body));
+                term_seq.push(lam(name, body));
                 if num_lparens_before > ctx.lparens.len() {
                     break;
                 }
@@ -205,7 +217,7 @@ where
                         position,
                         "right paren",
                         "matching left paren",
-                        "",
+                        None,
                     ));
                 }
                 let _ = ctx.lparens.pop();
@@ -217,30 +229,42 @@ where
                     position,
                     token,
                     "a variable, a lambda abstraction or an application",
-                    "",
+                    None,
                 ))
             },
         }
     }
     if term_seq.is_empty() {
-        Err(ParseError::new(EmptyExpression, CharPosition::default(), "invalid lambda expression", "at least one variable, abstraction or application", "a lambda expression must consist of at least one term, like a variable, an abstraction or an application"))
+        Err(ParseError::new(
+            EmptyExpression,
+            CharPosition::default(),
+            "invalid lambda expression",
+            "at least one variable, abstraction or application",
+            hint("a lambda expression must consist of at least one term, like a variable, an abstraction or an application"),
+        ))
     } else {
         let first_term = term_seq.remove(0);
         if term_seq.is_empty() {
             Ok((first_term, token_iter))
         } else {
-            let term = term_seq.into_iter().fold(first_term, Term::app);
+            let term = term_seq.into_iter().fold(first_term, app);
             Ok((term, token_iter))
         }
     }
 }
 
+/// A token in a lambda expression.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
+    /// Start of a lambda abstraction
     Lambda,
-    Dot,
+    /// Separator of the body of a lambda abstraction
+    BodySeparator,
+    /// Opening parenthesis
     LParen,
+    /// Closing parenthesis
     RParen,
+    /// An identifier name
     Identifier(String),
 }
 
@@ -248,7 +272,7 @@ impl Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let display = match *self {
             Lambda => "lambda",
-            Dot => "'.'",
+            BodySeparator => "'.'",
             LParen => "'('",
             RParen => "')'",
             Identifier(_) => "identifier",
@@ -257,6 +281,9 @@ impl Display for Token {
     }
 }
 
+/// Constructs a `CharPosition` from line and column.
+///
+/// This is a convenience function to easily construct `CharPosition`s.
 #[cfg(test)]
 pub fn pos(line: usize, column: usize) -> CharPosition {
     CharPosition {
@@ -344,50 +371,65 @@ impl Context {
     }
 }
 
+/// An error that occurs during parsing of expressions.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParseError {
-    kind: ErrorKind,
+    /// kind of error
+    kind: ParseErrorKind,
+    /// character position in the input stream where the error has been found
     position: CharPosition,
+    /// the found slice of the expression that causes the error
     found: String,
+    /// a description of what is expected to form a correct expression
     expected: String,
-    hint: String,
+    /// an optional hint on how to fix the error
+    hint: Option<String>,
 }
 
 impl ParseError {
+    /// Constructs a new `ParseError` with given information.
     pub fn new(
-        kind: ErrorKind,
+        kind: ParseErrorKind,
         position: CharPosition,
         found: impl Display,
         expected: impl Display,
-        hint: impl Into<String>,
+        hint: Option<String>,
     ) -> Self {
         ParseError {
             kind,
             position,
             found: found.to_string(),
             expected: expected.to_string(),
-            hint: hint.into(),
+            hint: hint.map(Into::into),
         }
     }
 
-    pub fn kind(&self) -> ErrorKind {
+    /// Returns the kind of error that has been found.
+    pub fn kind(&self) -> ParseErrorKind {
         self.kind
     }
 
+    /// Returns the position in the input stream, where the error has been
+    /// found.
     pub fn position(&self) -> CharPosition {
         self.position
     }
 
+    /// Returns the slice of the expression which causes the error.
     pub fn found(&self) -> &str {
         &self.found
     }
 
+    /// Returns a description of what is expected to form a correct expression.
     pub fn expected(&self) -> &str {
         &self.expected
     }
 
-    pub fn hint(&self) -> &str {
-        &self.hint
+    /// Returns an additional hint for finding and fixing the error.
+    ///
+    /// The hint is optional. So some errors might not have a hint for you.
+    pub fn hint(&self) -> Option<&String> {
+        self.hint.as_ref()
     }
 }
 
@@ -396,8 +438,8 @@ impl Display for ParseError {
         writeln!(f, "[{}]: {}", self.kind, self.kind.explain())?;
         writeln!(f, "   {}   \t   found:\t{}", self.position, self.found)?;
         writeln!(f, "        \texpected:\t{}", self.expected)?;
-        if !self.hint.is_empty() {
-            writeln!(f, "   hint: {}", self.hint)
+        if let Some(ref hint) = self.hint {
+            writeln!(f, "   hint: {}", hint)
         } else {
             write!(f, "")
         }
@@ -405,7 +447,7 @@ impl Display for ParseError {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ErrorKind {
+pub enum ParseErrorKind {
     EmptyExpression,
     IdentifierExpected,
     InvalidCharacter,
@@ -417,13 +459,13 @@ pub enum ErrorKind {
     UnexpectedToken,
 }
 
-impl Display for ErrorKind {
+impl Display for ParseErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
-impl ErrorKind {
+impl ParseErrorKind {
     pub fn explain(self) -> &'static str {
         match self {
             EmptyExpression => "can not parse empty expression",
@@ -441,4 +483,8 @@ impl ErrorKind {
             UnexpectedToken => "unexpected token found",
         }
     }
+}
+
+fn hint(text: impl Into<String>) -> Option<String> {
+    Some(text.into())
 }

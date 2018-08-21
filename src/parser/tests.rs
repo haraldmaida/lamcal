@@ -39,7 +39,7 @@ mod tokenize {
                 pos(1, 1),
                 name.chars().next().unwrap(),
                 "any lower case letter or \'λ\', \'.\', \'(\', \')\'",
-                "",
+                None,
             )));
         }
 
@@ -127,7 +127,7 @@ mod tokenize {
 
             let tokens = tokenize(input.chars());
 
-            prop_assert_eq!(tokens, Ok(vec![(Lambda, pos(1, 1)), (Identifier(name1), pos(1, 2)), (Dot, pos(1, col3)), (Identifier(name2), pos(1, col4))]));
+            prop_assert_eq!(tokens, Ok(vec![(Lambda, pos(1, 1)), (Identifier(name1), pos(1, 2)), (BodySeparator, pos(1, col3)), (Identifier(name2), pos(1, col4))]));
         }
 
         #[test]
@@ -145,7 +145,7 @@ mod tokenize {
 
             let tokens = tokenize(input.chars());
 
-            prop_assert_eq!(tokens, Ok(vec![(Lambda, pos(1, 1)), (Identifier(name1), pos(1, 2)), (Dot, pos(1, col3)), (Identifier(name2), pos(1, col4)), (Identifier(name3), pos(1, col5))]));
+            prop_assert_eq!(tokens, Ok(vec![(Lambda, pos(1, 1)), (Identifier(name1), pos(1, 2)), (BodySeparator, pos(1, col3)), (Identifier(name2), pos(1, col4)), (Identifier(name3), pos(1, col5))]));
         }
     }
 }
@@ -165,7 +165,7 @@ mod parse_tokens {
             CharPosition::default(),
             "invalid lambda expression",
             "at least one variable, abstraction or application",
-            "a lambda expression must consist of at least one term, like a variable, an abstraction or an application"
+            hint("a lambda expression must consist of at least one term, like a variable, an abstraction or an application"),
         )));
     }
 }
