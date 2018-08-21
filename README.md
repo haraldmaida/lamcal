@@ -18,7 +18,7 @@
 [crate]: https://crates.io/crates/lamcal
 [documentation]: https://docs.rs/lamcal
 [Travis CI]: https://travis-ci.org/haraldmaida/lamcal
-[Appveyor CI]: https://ci.appveyor.com/project/haraldmaida/lamcal
+[Appveyor CI]: https://ci.appveyor.com/project/innoave/lamcal
 [codecoverage]: https://codecov.io/github/haraldmaida/lamcal?branch=master
 [Apache-2.0]: https://www.apache.org/licenses/LICENSE-2.0
 [license]: LICENSE
