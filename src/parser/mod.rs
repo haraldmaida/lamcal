@@ -372,7 +372,7 @@ impl Context {
 }
 
 /// An error that occurs during parsing of expressions.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Fail, Debug, Clone, PartialEq)]
 pub struct ParseError {
     /// kind of error
     kind: ParseErrorKind,
