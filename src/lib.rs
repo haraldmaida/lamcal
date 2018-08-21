@@ -65,7 +65,7 @@ mod term;
 mod parser;
 mod reduction;
 
-pub use self::parser::{parse, parse_str, parse_tokens, tokenize, tokenize_str, ParseError};
+pub use self::parser::{parse, parse_str, parse_tokens, tokenize, tokenize_str, ParseError, ParseErrorKind, CharPosition};
 pub use self::reduction::{
     alpha, apply, reduce, substitute, BetaReduce, CallByName, Enumerate, NormalOrder,
 };

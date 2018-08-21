@@ -1,3 +1,4 @@
+//! Reduction system of the lambda calculus.
 //!
 //! [evaluation strategies]: https://en.wikipedia.org/wiki/Evaluation_strategy
 //! [reduction strategies]: https://en.wikipedia.org/wiki/Lambda_calculus#Reduction_strategies

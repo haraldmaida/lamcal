@@ -27,24 +27,12 @@ addons:
       - binutils-dev
       - libiberty-dev
 
-services:
-  - docker
-
 before_install:
   - sudo apt-get update
 
-before_script:
-  - docker network create nat
-  - docker-compose up -d
-
-after_script:
-  - docker-compose down
-
 script:
-  - cargo build --lib --all-features --verbose
-  - cargo test --lib --all-features --verbose
-  - cargo build --verbose
-  - cargo test --verbose
+  - cargo build --all --all-features --verbose
+  - cargo test --all --verbose
 
 after_success: |
   if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then

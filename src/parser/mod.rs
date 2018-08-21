@@ -1,3 +1,5 @@
+//! The parser that transform expressions into a `Term`.
+
 #[cfg(test)]
 mod tests;
 
@@ -13,7 +15,7 @@ use self::Token::*;
 ///
 /// This is a wrapper function of the more general `parse` function. It calls
 /// the `parse` function by converting the `str` slice into an `Iterator` over
-/// `char`s.
+/// its `char`s.
 pub fn parse_str(input: &str) -> Result<Term, ParseError> {
     parse_tokens(tokenize(input.chars())?)
 }
@@ -24,15 +26,25 @@ pub fn parse_str(input: &str) -> Result<Term, ParseError> {
 /// or `Err(ParseError)` if an error occurs.
 ///
 /// The input can be any data structure that can be converted into an `Iterator`
-/// over `char`s.
+/// over its `char`s.
 pub fn parse(input: impl IntoIterator<Item = char>) -> Result<Term, ParseError> {
     parse_tokens(tokenize(input)?)
 }
 
+/// Converts a `str` slice into a list of `Token`s.
+///
+/// This is a wrapper function that calls the more general `tokenize` function
+/// by converting the input `str` slice into an `Iterator` over its `char`s.
 pub fn tokenize_str(input: &str) -> Result<Vec<(Token, CharPosition)>, ParseError> {
     tokenize(input.chars())
 }
 
+/// Converts a stream of `char`s into a list of `Token`s.
+///
+/// The returned tokens are paired with their position within the input stream.
+/// Hence this function actually converts the input stream into a `Vec<(Token,
+/// CharPosition)`. The position information is used for `ParseError`s found by
+/// the `parse` function.
 pub fn tokenize(
     input: impl IntoIterator<Item = char>,
 ) -> Result<Vec<(Token, CharPosition)>, ParseError> {
