@@ -57,13 +57,5 @@ build: off
 
 test_script:
   - pwd
-# currently no windows amd64 docker image available
-#  - docker-compose up -d
-  - cargo build --lib --all-features --verbose %cargoflags%
-  - cargo test --lib --all-features --verbose %cargoflags%
-  - cargo build --lib --verbose %cargoflags%
-  - cargo test --lib --verbose %cargoflags%
-# arangodb docker image not working on windows server 2016
-#  - cargo build --verbose %cargoflags%
-#  - cargo test --verbose %cargoflags%
-#  - docker-compose down
+  - cargo build --all --all-features --verbose %cargoflags%
+  - cargo test --all --all-features --verbose %cargoflags%
