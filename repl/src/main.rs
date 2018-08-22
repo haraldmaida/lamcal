@@ -1,6 +1,7 @@
 //! A command line repl (read-evaluate-print loop) for lambda calculus.
 
 #![warn(
+    bare_trait_objects,
     missing_copy_implementations,
     missing_debug_implementations,
 //    missing_docs,
@@ -8,12 +9,14 @@
     trivial_numeric_casts,
     unsafe_code,
     unstable_features,
+    unused_extern_crates,
     unused_import_braces,
     unused_qualifications,
 )]
 
 extern crate colored;
 extern crate config;
+extern crate dirs;
 extern crate failure;
 extern crate rustyline;
 
@@ -26,7 +29,6 @@ mod build {
     pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 }
 
-use std::env;
 use std::fmt::Display;
 use std::fs;
 use std::path::PathBuf;
@@ -98,7 +100,7 @@ fn main() {
 }
 
 fn app_dir() -> Result<PathBuf, Error> {
-    let mut path = env::home_dir().ok_or_else(|| {
+    let mut path = dirs::home_dir().ok_or_else(|| {
         Error::from(Context::from(
             "The OS environment has no home directory defined",
         ))

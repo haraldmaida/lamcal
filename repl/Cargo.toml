@@ -23,5 +23,6 @@ no-color = ["colored/no-color"]
 lamcal = { version = "0.1", path = "../" }
 colored = "1.6"
 config = { version = "0.9", default-features = false, features = ["toml"] }
+dirs = "1.0"
 failure = "0.1"
 rustyline = "1.0"
