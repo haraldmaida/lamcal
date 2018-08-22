@@ -50,9 +50,9 @@ impl Term {
         }
     }
 
-    /// Performs an [α-reduction] on this `Term`.
+    /// Performs an [α-conversion] on this `Term`.
     ///
-    /// [α-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B1-conversion
+    /// [α-conversion]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B1-conversion
     pub fn alpha<A>(&mut self)
     where
         A: AlphaRename,
@@ -74,6 +74,22 @@ impl Term {
     /// with the expression `rhs`.
     ///
     /// If this `Term` is not a lambda abstraction this function does nothing.
+    ///
+    /// To avoid name clashes this function performs α-conversions when
+    /// appropriate. Therefore a strategy for α-conversion must be given as a
+    /// type parameter.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # extern crate lamcal;
+    /// # use lamcal::{app, lam, var, Enumerate};
+    /// let mut expr = lam("x", app(var("y"), var("x")));
+    ///
+    /// expr.apply::<Enumerate>(&var("z"));
+    ///
+    /// assert_eq!(expr, app(var("y"), var("z")));
+    /// ```
     pub fn apply<A>(&mut self, rhs: &Term)
     where
         A: AlphaRename,
@@ -115,11 +131,22 @@ impl Term {
     }
 }
 
-/// Performs an α-reduction on a given lambda expression.
-pub fn alpha<A>(mut expr: Term) -> Term
+/// Performs an [α-conversion] on a given lambda expression and returns the
+/// result as a new `Term`.
+///
+/// The type parameter A defines the strategy to be used for renaming bound
+/// variables.
+///
+/// The result is returned as a new `Term`. The original term `expr` is not
+/// changed. If you want to perform an α-conversion on a term in place use the
+/// associated function [`Term::alpha`](enum.Term.html#method.alpha) instead.
+///
+/// [α-conversion]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B1-conversion
+pub fn alpha<A>(expr: &Term) -> Term
 where
     A: AlphaRename,
 {
+    let mut expr = expr.clone();
     alpha_rec::<A>(&mut expr, Context::new());
     expr
 }
@@ -160,14 +187,14 @@ where
     }
 }
 
-/// Defines a strategy for renaming variables during [α-reduction] of terms.
+/// Defines a strategy for renaming variables during [α-conversion] of terms.
 ///
 /// A possible implementations may choose the next letter in the alphabet for
 /// single character names. Another strategy may be to enumerate the variables
 /// by appending an increasing number. A third example for an implementation
 /// is appending a tick symbol to the variable name.
 ///
-/// [α-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B1-conversion
+/// [α-conversion]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B1-conversion
 pub trait AlphaRename {
     /// Renames the given variable name according the implemented strategy.
     fn rename(name: &mut String);
@@ -223,12 +250,23 @@ impl Context {
 /// This function implements [substitution] in terms of the lambda calculus as
 /// a recursion on the structure of the given `expr`.
 ///
+/// The result is returned as a new `Term`. The original term `expr` is not
+/// changed.
+///
+/// To avoid name clashes this function performs α-conversions when appropriate.
+/// Therefore a strategy for α-conversion must be given as a type parameter.
+///
+/// This function returns the result as a new `Term`. The given term `expr`
+/// remains unmodified. If you want to substitute the original term in place use
+/// the associated function [`Term::subst`](enum.Term.html#method.subst)
+/// instead.
+///
 /// [substitution]: https://en.wikipedia.org/wiki/Lambda_calculus#Substitution
-pub fn substitute<A>(expr: Term, var: &VarT, repl: &Term) -> Term
+pub fn substitute<A>(expr: &Term, var: &VarT, repl: &Term) -> Term
 where
     A: AlphaRename,
 {
-    let mut t_expr = app(expr, repl.clone());
+    let mut t_expr = app(expr.clone(), repl.clone());
     alpha_rec::<A>(&mut t_expr, Context::new());
     if let App(mut a_expr, _) = t_expr {
         substitute_rec(&mut a_expr, var, repl);
@@ -258,21 +296,53 @@ fn substitute_rec(expr: &mut Term, var: &VarT, repl: &Term) {
     }
 }
 
-/// Applies the expression `subst` to the expression `expr` if `expr` is a
-/// lambda abstraction (that is of variant `Expr::Lam`) and returns the
-/// resulting expression.
+/// Applies a given lambda abstraction to the given substitution term and
+/// returns the result as a new `Term`.
 ///
-/// In the result any occurrence of the bound variable of the lambda abstraction
-/// is substituted by the given expression `subst` in the body of the lambda
-/// abstraction recursively.
+/// If the given term `expr` is a lambda abstraction (that is of variant
+/// `Term::Lam`) any occurrence of its bound variable in its body is replaced by
+/// the given term `subst`. The substitution is applied recursively.
 ///
-/// If the given expression `expr` is not a lambda abstraction the expression is
-/// returned unmodified.
-pub fn apply<A>(expr: Term, subst: &Term) -> Term
+/// The result is returned as a new `Term`. The original term `expr` is not
+/// changed. If the given expression `expr` is not a lambda abstraction an
+/// unmodified clone of the term `expr` is returned.
+///
+/// To avoid name clashes this function performs α-conversions when appropriate.
+/// Therefore a strategy for α-conversion must be given as a type parameter.
+///
+/// This function returns the result as a new `Term`. The given term `expr`
+/// remains unmodified. If you want to apply an α-conversion on the original
+/// term in place use the associated function
+/// [`Term::apply`](enum.Term.html#method.apply) instead.
+///
+/// # Example 1
+///
+/// ```
+/// # extern crate lamcal;
+/// # use lamcal::{app, lam, var, apply, Enumerate};
+/// let expr1 = lam("x", app(var("x"), var("y")));
+///
+/// let expr2 = apply::<Enumerate>(&expr1, &var("z"));
+///
+/// assert_eq!(expr2, app(var("z"), var("y")));
+/// ```
+///
+/// # Example 2
+///
+/// ```
+/// # extern crate lamcal;
+/// # use lamcal::{app, lam, var, apply, Enumerate};
+/// let expr1 = app(var("x"), var("y"));
+///
+/// let expr2 = apply::<Enumerate>(&expr1, &var("z"));
+///
+/// assert_eq!(expr2, expr1);
+/// ```
+pub fn apply<A>(expr: &Term, subst: &Term) -> Term
 where
     A: AlphaRename,
 {
-    let mut t_expr = app(expr, subst.clone());
+    let mut t_expr = app(expr.clone(), subst.clone());
     alpha_rec::<A>(&mut t_expr, Context::new());
     if let App(mut a_expr, _) = t_expr {
         apply_mut::<A>(&mut a_expr, subst);
@@ -328,6 +398,11 @@ fn apply_rec(expr: &mut Term, subst: &Term, bound: &str) {
 /// The reduction strategy to be used must be given as a type parameter, like
 /// in the example below.
 ///
+/// This function returns the result as a new `Term`. The given `Term` remains
+/// unchanged. If you want to apply a β-reduction modifying the term in place
+/// use the associated function [`Term::reduce`](enum.Term.html#method.reduce)
+/// instead.
+///
 /// # Example
 ///
 /// ```
@@ -342,16 +417,16 @@ fn apply_rec(expr: &mut Term, subst: &Term, bound: &str) {
 ///     lam("e", var("f"))
 /// ];
 ///
-/// let reduced = reduce::<NormalOrder<Enumerate>>(expr);
+/// let reduced = reduce::<NormalOrder<Enumerate>>(&expr);
 ///
 /// assert_eq!(reduced, var("x"));
 /// # }
 /// ```
-pub fn reduce<B>(expr: Term) -> Term
+pub fn reduce<B>(expr: &Term) -> Term
 where
     B: BetaReduce,
 {
-    <B as BetaReduce>::reduce(expr)
+    <B as BetaReduce>::reduce(expr.clone())
 }
 
 /// Defines a strategy for [β-reduction] of terms.

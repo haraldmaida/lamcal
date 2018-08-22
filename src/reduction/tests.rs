@@ -11,7 +11,7 @@ mod alpha_enumerate {
         let expr = app(lam("y", lam("x", app(var("x"), var("y")))), var("x"));
         let a_expr = app(lam("y", lam("x1", app(var("x1"), var("y")))), var("x"));
 
-        let result = alpha::<Enumerate>(expr);
+        let result = alpha::<Enumerate>(&expr);
 
         assert_eq!(result, a_expr);
     }
@@ -21,7 +21,7 @@ mod alpha_enumerate {
         let expr = app(lam("y", app(var("y"), var("x"))), var("x"));
         let a_expr = app(lam("y", app(var("y"), var("x1"))), var("x"));
 
-        let result = alpha::<Enumerate>(expr);
+        let result = alpha::<Enumerate>(&expr);
 
         assert_eq!(result, a_expr);
     }
@@ -43,7 +43,7 @@ mod alpha_enumerate {
             var("x"),
         );
 
-        let result = alpha::<Enumerate>(expr);
+        let result = alpha::<Enumerate>(&expr);
 
         assert_eq!(result, a_expr);
     }
@@ -53,7 +53,7 @@ mod alpha_enumerate {
         let expr = app(lam("y", lam("x1", app(var("x1"), var("y")))), var("x1"));
         let a_expr = app(lam("y", lam("x2", app(var("x2"), var("y")))), var("x1"));
 
-        let result = alpha::<Enumerate>(expr);
+        let result = alpha::<Enumerate>(&expr);
 
         assert_eq!(result, a_expr);
     }
@@ -63,7 +63,7 @@ mod alpha_enumerate {
         let expr = app(lam("y", lam("x19", app(var("x19"), var("y")))), var("x19"));
         let a_expr = app(lam("y", lam("x20", app(var("x20"), var("y")))), var("x19"));
 
-        let result = alpha::<Enumerate>(expr);
+        let result = alpha::<Enumerate>(&expr);
 
         assert_eq!(result, a_expr);
     }
@@ -79,7 +79,7 @@ mod alpha_enumerate {
             var("x1x19"),
         );
 
-        let result = alpha::<Enumerate>(expr);
+        let result = alpha::<Enumerate>(&expr);
 
         assert_eq!(result, a_expr);
     }
