@@ -83,6 +83,28 @@ impl Term {
 
     /// Performs a [β-reduction] on this `Term`.
     ///
+    /// The reduction strategy to be used must be given as a type parameter,
+    /// like in the example below.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # #[macro_use]
+    /// # extern crate lamcal;
+    /// # use lamcal::{var, lam, app, NormalOrder, Enumerate};
+    /// # fn main() {
+    /// let mut expr = app![
+    ///     lam("a", var("a")),
+    ///     lam("b", lam("c", var("b"))),
+    ///     var("x"),
+    ///     lam("e", var("f"))
+    /// ];
+    ///
+    /// expr.reduce::<NormalOrder<Enumerate>>();
+    ///
+    /// assert_eq!(expr, var("x"));
+    /// # }
+    /// ```
     /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
     pub fn reduce<B>(&mut self)
     where
@@ -302,6 +324,29 @@ fn apply_rec(expr: &mut Term, subst: &Term, bound: &str) {
 
 /// Performs a β-reduction on a given lambda expression applying the given
 /// reduction strategy.
+///
+/// The reduction strategy to be used must be given as a type parameter, like
+/// in the example below.
+///
+/// # Example
+///
+/// ```
+/// # #[macro_use]
+/// # extern crate lamcal;
+/// # use lamcal::{var, lam, app, reduce, NormalOrder, Enumerate};
+/// # fn main() {
+/// let expr = app![
+///     lam("a", var("a")),
+///     lam("b", lam("c", var("b"))),
+///     var("x"),
+///     lam("e", var("f"))
+/// ];
+///
+/// let reduced = reduce::<NormalOrder<Enumerate>>(expr);
+///
+/// assert_eq!(reduced, var("x"));
+/// # }
+/// ```
 pub fn reduce<B>(expr: Term) -> Term
 where
     B: BetaReduce,
@@ -354,7 +399,7 @@ where
                     Lam(_, _) => {
                         apply_mut::<A>(lhs, rhs);
                         CallByName::<A>::reduce_rec(lhs);
-                        // delay replacement outside match expression because of borrow checker
+                        // delay replacement outside match expression because of the borrow checker
                         Some(mem::replace(&mut **lhs, Var(String::new())))
                     },
                     _ => None,
@@ -404,7 +449,7 @@ where
                     Lam(_, _) => {
                         apply_mut::<A>(lhs, rhs);
                         NormalOrder::<A>::reduce_rec(lhs);
-                        // delay replacement outside match expression because of borrow checker
+                        // delay replacement outside match expression because of the borrow checker
                         Some(mem::replace(&mut **lhs, Var(String::new())))
                     },
                     _ => {

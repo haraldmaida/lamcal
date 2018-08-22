@@ -68,7 +68,7 @@ mod parser;
 mod reduction;
 
 pub use self::parser::{
-    parse, parse_str, parse_tokens, pos, tokenize, tokenize_str, CharPosition, ParseError,
+    hint, parse, parse_str, parse_tokens, pos, tokenize, tokenize_str, CharPosition, ParseError,
     ParseErrorKind, Token,
 };
 pub use self::reduction::{

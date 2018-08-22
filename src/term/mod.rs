@@ -7,11 +7,14 @@ use std::fmt::{self, Display};
 
 /// Constructs a variable of the given name.
 ///
-/// This is a convenience function for constructing a `Term` of variant
-/// `Term::Var` in a readable form with minimal keystrokes.
+/// This is a convenience function for constructing a
+/// [`Term`](enum.Term.html) of variant `Term::Var` in a readable form with
+/// minimal keystrokes. It takes any value that can be converted into a `String`
+/// and returns `Term::Var(name)`.
 ///
-/// It takes any value that can be converted into a `String` and returns
-/// `Term::Var(name)`.
+/// This function combined with the functions [`lam`](fn.lam.html) and
+/// [`app`](fn.app.html) let us construct any [`Term`](enum.Term.html) in the
+/// pure lambda calculus.
 ///
 /// # Example
 ///
@@ -28,12 +31,15 @@ pub fn var(name: impl Into<String>) -> Term {
 
 /// Constructs a lambda abstraction with given parameter and body.
 ///
-/// This is a convenience function for constructing a `Term` of variant
-/// `Term::Lam` in a readable form with minimal keystrokes.
+/// This is a convenience function for constructing a [`Term`](enum.Term.html)
+/// of variant `Term::Lam` in a readable form with minimal keystrokes. It takes
+/// any value that can be converted into a `String` to form a bound variable
+/// (the parameter of the abstraction) and a `Term` for the body of the
+/// abstraction.
 ///
-/// It takes any value that can be converted into a `String` to form a bound
-/// variable (the parameter of the abstraction) and a `Term` for the body of
-/// the abstraction.
+/// This function combined with the functions [`var`](fn.var.html) and
+/// [`app`](fn.app.html) let us construct any [`Term`](enum.Term.html) in the
+/// pure lambda calculus.
 ///
 /// # Example
 ///
@@ -54,11 +60,14 @@ pub fn lam(param: impl Into<String>, body: Term) -> Term {
 /// Constructs a function application with the `lhs` term to be applied to the
 /// `rhs` term.
 ///
-/// This is a convenience function for constructing a `Term` of variant
-/// `Term::App` in a readable form with minimal keystrokes.
+/// This is a convenience function for constructing a [`Term`](enum.Term.html)
+/// of variant `Term::App` in a readable form with minimal keystrokes. It takes
+/// two `Term`s as its input and returns a `Term::App` with the first `Term` to
+/// be applied to the second `Term`.
 ///
-/// It takes two `Term`s as its input and returns a `Term::App` with the first
-/// `Term` to be applied to the second `Term`.
+/// This function combined with the functions [`var`](fn.var.html) and
+/// [`lam`](fn.lam.html) let us construct any [`Term`](enum.Term.html) in the
+/// pure lambda calculus.
 ///
 /// # Example
 ///
