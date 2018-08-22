@@ -82,7 +82,7 @@ pub fn app(lhs: Term, rhs: Term) -> Term {
     Term::App(Box::new(lhs), Box::new(rhs))
 }
 
-/// Definition of a term in the lambda calculus.
+/// A term in the lambda calculus.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Term {
     /// A variable (x)
@@ -155,6 +155,32 @@ impl Var {
     }
 }
 
+/// The app! macro can be used to conveniently construct an sequence of function
+/// applications.
+///
+/// # Example
+///
+/// ```
+/// #[macro_use]
+/// extern crate lamcal;
+/// # use lamcal::{app, var, lam};
+///
+/// # fn main() {
+/// let expr = app![
+///     lam("x", var("x")),
+///     lam("y", app(var("x"), var("y"))),
+///     var("z")
+/// ];
+///
+/// assert_eq!(
+///     expr,
+///     app(
+///         app(lam("x", var("x")), lam("y", app(var("x"), var("y")))),
+///         var("z")
+///     )
+/// );
+/// # }
+/// ```
 #[macro_export]
 macro_rules! app {
     ($term1:expr, $($term2:expr),+) => {

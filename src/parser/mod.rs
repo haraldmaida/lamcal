@@ -138,6 +138,7 @@ pub fn tokenize(
     Ok(tokens)
 }
 
+/// Parses a list of `Token`s into a `Term`.
 pub fn parse_tokens(
     tokens: impl IntoIterator<Item = (Token, CharPosition)>,
 ) -> Result<Term, ParseError> {
@@ -296,7 +297,6 @@ impl Display for Token {
 /// Constructs a `CharPosition` from line and column.
 ///
 /// This is a convenience function to easily construct `CharPosition`s.
-#[cfg(test)]
 pub fn pos(line: usize, column: usize) -> CharPosition {
     CharPosition {
         line,
@@ -305,10 +305,18 @@ pub fn pos(line: usize, column: usize) -> CharPosition {
     }
 }
 
+/// Represents a position in a stream of `char`s.
+///
+/// The first character in a stream is at line 1 and column 1. Every newline
+/// character advances the line by 1 and resets the column so that the next
+/// character gets column 1 at the next line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct CharPosition {
+    /// the line number
     line: usize,
+    /// the column number
     column: usize,
+    /// the newline indicator
     newline: bool,
 }
 
@@ -329,6 +337,7 @@ impl Display for CharPosition {
 }
 
 impl CharPosition {
+    /// Constructs a new `CharPosition` with given line and column number.
     pub fn new(line: usize, column: usize) -> Self {
         CharPosition {
             line,
@@ -337,6 +346,8 @@ impl CharPosition {
         }
     }
 
+    /// Constructs a new `CharPosition` with given line and column number and
+    /// an indicator, that the next character is positioned at a new line.
     pub fn with_newline(line: usize, column: usize, newline: bool) -> Self {
         CharPosition {
             line,
@@ -345,18 +356,26 @@ impl CharPosition {
         }
     }
 
+    /// Returns the line number of this position.
     pub fn line(&self) -> usize {
         self.line
     }
 
+    /// Returns the column number of this position.
     pub fn column(&self) -> usize {
         self.column
     }
 
+    /// Returns the newline indicator of this position.
     pub fn newline(&self) -> bool {
         self.newline
     }
 
+    /// Advances this position to the next character.
+    ///
+    /// The first character in a stream is at line 1 and column 1. Every newline
+    /// character advances the line by 1 and resets the column so that the next
+    /// character gets column 1 at the next line.
     pub fn next(&mut self, chr: char) {
         if self.newline {
             self.newline = false;
@@ -395,7 +414,7 @@ pub struct ParseError {
     /// a description of what is expected to form a correct expression
     expected: String,
     /// an optional hint on how to fix the error
-    hint: Option<String>,
+    hint: Option<Hint>,
 }
 
 impl ParseError {
@@ -405,7 +424,7 @@ impl ParseError {
         position: CharPosition,
         found: impl Display,
         expected: impl Display,
-        hint: Option<String>,
+        hint: Option<Hint>,
     ) -> Self {
         ParseError {
             kind,
@@ -440,7 +459,7 @@ impl ParseError {
     /// Returns an additional hint for finding and fixing the error.
     ///
     /// The hint is optional. So some errors might not have a hint for you.
-    pub fn hint(&self) -> Option<&String> {
+    pub fn hint(&self) -> Option<&Hint> {
         self.hint.as_ref()
     }
 }
@@ -458,16 +477,26 @@ impl Display for ParseError {
     }
 }
 
+/// The kind of a parse error.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ParseErrorKind {
+    /// The expression is empty.
     EmptyExpression,
+    /// Expected an identifier at this position.
     IdentifierExpected,
+    /// Found a character that is invalid at this position.
     InvalidCharacter,
+    /// Expected a lambda body separator at this position.
     LambdaBodyExpected,
+    /// Expected a lambda head at this position.
     LambdaHeadExpected,
+    /// Found a closing parenthesis without a matching opening one.
     MissingOpeningParen,
+    /// Missing a closing parenthesis for a found opening one.
     MissingClosingParen,
+    /// End of input before a term is complete.
     UnexpectedEndOfInput,
+    /// Unexpected token at this position.
     UnexpectedToken,
 }
 
@@ -478,6 +507,7 @@ impl Display for ParseErrorKind {
 }
 
 impl ParseErrorKind {
+    /// Returns an explanation for this kind of parse error.
     pub fn explain(self) -> &'static str {
         match self {
             EmptyExpression => "can not parse empty expression",
@@ -497,6 +527,17 @@ impl ParseErrorKind {
     }
 }
 
-fn hint(text: impl Into<String>) -> Option<String> {
-    Some(text.into())
+/// A hint how to avoid an error.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Hint(String);
+
+impl Display for Hint {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// Constructs a `Hint` from a type that can be converted into a `String`.
+pub fn hint(text: impl Into<String>) -> Option<Hint> {
+    Some(Hint(text.into()))
 }
