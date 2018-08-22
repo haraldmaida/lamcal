@@ -211,6 +211,32 @@ mod beta_call_by_name {
 
         assert_eq!(reduced, var("x"));
     }
+
+    #[test]
+    fn complex_term3() {
+        // ( \x.(\y.x (\z.z) y) ) ( (\a.a) (\b.b) )
+        let expr = app(
+            lam(
+                "x",
+                lam("y", app(var("x"), app(lam("z", var("z")), var("y")))),
+            ),
+            app(lam("a", var("a")), lam("b", var("b"))),
+        );
+
+        let reduced = CallByName::<Enumerate>::reduce(expr);
+
+        assert_eq!(
+            reduced,
+            lam(
+                "y",
+                app![
+                    lam("a", var("a")),
+                    lam("b", var("b")),
+                    app(lam("z", var("z")), var("y"))
+                ]
+            )
+        );
+    }
 }
 
 mod beta_normal_order {
@@ -263,5 +289,21 @@ mod beta_normal_order {
         let reduced = NormalOrder::<Enumerate>::reduce(expr);
 
         assert_eq!(reduced, var("x"));
+    }
+
+    #[test]
+    fn complex_term3() {
+        // ( \x.(\y.x (\z.z) y) ) ( (\a.a) (\b.b) )
+        let expr = app(
+            lam(
+                "x",
+                lam("y", app(var("x"), app(lam("z", var("z")), var("y")))),
+            ),
+            app(lam("a", var("a")), lam("b", var("b"))),
+        );
+
+        let reduced = NormalOrder::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, lam("y", var("y")));
     }
 }
