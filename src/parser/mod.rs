@@ -418,7 +418,7 @@ pub struct ParseError {
 }
 
 impl ParseError {
-    /// Constructs a new `ParseError` with given information.
+    /// Constructs a new `ParseError` with the given information.
     pub fn new(
         kind: ParseErrorKind,
         position: CharPosition,

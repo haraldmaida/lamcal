@@ -5,7 +5,7 @@
 
 use std::fmt::{self, Display};
 
-/// Constructs a variable with the given name.
+/// Constructs a variable of the given name.
 ///
 /// This is a convenience function for constructing a `Term` of variant
 /// `Term::Var` in a readable form with minimal keystrokes.
@@ -168,7 +168,7 @@ impl Var {
 /// # fn main() {
 /// let expr = app![
 ///     lam("x", var("x")),
-///     lam("y", app(var("x"), var("y"))),
+///     lam("y", app!(var("x"), var("y"))),
 ///     var("z")
 /// ];
 ///

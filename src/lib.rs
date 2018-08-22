@@ -16,8 +16,8 @@
 //!   the underscore `_` or the tick '\'' character.
 //! * lambda abstractions start with the small greek letter lambda 'λ' or
 //!   alternatively with a backslash '\\' for easier typing on traditional
-//!   keyboards. Then follows variable name as the parameter and a dot '.' that
-//!   separates the parameter from the body.
+//!   keyboards. Then follows a variable name as the parameter and a dot '.'
+//!   that separates the parameter from the body.
 //! * function applications are written as two terms side by side separated by
 //!   whitespace.
 //!
@@ -70,6 +70,6 @@ pub use self::parser::{
     ParseErrorKind, Token,
 };
 pub use self::reduction::{
-    alpha, apply, reduce, substitute, BetaReduce, CallByName, Enumerate, NormalOrder,
+    alpha, apply, reduce, substitute, AlphaRename, BetaReduce, CallByName, Enumerate, NormalOrder,
 };
 pub use self::term::{app, lam, var, Term, Var};
