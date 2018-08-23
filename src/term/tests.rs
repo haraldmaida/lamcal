@@ -102,3 +102,28 @@ mod app_macro {
         assert_eq!(expr, app(app(var("a"), var("b")), var("c")));
     }
 }
+//
+//mod lam_macro {
+//
+//    use super::*;
+//
+//    #[test]
+//    fn lam_with_2_params() {
+//        let expr = lam!("x", "y", app(var("x"), var("y")));
+//
+//        assert_eq!(expr, lam("x", lam("y", app(var("x"), var("y")))));
+//    }
+//
+//    #[test]
+//    fn lam_with_3_params() {
+//        let expr = lam!("x", "y", "z", app!(var("x"), var("y"), var("z")));
+//
+//        assert_eq!(
+//            expr,
+//            lam(
+//                "x",
+//                lam("y", lam("z", app(app(var("x"), var("y")), var("z"))))
+//            )
+//        );
+//    }
+//}

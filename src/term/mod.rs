@@ -194,12 +194,30 @@ impl Var {
 macro_rules! app {
     ($term1:expr, $($term2:expr),+) => {
         {
-            let mut term = $term1;
-            $(term = app(term, $term2);)*
-            term
+            let mut __term = $term1;
+            $(__term = app(__term, $term2);)*
+            __term
         }
     }
 }
+//
+//#[macro_export]
+//macro_rules! lam {
+//    ($var1:expr $(, $var2:expr)*, $term:expr) => {
+//        {
+//            use std::mem;
+//            let mut __term = Term::Lam(Var($var1.into()),
+// Term::Var(String::new()));            $(if let Term::Lam(_, mut ref body) =
+// __term {                let mut __term2 = Term::Lam(Var($var2.into(),
+// Term::Var(String::new())));                mem::swap(&mut **body, &mut
+// __term2);            })*
+//            if let Term::Lam(_, mut ref body) = __term {
+//                mem::swap(&mut **body, &mut $term);
+//            }
+//            __term
+//        }
+//    }
+//}
 
 #[cfg(test)]
 mod tests;

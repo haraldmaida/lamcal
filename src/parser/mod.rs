@@ -403,7 +403,8 @@ impl Context {
 }
 
 /// An error that occurs during parsing of expressions.
-#[derive(Fail, Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "failure", derive(Fail))]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ParseError {
     /// kind of error
     kind: ParseErrorKind,
