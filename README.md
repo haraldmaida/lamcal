@@ -59,7 +59,7 @@ extern crate lamcal;
 
 For details about the library see the [documentation] at crates.io.
 
-This library optionally supports the `failure` crate. The support for the `failure` crate is a crate
+This library optionally supports the [`failure`] crate. The support for the `failure` crate is a crate
 feature. To enable it add the dependency to your `Cargo.toml` like so:
 
 ```toml
@@ -79,6 +79,7 @@ for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
 licensed as above, without any additional terms or conditions.
 
 --------------------------------------------------------------------------------
+[`failure`]: https://crates.io/crates/failure
 [de bruijn index]: https://en.wikipedia.org/wiki/De_Bruijn_index
 [krivine machine]: https://en.wikipedia.org/wiki/Krivine_machine
 [lambda calculus]: https://en.wikipedia.org/wiki/Lambda_calculus
