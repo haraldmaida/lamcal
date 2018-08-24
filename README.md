@@ -59,6 +59,14 @@ extern crate lamcal;
 
 For details about the library see the [documentation] at crates.io.
 
+The library optionally supports the `failure` crate. The support for the `failure` crate is a crate
+feature. To enabled it add the dependency to your `Cargo.toml` like so:
+
+```toml
+[dependencies]
+lamcal = { version = "0.1", features = ["failure"] }
+```
+
 ## License
 
 Licensed under Apache License, Version 2.0<br/>
