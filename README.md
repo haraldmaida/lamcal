@@ -59,7 +59,7 @@ extern crate lamcal;
 
 For details about the library see the [documentation] at crates.io.
 
-The library optionally supports the `failure` crate. The support for the `failure` crate is a crate
+This library optionally supports the `failure` crate. The support for the `failure` crate is a crate
 feature. To enabled it add the dependency to your `Cargo.toml` like so:
 
 ```toml
