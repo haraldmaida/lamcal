@@ -174,7 +174,7 @@ where
                             position,
                             token,
                             "an identifier",
-                            hint("a lambda expression must define a bound variable in its head"),
+                            hint("a lambda abstraction must define a bound variable in its head"),
                         ));
                     },
                     None => {
@@ -183,7 +183,7 @@ where
                             position,
                             "end of input",
                             "an identifier",
-                            hint("a lambda expression must define a bound variable in its head"),
+                            hint("a lambda abstraction must define a bound variable in its head"),
                         ))
                     },
                 };
