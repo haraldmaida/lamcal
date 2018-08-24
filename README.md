@@ -30,14 +30,17 @@
 * parse lambda expressions in classic notation, like `(λx.(λy.x y) a) b` or `(\x.(\y.x y) a) b`
   into terms
 * construct terms programmatically using functions, e.g. `lam("x", app(var("x"), var("y")))`
+* construct a sequence of function applications using the macro `app!`, e.g.
+  `app![var("a"), var("b"), var("c")]` which is equivalent to 
+  `app(app(var("a"), var("b")), var("c))` 
 * apply α-conversion to terms using different strategies, such as enumeration or appending the tick
   symbol
-* apply β-reduction to terms using different strategies, such as call-by-name or normal-order
-* extended by implementing user specific strategies for α-conversion and β-reduction.
+* apply β-reduction to terms using different strategies, such as call-by-name, normal-order or 
+  call-by-value
+* be extended by implementing user specific strategies for α-conversion and β-reduction.
 
 The separate crate [lamcal-repl] provides a command line REPL (read-evaluate-print-loop) application
 to play around with lambda calculus terms and applying α-conversion and β-reduction interactively.
-
 
 ## Usage
 
@@ -53,6 +56,8 @@ and this to your crate root:
 ```rust
 extern crate lamcal;
 ```
+
+For details about the library see the [documentation] at crates.io.
 
 ## License
 
