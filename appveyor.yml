@@ -57,5 +57,5 @@ build: off
 
 test_script:
   - pwd
-  - cargo build --all --all-features --verbose %cargoflags%
+  - cargo build --all --verbose %cargoflags%
   - cargo test --all --all-features --verbose %cargoflags%
