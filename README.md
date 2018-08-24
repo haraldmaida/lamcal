@@ -29,8 +29,8 @@
  
 It can be used to
     
-* parse lambda expressions in classic notation into terms, like `parse_str("(λx.(λy.x y) a) b")` or
-  `parse_str("(\\x.(\\y.x y) a) b")`
+* parse lambda expressions in classic notation into terms, like `parse_str("(λx.(λy.x y) a) b")`
+  <br /> or `parse_str("(\\x.(\\y.x y) a) b")`
 * construct terms programmatically using functions, e.g. `lam("x", app(var("x"), var("y")))`
 * construct a sequence of function applications using the macro `app!`, e.g.
   `app![var("a"), var("b"), var("c")]` which is equivalent to 
