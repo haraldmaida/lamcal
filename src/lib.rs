@@ -126,8 +126,8 @@ mod parser;
 mod reduction;
 
 pub use self::parser::{
-    hint, parse, parse_str, parse_tokens, pos, tokenize, tokenize_str, CharPosition, ParseError,
-    ParseErrorKind, Token,
+    hint, parse, parse_str, parse_tokens, pos, tokenize, tokenize_str, CharPosition, Hint,
+    ParseError, ParseErrorKind, Token,
 };
 pub use self::reduction::{
     alpha, apply, reduce, substitute, AlphaRename, BetaReduce, CallByName, Enumerate, NormalOrder,
