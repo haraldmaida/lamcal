@@ -94,7 +94,7 @@
 //!
 //! [lambda calculus]: https://en.wikipedia.org/wiki/Lambda_calculus
 
-#![doc(html_root_url = "https://docs.rs/lamcal/0.1.0")]
+#![doc(html_root_url = "https://docs.rs/lamcal/0.1.1")]
 #![warn(
     bare_trait_objects,
     missing_copy_implementations,
