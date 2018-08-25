@@ -230,8 +230,8 @@ impl AlphaRename for Enumerate {
     }
 }
 
-/// Implementation of `AlphaRename` that appends a tick symbol '\' at the end of
-/// a variable name.
+/// Implementation of `AlphaRename` that appends a tick symbol '\'' at the end
+/// of a variable name.
 ///
 /// If the given name already ends with a tick symbol another tick symbol is
 /// appended.
