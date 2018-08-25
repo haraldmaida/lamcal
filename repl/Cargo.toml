@@ -1,6 +1,6 @@
 [package]
 name = "lamcal-repl"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["haraldmaida"]
 
 description = "A lambda calculus command line repl"
