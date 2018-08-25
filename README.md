@@ -44,6 +44,16 @@ It can be used to
 The separate crate [lamcal-repl] provides a command line REPL (read-evaluate-print-loop) application
 to play around with lambda calculus terms and applying α-conversion and β-reduction interactively.
 
+Features:
+
+* Evaluation function are provided in two variants: An mutable (associated) function, e.g. 
+  `Term::reduce` and an immutable (standalone) function, e.g `reduce`.
+* Strategies for α-conversion and β-reduction are defined as traits to easily implement custom
+  strategies and use it with the functionality of this library.
+* The parser gives detailed information about parse errors, like the position of the error in the 
+  source stream and what would have been expected instead in a valid expression.
+* Optional support for [`failure`] crate compatible error types.  
+
 ## Usage
 
 To use [lamcal] as a library in your project add this to your `Cargo.toml` file:

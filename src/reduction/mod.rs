@@ -121,6 +121,7 @@ impl Term {
     /// assert_eq!(expr, var("x"));
     /// # }
     /// ```
+    ///
     /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
     pub fn reduce<B>(&mut self)
     where
@@ -406,7 +407,7 @@ fn apply_rec(expr: &mut Term, subst: &Term, bound: &str) {
     }
 }
 
-/// Performs a β-reduction on a given lambda expression applying the given
+/// Performs a [β-reduction] on a given lambda expression applying the given
 /// reduction strategy.
 ///
 /// The reduction strategy to be used must be given as a type parameter, like
@@ -436,6 +437,8 @@ fn apply_rec(expr: &mut Term, subst: &Term, bound: &str) {
 /// assert_eq!(reduced, var("x"));
 /// # }
 /// ```
+///
+/// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
 pub fn reduce<B>(expr: &Term) -> Term
 where
     B: BetaReduce,

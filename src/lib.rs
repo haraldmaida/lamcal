@@ -61,7 +61,7 @@
 //! crate can easily implement their own strategies and use them with all the
 //! functionality provided by this library.
 //!
-//! ## α-conversion
+//! ### α-conversion
 //!
 //! α-conversion renames bound variables if the name conflicts with a free
 //! variable in a function application.
@@ -70,17 +70,27 @@
 //! [`alpha`](fn.alpha.html) or the associated function
 //! [`Term::alpha`](enum.Term.html#method.alpha). We must tell those functions
 //! which strategy to use for renaming variables. The strategy is specified as
-//! a type parameter, e.g. `alpha::<Enumerate>(&expr)`
+//! a type parameter, <br/>e.g. `alpha::<Enumerate>(&expr)`.
 //!
 //! The trait [`AlphaRename`](trait.AlphaRename.html) defines the strategy for
 //! renaming variables in case of possible name clashes. The provided
 //! implementations are [`Enumerate`](struct.Enumerate.html) and
 //! [`Prime`](struct.Prime.html).
 //!
-//! ## β-reduction
+//! ### β-reduction
+//!
+//! β-reduction evaluates function applications according a chosen strategy.
+//!
+//! To execute β-reduction on a term we use either the standalone function
+//! [`reduce`](fn.reduce.html) or the associated function
+//! [`Term::reduce`](enum.Term.html#method.reduce). We must tell those functions
+//! which strategy we want ot use for reduction. The strategy is specified as
+//! a type parameter, <br/>e.g. `reduce::<NormalOrder>(&expr)`.
 //!
 //! The trait [`BetaReduce`](trait.BetaReduce.html) defines the strategy
-//! applied when performing a β-reduction.
+//! applied when performing a β-reduction. The provided implementations are
+//! [`CallByName`](struct.CallByName.html) and
+//! [`NormalOrder`](struct.NormalOrder.html)
 //!
 //! [lambda calculus]: https://en.wikipedia.org/wiki/Lambda_calculus
 
