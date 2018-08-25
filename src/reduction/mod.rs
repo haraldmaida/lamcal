@@ -64,7 +64,7 @@ impl Term {
     /// expression `rhs` recursively on the structure of this `Term`.
     ///
     /// [substitutes]: https://en.wikipedia.org/wiki/Lambda_calculus#Substitution
-    pub fn subst(&mut self, var: &VarT, rhs: &Term) {
+    pub fn substitute(&mut self, var: &VarT, rhs: &Term) {
         substitute_rec(self, var, rhs)
     }
 
@@ -226,6 +226,20 @@ impl AlphaRename for Enumerate {
         } else {
             name.push('1');
         }
+    }
+}
+
+/// Implementation of `AlphaRename` that appends a tick symbol '\' at the end of
+/// a variable name.
+///
+/// If the given name already ends with a tick symbol another tick symbol is
+/// appended.
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct Prime;
+
+impl AlphaRename for Prime {
+    fn rename(name: &mut String) {
+        name.push('\'');
     }
 }
 

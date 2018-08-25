@@ -85,6 +85,43 @@ mod alpha_enumerate {
     }
 }
 
+mod alpha_prime {
+
+    use super::*;
+
+    use term::{app, lam, var};
+
+    #[test]
+    fn renames_bound_x_to_xp_in_lambda1() {
+        let expr = app(lam("y", lam("x", app(var("x"), var("y")))), var("x"));
+        let a_expr = app(lam("y", lam("x'", app(var("x'"), var("y")))), var("x"));
+
+        let result = alpha::<Prime>(&expr);
+
+        assert_eq!(result, a_expr);
+    }
+
+    #[test]
+    fn renames_bound_x_to_xp_in_lambda2() {
+        let expr = app(lam("y", app(var("y"), var("x"))), var("x"));
+        let a_expr = app(lam("y", app(var("y"), var("x'"))), var("x"));
+
+        let result = alpha::<Prime>(&expr);
+
+        assert_eq!(result, a_expr);
+    }
+
+    #[test]
+    fn renames_bound_xp_to_xpp_in_lambda1() {
+        let expr = app(lam("y", lam("x'", app(var("x'"), var("y")))), var("x'"));
+        let a_expr = app(lam("y", lam("x''", app(var("x''"), var("y")))), var("x'"));
+
+        let result = alpha::<Prime>(&expr);
+
+        assert_eq!(result, a_expr);
+    }
+}
+
 mod beta {
 
     use term::{app, lam, var};
