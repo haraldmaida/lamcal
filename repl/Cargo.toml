@@ -7,6 +7,7 @@ description = "A lambda calculus command line repl"
 
 repository = "https://github.com/haraldmaida/lamcal"
 documentation = "https://docs.rs/lamcal-repl"
+homepage = "https://github.com/haraldmaida/lamcal/blob/master/repl"
 readme = "README.md"
 keywords = ["lambda-calculus", "repl", "evalute", "interpret", "parse"]
 categories = ["science"]

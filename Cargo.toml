@@ -7,6 +7,7 @@ description = "A lambda calculus parser and interpreter"
 
 repository = "https://github.com/haraldmaida/lamcal"
 documentation = "https://docs.rs/lamcal"
+homepage = "https://github.com/haraldmaida/lamcal"
 readme = "README.md"
 keywords = ["functional", "combinator", "mathematics", "parser", "interpreter"]
 categories = ["science"]
