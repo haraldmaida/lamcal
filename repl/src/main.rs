@@ -1,6 +1,6 @@
 //! A command line repl (read-evaluate-print loop) for lambda calculus.
 
-#![doc(html_root_url = "https://docs.rs/lamcal-repl/0.2.0")]
+#![doc(html_root_url = "https://docs.rs/lamcal-repl/0.2.0/lamcali")]
 #![warn(
     bare_trait_objects,
     missing_copy_implementations,
@@ -16,14 +16,12 @@
 )]
 
 extern crate colored;
-extern crate config;
 extern crate dirs;
+#[macro_use]
 extern crate failure;
 extern crate rustyline;
 
-extern crate lamcal;
-
-mod settings;
+extern crate lamcal_repl;
 
 mod build {
     pub const NAME: &str = env!("CARGO_PKG_NAME");
@@ -35,12 +33,17 @@ use std::fs;
 use std::path::PathBuf;
 
 use colored::*;
-use failure::{Context, Error};
+use failure::{err_msg, Error};
 use rustyline::Editor;
 
-use lamcal::{parse, Enumerate, NormalOrder};
-
-use settings::Settings;
+use lamcal_repl::command::{
+    cont_output, Command, Continuation, EvaluateLambdaExpression, ParseLambdaExpression,
+    PrintAlphaRenamingStrategy, PrintBetaReductionStrategy, Processing, SetAlphaRenamingStrategy,
+    SetBetaReductionStrategy,
+};
+use lamcal_repl::context::Context;
+use lamcal_repl::model::{AlphaRenamingStrategy, BetaReductionStrategy};
+use lamcal_repl::settings::Settings;
 
 const PROMPT_HEAD: &str = "λ> ";
 
@@ -67,17 +70,18 @@ fn main() {
         },
         Err(err) => print_warning(err),
     }
+    let mut ctx = Context::default();
     let mut prompt = PROMPT_HEAD.to_owned();
     loop {
         match rl.readline(&prompt) {
             Ok(line) => {
                 rl.add_history_entry(&line);
-                let continuation = if line.is_empty() {
-                    next(PROMPT_HEAD.to_owned())
-                } else if line.starts_with(':') {
-                    process_command(&line)
-                } else {
-                    evaluate_expression(&line)
+                let continuation = match parse_command(&line) {
+                    Ok(cmd) => cmd.execute(&mut ctx),
+                    Err(err) => {
+                        print_error(err);
+                        next("")
+                    },
                 };
                 prompt = PROMPT_HEAD.to_owned() + &continuation.prompt;
                 use self::Processing::*;
@@ -101,11 +105,8 @@ fn main() {
 }
 
 fn app_dir() -> Result<PathBuf, Error> {
-    let mut path = dirs::home_dir().ok_or_else(|| {
-        Error::from(Context::from(
-            "The OS environment has no home directory defined",
-        ))
-    })?;
+    let mut path = dirs::home_dir()
+        .ok_or_else(|| err_msg("The OS environment has no home directory defined"))?;
     path.push(".lamcali");
     if !path.exists() {
         fs::create_dir_all(&path)?;
@@ -127,30 +128,6 @@ fn history_file() -> Result<PathBuf, Error> {
     })
 }
 
-struct Continuation {
-    processing: Processing,
-    prompt: String,
-}
-
-enum Processing {
-    Continue,
-    Stop,
-}
-
-fn next(prompt: impl Display) -> Continuation {
-    Continuation {
-        processing: Processing::Continue,
-        prompt: prompt.to_string(),
-    }
-}
-
-fn stop(prompt: impl Display) -> Continuation {
-    Continuation {
-        processing: Processing::Stop,
-        prompt: prompt.to_string(),
-    }
-}
-
 fn print(text: impl Display) {
     println!("{}", text)
 }
@@ -167,50 +144,237 @@ fn print_info(info: impl Display) {
     println!("{} {}", "info:".blue(), info)
 }
 
-fn parse_expression(line: &str) -> Continuation {
-    match parse(line.chars()) {
-        Ok(expr) => {
-            print(format!("{:?}", expr));
-        },
-        Err(err) => {
-            print_error(err);
-        },
+fn handle_continuation<T>(continuation: Continuation<T>) -> Continuation<()>
+where
+    T: Display,
+{
+    if let Some(output) = continuation.output {
+        print(output.to_string());
     }
-    next("")
+    if let Some(info) = continuation.info {
+        print_info(info);
+    }
+    if let Some(warning) = continuation.warning {
+        print_warning(warning);
+    }
+    if let Some(error) = continuation.error {
+        print_error(error);
+    }
+    match continuation.processing {
+        Processing::Continue => next(continuation.prompt),
+        Processing::Stop => stop((), continuation.prompt),
+    }
 }
 
-fn evaluate_expression(line: &str) -> Continuation {
-    match parse(line.chars()) {
-        Ok(mut expr) => {
-            expr.reduce::<NormalOrder<Enumerate>>();
-            print(expr);
-        },
-        Err(err) => {
-            print_error(err);
-        },
+fn next<T>(prompt: impl Display) -> Continuation<T> {
+    Continuation {
+        processing: Processing::Continue,
+        output: None,
+        info: None,
+        warning: None,
+        error: None,
+        prompt: prompt.to_string(),
     }
-    next("")
 }
 
-fn process_command(line: &str) -> Continuation {
+fn stop<T>(output: T, prompt: impl Display) -> Continuation<T> {
+    Continuation {
+        processing: Processing::Stop,
+        output: Some(output),
+        info: None,
+        warning: None,
+        error: None,
+        prompt: prompt.to_string(),
+    }
+}
+
+fn parse_alpha_renaming_strategy(line: &str) -> Result<AlphaRenamingStrategy, Error> {
+    use self::AlphaRenamingStrategy::*;
     match line.trim() {
-        ":h" | ":help" => {
-            print(help_message().green());
-            next("")
+        "enumerate" => Ok(Enumerate),
+        "prime" => Ok(Prime),
+        s => Err(format_err!("Unknown alpha-reduction strategy: {}", s)),
+    }
+}
+
+fn parse_beta_reduction_strategy(line: &str) -> Result<BetaReductionStrategy, Error> {
+    use self::BetaReductionStrategy::*;
+    match line.trim() {
+        "app" => Ok(ApplicativeOrder),
+        "cbn" => Ok(CallByName),
+        "cbv" => Ok(CallByValue),
+        "hap" => Ok(HybridApplicativeOrder),
+        "hno" => Ok(HybridNormalOrder),
+        "hsp" => Ok(HeadSpine),
+        "nor" => Ok(NormalOrder),
+        s => Err(format_err!("Unknown beta-reduction strategy: {}", s)),
+    }
+}
+
+enum LciCommand<'a> {
+    Help(Help),
+    Quit(Quit),
+    Version(Version),
+    PrintAlphaRenamingStrategy(PrintAlphaRenamingStrategy),
+    PrintBetaReductionStrategy(PrintBetaReductionStrategy),
+    SetAlphaRenamingStrategy(SetAlphaRenamingStrategy),
+    SetBetaReductionStrategy(SetBetaReductionStrategy),
+    PrintLambdaExpression(ParseLambdaExpression<'a>),
+    EvaluateLambdaExpression(EvaluateLambdaExpression<'a>),
+}
+
+impl<'a> LciCommand<'a> {
+    fn execute(self, ctx: &mut Context) -> Continuation<()> {
+        match self {
+            LciCommand::Help(cmd) => handle_continuation(cmd.execute(ctx)),
+            LciCommand::Quit(cmd) => handle_continuation(cmd.execute(ctx)),
+            LciCommand::Version(cmd) => handle_continuation(cmd.execute(ctx)),
+            LciCommand::PrintAlphaRenamingStrategy(cmd) => handle_continuation(cmd.execute(ctx)),
+            LciCommand::PrintBetaReductionStrategy(cmd) => handle_continuation(cmd.execute(ctx)),
+            LciCommand::SetAlphaRenamingStrategy(cmd) => handle_continuation(cmd.execute(ctx)),
+            LciCommand::SetBetaReductionStrategy(cmd) => handle_continuation(cmd.execute(ctx)),
+            LciCommand::PrintLambdaExpression(cmd) => handle_continuation(cmd.execute(ctx)),
+            LciCommand::EvaluateLambdaExpression(cmd) => handle_continuation(cmd.execute(ctx)),
+        }
+    }
+}
+
+impl<'a> From<Help> for LciCommand<'a> {
+    fn from(cmd: Help) -> Self {
+        LciCommand::Help(cmd)
+    }
+}
+
+impl<'a> From<Quit> for LciCommand<'a> {
+    fn from(cmd: Quit) -> Self {
+        LciCommand::Quit(cmd)
+    }
+}
+
+impl<'a> From<Version> for LciCommand<'a> {
+    fn from(cmd: Version) -> Self {
+        LciCommand::Version(cmd)
+    }
+}
+
+impl<'a> From<PrintAlphaRenamingStrategy> for LciCommand<'a> {
+    fn from(cmd: PrintAlphaRenamingStrategy) -> Self {
+        LciCommand::PrintAlphaRenamingStrategy(cmd)
+    }
+}
+
+impl<'a> From<PrintBetaReductionStrategy> for LciCommand<'a> {
+    fn from(cmd: PrintBetaReductionStrategy) -> Self {
+        LciCommand::PrintBetaReductionStrategy(cmd)
+    }
+}
+
+impl<'a> From<SetAlphaRenamingStrategy> for LciCommand<'a> {
+    fn from(cmd: SetAlphaRenamingStrategy) -> Self {
+        LciCommand::SetAlphaRenamingStrategy(cmd)
+    }
+}
+
+impl<'a> From<SetBetaReductionStrategy> for LciCommand<'a> {
+    fn from(cmd: SetBetaReductionStrategy) -> Self {
+        LciCommand::SetBetaReductionStrategy(cmd)
+    }
+}
+
+impl<'a> From<ParseLambdaExpression<'a>> for LciCommand<'a> {
+    fn from(cmd: ParseLambdaExpression<'a>) -> Self {
+        LciCommand::PrintLambdaExpression(cmd)
+    }
+}
+
+impl<'a> From<EvaluateLambdaExpression<'a>> for LciCommand<'a> {
+    fn from(cmd: EvaluateLambdaExpression<'a>) -> Self {
+        LciCommand::EvaluateLambdaExpression(cmd)
+    }
+}
+
+fn parse_command(line: &str) -> Result<LciCommand, Error> {
+    match line.trim() {
+        ":h" | ":help" => Ok(Help.into()),
+        ":q" | ":quit" => Ok(Quit.into()),
+        ":v" | ":version" => Ok(Version.into()),
+        ":a" | ":alpha" => Ok(PrintAlphaRenamingStrategy.into()),
+        ":b" | ":beta" => Ok(PrintBetaReductionStrategy.into()),
+        cmd if cmd.starts_with(":a") || cmd.starts_with(":alpha") => {
+            if let Some(index) = cmd.find(char::is_whitespace) {
+                parse_alpha_renaming_strategy(&line[index + 1..])
+                    .map(SetAlphaRenamingStrategy::with_input)
+                    .map(Into::into)
+            } else {
+                Err(err_msg(format!("unknown command `{}`", cmd)))
+            }
         },
-        ":q" | ":quit" => {
-            print("Good bye!".green());
-            stop("")
+        cmd if cmd.starts_with(":b") || cmd.starts_with(":beta") => {
+            if let Some(index) = cmd.find(char::is_whitespace) {
+                parse_beta_reduction_strategy(&line[index + 1..])
+                    .map(SetBetaReductionStrategy::with_input)
+                    .map(Into::into)
+            } else {
+                Err(err_msg(format!("unknown command `{}`", cmd)))
+            }
         },
-        ":v" | ":version" => {
-            print(version_message().blue());
-            next("")
+        cmd if cmd.starts_with(":p") || cmd.starts_with(":parse") => {
+            if let Some(index) = cmd.find(char::is_whitespace) {
+                Ok(ParseLambdaExpression::with_input(&line[index + 1..]).into())
+            } else {
+                Err(err_msg(format!("unknown command `{}`", cmd)))
+            }
         },
-        cmd if cmd.starts_with(":p ") => parse_expression(&line[3..]),
-        cmd => {
-            print_error(format!("unknown command `{}`", cmd));
-            next("")
-        },
+        cmd if cmd.starts_with(":") => Err(err_msg(format!("unknown command `{}`", cmd))),
+        cmd => Ok(EvaluateLambdaExpression::with_input(cmd).into()),
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Quit;
+
+impl Command for Quit {
+    type Input = ();
+    type Output = ColoredString;
+
+    fn with_input(_input: <Self as Command>::Input) -> Self {
+        Quit
+    }
+
+    fn execute(self, _ctx: &mut Context) -> Continuation<<Self as Command>::Output> {
+        stop("Good bye!".green(), "")
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Help;
+
+impl Command for Help {
+    type Input = ();
+    type Output = ColoredString;
+
+    fn with_input(_input: <Self as Command>::Input) -> Self {
+        Help
+    }
+
+    fn execute(self, _ctx: &mut Context) -> Continuation<<Self as Command>::Output> {
+        cont_output(help_message().green(), "")
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Version;
+
+impl Command for Version {
+    type Input = ();
+    type Output = ColoredString;
+
+    fn with_input(_input: <Self as Command>::Input) -> Self {
+        Version
+    }
+
+    fn execute(self, _ctx: &mut Context) -> Continuation<<Self as Command>::Output> {
+        cont_output(version_message().blue(), "")
     }
 }
 
@@ -243,6 +407,26 @@ Commands:
     :v or :version    prints out the version of lamcali
     :p <expr>         parses the lambda expression <expr> and prints out the
                       abstract syntax tree (AST) of the lambda expression
+    :b or :beta       print current set β-reduction strategy
+    :b app            set β-reduction strategy to applicative-order
+                      reducing to normal form
+    :b cbn            set β-reduction strategy to call-by-name
+                      reducing to weak head normal form
+    :b cbv            set β-reduction strategy to call-by-value
+                      reducing to weak normal form
+    :b hap            set β-reduction strategy to hybrid-applicative-order
+                      reducing to normal form
+    :b hno            set β-reduction strategy to hybrid-normal-order
+                      reducing to normal form
+    :b hsp            set β-reduction strategy to head-spine
+                      reducing to head normal form
+    :b nor            set β-reduction strategy to normal-order (the default)
+                      reducing to normal form
+    :a or :alpha      print current set α-conversion strategy
+    :a enumerate      set α-conversion strategy to enumerate (the default)
+                      (appending increasing digits)
+    :a prime          set α-conversion strategy to prime
+                      (appending tick symbols)
 
     the [arrow-up] and [arrow-down] keys lets you navigate through the
     history of typed commands and expressions and recall them.

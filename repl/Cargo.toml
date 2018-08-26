@@ -13,17 +13,23 @@ keywords = ["lambda-calculus", "repl", "evalute", "interpret", "parse"]
 categories = ["science"]
 license = "Apache-2.0"
 
+[lib]
+name = "lamcal_repl"
+path = "src/lib.rs"
+
 [[bin]]
 name = "lamcali"
 path = "src/main.rs"
+required-features = ["config"]
 
 [features]
+default = ["config"]
 no-color = ["colored/no-color"]
 
 [dependencies]
 lamcal = { version = "0.2", path = "../" }
 colored = "1.6"
-config = { version = "0.9", default-features = false, features = ["toml"] }
+config = { version = "0.9", default-features = false, features = ["toml"], optional = true }
 dirs = "1.0"
 failure = "0.1"
 rustyline = "1.0"

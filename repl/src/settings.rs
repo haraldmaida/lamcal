@@ -1,8 +1,12 @@
+#![allow(missing_copy_implementations)]
+
+#[cfg(feature = "config")]
 use std::path::Path;
 
+#[cfg(feature = "config")]
 use config::{Config, ConfigError, File};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Settings {
     pub debug: bool,
     pub history: History,
@@ -17,7 +21,7 @@ impl Default for Settings {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct History {
     pub max_len: usize,
     pub ignore_dups: bool,
@@ -34,6 +38,7 @@ impl Default for History {
     }
 }
 
+#[cfg(feature = "config")]
 impl Settings {
     pub fn merge(mut self, path: &Path) -> Result<Self, ConfigError> {
         let mut config = Config::new();
