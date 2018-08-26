@@ -466,6 +466,9 @@ pub trait BetaReduce {
 /// * Only leftmost redexes are contracted.
 /// * No reduction is performed under abstractions.
 ///
+/// This strategy is uniform as its definition involves no other reduction
+/// strategy.
+///
 /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct CallByName<A> {
@@ -519,6 +522,9 @@ where
 /// * Any redex that is contracted is the leftmost one not contained in any
 ///   other redex.
 /// * Reductions are performed also under lambda abstractions.
+///
+/// This strategy is a hybrid as it uses call-by-name for the reduction of the
+/// expression e1 in function position in applications (e1 e2).
 ///
 /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
@@ -582,6 +588,9 @@ where
 ///   the redex and before building an application term.
 /// * No reduction is performed under abstractions.
 ///
+/// This strategy is uniform as its definition involves no other reduction
+/// strategy.
+///
 /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct CallByValue<A> {
@@ -635,6 +644,9 @@ where
 /// * An argument e2 of an application (e1 e2) is reduced before contracting
 ///   the redex and before building an application term.
 /// * Reductions are performed also under lambda abstractions.
+///
+/// This strategy is uniform as its definition involves no other reduction
+/// strategy.
 ///
 /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
@@ -697,6 +709,9 @@ where
 /// The hybrid applicative order strategy relates to call-by-value in the
 /// same way that the normal order strategy relates to call-by-name.
 ///
+/// This strategy is a hybrid as it uses call-by-value for the reduction of the
+/// expression e1 in function position in applications (e1 e2).
+///
 /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
 pub struct HybridApplicativeOrder<A> {
@@ -754,6 +769,9 @@ where
 ///
 /// * Reduces the leftmost outermost redex first.
 /// * Performs reductions inside lambda abstractions, but only in head position.
+///
+/// This strategy is uniform as its definition involves no other reduction
+/// strategy.
 ///
 /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
@@ -813,6 +831,9 @@ where
 /// * Any redex that is contracted is the leftmost one not contained in any
 ///   other redex.
 /// * Reductions are performed also under lambda abstractions.
+///
+/// This strategy is a hybrid as it uses head-spine for the reduction of the
+/// expression e1 in function position in applications (e1 e2).
 ///
 /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
