@@ -458,7 +458,13 @@ pub trait BetaReduce {
     fn reduce(expr: Term) -> Term;
 }
 
-/// Implementation of a [β-reduction] applying the call-by-name strategy.
+/// Call-By-Name [β-reduction] to weak head normal form.
+///
+/// * Reduces the leftmost outermost redex not inside a lambda abstraction
+///   first.
+/// * It treats free variables as non-strict data constructors.
+/// * Only leftmost redexes are contracted.
+/// * No reduction is performed under abstractions.
 ///
 /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
@@ -505,7 +511,14 @@ where
     }
 }
 
-/// Implementation of a [β-reduction] applying the normal-order strategy.
+/// Normal-Order [β-reduction] to normal form.
+///
+/// * Reduces the leftmost outermost redex first.
+/// * In an application (e1 e2) the function term e1 must be reduced using a
+///   call-by-name strategy ([`CallByName`](struct.CallByName.html)).
+/// * Any redex that is contracted is the leftmost one not contained in any
+///   other redex.
+/// * Reductions are performed also under lambda abstractions.
 ///
 /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
@@ -560,7 +573,14 @@ where
     }
 }
 
-/// Implementation of a [β-reduction] applying the call-by-value strategy.
+/// Call-By-Value [β-reduction] to weak normal form.
+///
+/// * Reduces the leftmost innermost redex not inside a lambda abstraction
+///   first.
+/// * It treats free variables as strict data constructors.
+/// * An argument e2 of an application (e1 e2) is reduced before contracting
+///   the redex and before building an application term.
+/// * No reduction is performed under abstractions.
 ///
 /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
 #[derive(Default, Debug, Clone, Copy, PartialEq)]
@@ -608,7 +628,13 @@ where
     }
 }
 
-/// Implementation of a [β-reduction] applying the applicative-order strategy.
+/// Applicative-Order [β-reduction] to normal form.
+///
+/// * Reduces the leftmost innermost redex first.
+/// * It treats free variables as strict data constructors.
+/// * An argument e2 of an application (e1 e2) is reduced before contracting
+///   the redex and before building an application term.
+/// * Reductions are performed also under lambda abstractions.
 ///
 /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
 #[derive(Default, Debug, Clone, Copy, PartialEq)]

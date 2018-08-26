@@ -222,6 +222,27 @@ mod beta_call_by_name {
     }
 
     #[test]
+    fn application_of_free_variable() {
+        let expr = app(var("x"), app(lam("z", var("z")), var("v")));
+
+        let reduced = CallByName::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, app(var("x"), app(lam("z", var("z")), var("v"))));
+    }
+
+    #[test]
+    fn application_of_free_variables_2() {
+        let expr = app(app(var("x"), var("y")), app(lam("z", var("z")), var("v")));
+
+        let reduced = CallByName::<Enumerate>::reduce(expr);
+
+        assert_eq!(
+            reduced,
+            app(app(var("x"), var("y")), app(lam("z", var("z")), var("v")))
+        );
+    }
+
+    #[test]
     fn complex_term1() {
         // (λx.(λy.x y) a) b
         let expr = app(
@@ -301,6 +322,24 @@ mod beta_normal_order {
     }
 
     #[test]
+    fn application_of_free_variable() {
+        let expr = app(var("x"), app(lam("z", var("z")), var("v")));
+
+        let reduced = NormalOrder::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, app(var("x"), var("v")));
+    }
+
+    #[test]
+    fn application_of_free_variables_2() {
+        let expr = app(app(var("x"), var("y")), app(lam("z", var("z")), var("v")));
+
+        let reduced = NormalOrder::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, app(app(var("x"), var("y")), var("v")));
+    }
+
+    #[test]
     fn complex_term1() {
         // (λx.(λy.x y) a) b
         let expr = app(
@@ -367,6 +406,24 @@ mod beta_call_by_value {
         let reduced = CallByValue::<Enumerate>::reduce(expr);
 
         assert_eq!(reduced, var("y"));
+    }
+
+    #[test]
+    fn application_of_free_variable() {
+        let expr = app(var("x"), app(lam("z", var("z")), var("v")));
+
+        let reduced = CallByValue::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, app(var("x"), var("v")));
+    }
+
+    #[test]
+    fn application_of_free_variables_2() {
+        let expr = app(app(var("x"), var("y")), app(lam("z", var("z")), var("v")));
+
+        let reduced = CallByValue::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, app(app(var("x"), var("y")), var("v")));
     }
 
     #[test]
@@ -442,6 +499,24 @@ mod beta_applicative_order {
         let reduced = ApplicativeOrder::<Enumerate>::reduce(expr);
 
         assert_eq!(reduced, var("y"));
+    }
+
+    #[test]
+    fn application_of_free_variable() {
+        let expr = app(var("x"), app(lam("z", var("z")), var("v")));
+
+        let reduced = ApplicativeOrder::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, app(var("x"), var("v")));
+    }
+
+    #[test]
+    fn application_of_free_variables_2() {
+        let expr = app(app(var("x"), var("y")), app(lam("z", var("z")), var("v")));
+
+        let reduced = ApplicativeOrder::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, app(app(var("x"), var("y")), var("v")));
     }
 
     #[test]
