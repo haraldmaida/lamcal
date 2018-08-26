@@ -685,3 +685,121 @@ where
         }
     }
 }
+
+/// Hybrid-Applicative-Order [β-reduction] to normal form.
+///
+/// * A hybrid of call-by-value and applicative-order reduction.
+/// * Reduces to normal form, but reduces under lambda abstractions only in
+///   argument positions.
+/// * Normalizes more terms than applicative-order reduction, while using fewer
+///   reduction steps than normal order reduction.
+///
+/// The hybrid applicative order strategy relates to call-by-value in the
+/// same way that the normal order strategy relates to call-by-name.
+///
+/// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct HybridApplicativeOrder<A> {
+    _alpha_rename: PhantomData<A>,
+}
+
+impl<A> BetaReduce for HybridApplicativeOrder<A>
+where
+    A: AlphaRename,
+{
+    /// Performs a β-reduction on a given lambda expression applying a
+    /// applicative-order strategy.
+    fn reduce(mut expr: Term) -> Term {
+        alpha_rec::<A>(&mut expr, Context::new());
+        HybridApplicativeOrder::<A>::reduce_rec(&mut expr);
+        expr
+    }
+}
+
+impl<A> HybridApplicativeOrder<A>
+where
+    A: AlphaRename,
+{
+    fn reduce_rec(expr: &mut Term) {
+        if let Some(subst) = match *expr {
+            Lam(_, ref mut body) => {
+                HybridApplicativeOrder::<A>::reduce_rec(body);
+                None
+            },
+            App(ref mut lhs, ref mut rhs) => {
+                CallByValue::<A>::reduce_rec(lhs);
+                HybridApplicativeOrder::<A>::reduce_rec(rhs);
+                match **lhs {
+                    Lam(_, _) => {
+                        apply_mut::<A>(lhs, rhs);
+                        HybridApplicativeOrder::<A>::reduce_rec(lhs);
+                        // defer actual substitution outside match expression
+                        // because of the borrow checker
+                        Some(mem::replace(&mut **lhs, Var(String::new())))
+                    },
+                    _ => {
+                        HybridApplicativeOrder::<A>::reduce_rec(lhs);
+                        None
+                    },
+                }
+            },
+            _ => None,
+        } {
+            *expr = subst;
+        }
+    }
+}
+
+/// Head-Spine [β-reduction] to head normal form.
+///
+/// * Reduces the leftmost outermost redex first.
+/// * Performs reductions inside lambda abstractions, but only in head position.
+///
+/// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct HeadSpine<A> {
+    _alpha_rename: PhantomData<A>,
+}
+
+impl<A> BetaReduce for HeadSpine<A>
+where
+    A: AlphaRename,
+{
+    /// Performs a β-reduction on a given lambda expression applying a
+    /// applicative-order strategy.
+    fn reduce(mut expr: Term) -> Term {
+        alpha_rec::<A>(&mut expr, Context::new());
+        HeadSpine::<A>::reduce_rec(&mut expr);
+        expr
+    }
+}
+
+impl<A> HeadSpine<A>
+where
+    A: AlphaRename,
+{
+    fn reduce_rec(expr: &mut Term) {
+        if let Some(subst) = match *expr {
+            Lam(_, ref mut body) => {
+                HeadSpine::<A>::reduce_rec(body);
+                None
+            },
+            App(ref mut lhs, ref mut rhs) => {
+                HeadSpine::<A>::reduce_rec(lhs);
+                match **lhs {
+                    Lam(_, _) => {
+                        apply_mut::<A>(lhs, rhs);
+                        HeadSpine::<A>::reduce_rec(lhs);
+                        // defer actual substitution outside match expression
+                        // because of the borrow checker
+                        Some(mem::replace(&mut **lhs, Var(String::new())))
+                    },
+                    _ => None,
+                }
+            },
+            _ => None,
+        } {
+            *expr = subst;
+        }
+    }
+}

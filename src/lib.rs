@@ -88,9 +88,14 @@
 //! a type parameter, <br/>e.g. `reduce::<NormalOrder>(&expr)`.
 //!
 //! The trait [`BetaReduce`](trait.BetaReduce.html) defines the strategy
-//! applied when performing a β-reduction. The provided implementations are
-//! [`CallByName`](struct.CallByName.html) and
-//! [`NormalOrder`](struct.NormalOrder.html)
+//! applied when performing a β-reduction. The provided implementations are:
+//!
+//! * [`CallByName`](struct.CallByName.html): call-by-name reduction to weak head normal form
+//! * [`NormalOrder`](struct.NormalOrder.html): normal-order reduction to normal form
+//! * [`CallByValue`](struct.CallByValue.html): call-by-value reduction to weak normal form
+//! * [`ApplicativeOrder`](struct.ApplicativeOrder.html): applicative-order reduction to normal form
+//! * [`HybridApplicativeOrder`](struct.HybridApplicativeOrder.html): hybrid-applicative-order reduction to normal form
+//! * [`HeadSpine`](struct.HeadSpine.html): head-spine reduction to head normal form
 //!
 //! [lambda calculus]: https://en.wikipedia.org/wiki/Lambda_calculus
 
@@ -131,6 +136,6 @@ pub use self::parser::{
 };
 pub use self::reduction::{
     alpha, apply, reduce, substitute, AlphaRename, ApplicativeOrder, BetaReduce, CallByName,
-    CallByValue, Enumerate, NormalOrder, Prime,
+    CallByValue, Enumerate, HeadSpine, HybridApplicativeOrder, NormalOrder, Prime,
 };
 pub use self::term::{app, lam, var, Term, Var};
