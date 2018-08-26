@@ -740,3 +740,90 @@ mod beta_head_spine_order {
         assert_eq!(reduced, lam("y", var("y")));
     }
 }
+
+mod beta_hybrid_normal_order {
+
+    use super::*;
+
+    use term::{app, lam, var};
+
+    #[test]
+    fn identity_x() {
+        let expr = app(lam("x", var("x")), var("a"));
+
+        let reduced = HybridNormalOrder::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, var("a"));
+    }
+
+    #[test]
+    fn constant_y() {
+        let expr = app(lam("x", var("y")), var("a"));
+
+        let reduced = HybridNormalOrder::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, var("y"));
+    }
+
+    #[test]
+    fn application_of_free_variable() {
+        let expr = app(var("x"), app(lam("z", var("z")), var("v")));
+
+        let reduced = HybridNormalOrder::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, app(var("x"), var("v")));
+    }
+
+    #[test]
+    fn application_of_free_variables_2() {
+        let expr = app(app(var("x"), var("y")), app(lam("z", var("z")), var("v")));
+
+        let reduced = HybridNormalOrder::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, app(app(var("x"), var("y")), var("v")));
+    }
+
+    #[test]
+    fn complex_term1() {
+        // (λx.(λy.x y) a) b
+        let expr = app(
+            lam("x", app(lam("y", app(var("x"), var("y"))), var("a"))),
+            var("b"),
+        );
+        let reduced = HybridNormalOrder::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, app(var("b"), var("a")));
+    }
+
+    #[test]
+    fn complex_term2() {
+        // ((\a.a)\b.\c.b)(x)\e.f
+        let expr = app(
+            app(
+                app(lam("a", var("a")), lam("b", lam("c", var("b")))),
+                var("x"),
+            ),
+            lam("e", var("f")),
+        );
+
+        let reduced = HybridNormalOrder::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, var("x"));
+    }
+
+    #[test]
+    fn complex_term3() {
+        // ( \x.(\y.x (\z.z) y) ) ( (\a.a) (\b.b) )
+        let expr = app(
+            lam(
+                "x",
+                lam("y", app(var("x"), app(lam("z", var("z")), var("y")))),
+            ),
+            app(lam("a", var("a")), lam("b", var("b"))),
+        );
+
+        let reduced = HybridNormalOrder::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, lam("y", var("y")));
+    }
+}

@@ -514,7 +514,7 @@ where
 /// Normal-Order [β-reduction] to normal form.
 ///
 /// * Reduces the leftmost outermost redex first.
-/// * In an application (e1 e2) the function term e1 must be reduced using a
+/// * In an application (e1 e2) the function term e1 is reduced using the
 ///   call-by-name strategy ([`CallByName`](struct.CallByName.html)).
 /// * Any redex that is contracted is the leftmost one not contained in any
 ///   other redex.
@@ -784,7 +784,7 @@ where
                 HeadSpine::<A>::reduce_rec(body);
                 None
             },
-            App(ref mut lhs, ref mut rhs) => {
+            App(ref mut lhs, ref rhs) => {
                 HeadSpine::<A>::reduce_rec(lhs);
                 match **lhs {
                     Lam(_, _) => {
@@ -795,6 +795,69 @@ where
                         Some(mem::replace(&mut **lhs, Var(String::new())))
                     },
                     _ => None,
+                }
+            },
+            _ => None,
+        } {
+            *expr = subst;
+        }
+    }
+}
+
+/// Hybrid-Normal-Order [β-reduction] to normal form.
+///
+/// * A hybrid of head-spine and normal-order reduction.
+/// * Reduces the leftmost outermost redex first.
+/// * In an application (e1 e2) the function term e1 is reduced using the
+///   head-spine strategy ([`HeadSpine`](struct.HeadSpine.html)).
+/// * Any redex that is contracted is the leftmost one not contained in any
+///   other redex.
+/// * Reductions are performed also under lambda abstractions.
+///
+/// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct HybridNormalOrder<A> {
+    _alpha_rename: PhantomData<A>,
+}
+
+impl<A> BetaReduce for HybridNormalOrder<A>
+where
+    A: AlphaRename,
+{
+    /// Performs a β-reduction on a given lambda expression applying a
+    /// applicative-order strategy.
+    fn reduce(mut expr: Term) -> Term {
+        alpha_rec::<A>(&mut expr, Context::new());
+        HybridNormalOrder::<A>::reduce_rec(&mut expr);
+        expr
+    }
+}
+
+impl<A> HybridNormalOrder<A>
+where
+    A: AlphaRename,
+{
+    fn reduce_rec(expr: &mut Term) {
+        if let Some(subst) = match *expr {
+            Lam(_, ref mut body) => {
+                HybridNormalOrder::<A>::reduce_rec(body);
+                None
+            },
+            App(ref mut lhs, ref mut rhs) => {
+                HeadSpine::<A>::reduce_rec(lhs);
+                match **lhs {
+                    Lam(_, _) => {
+                        apply_mut::<A>(lhs, rhs);
+                        HybridNormalOrder::<A>::reduce_rec(lhs);
+                        // defer actual substitution outside match expression
+                        // because of the borrow checker
+                        Some(mem::replace(&mut **lhs, Var(String::new())))
+                    },
+                    _ => {
+                        NormalOrder::<A>::reduce_rec(lhs);
+                        NormalOrder::<A>::reduce_rec(rhs);
+                        None
+                    },
                 }
             },
             _ => None,
