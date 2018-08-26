@@ -46,8 +46,9 @@ to play around with lambda calculus terms and applying α-conversion and β-redu
 
 Features:
 
-* Evaluation function are provided in two variants: An mutable (associated) function, e.g. 
-  `Term::reduce` and an immutable (standalone) function, e.g `reduce`.
+* Evaluation functions are provided in two variants: An associated function, e.g. `Term::reduce`,
+  that mutate the term in place and a standalone function, e.g. `reduce`, that leave the original
+  term unchanged and return the result as a new term.
 * Strategies for α-conversion and β-reduction are defined as traits to easily implement custom
   strategies and use it with the functionality of this library.
 * The parser gives detailed information about parse errors, like the position of the error in the 
