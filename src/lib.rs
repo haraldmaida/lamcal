@@ -130,7 +130,7 @@ pub use self::parser::{
     ParseError, ParseErrorKind, Token,
 };
 pub use self::reduction::{
-    alpha, apply, reduce, substitute, AlphaRename, BetaReduce, CallByName, Enumerate, NormalOrder,
-    Prime,
+    alpha, apply, reduce, substitute, AlphaRename, BetaReduce, CallByName, CallByValue, Enumerate,
+    NormalOrder, Prime,
 };
 pub use self::term::{app, lam, var, Term, Var};
