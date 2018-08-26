@@ -7,6 +7,11 @@ fn test_readme_deps() {
 }
 
 #[test]
-fn test_html_root_url() {
+fn test_html_root_url_in_lib() {
+    assert_html_root_url_updated!("src/lib.rs");
+}
+
+#[test]
+fn test_html_root_url_in_main() {
     assert_html_root_url_updated!("src/main.rs");
 }

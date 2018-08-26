@@ -1,6 +1,6 @@
 //! A command line repl (read-evaluate-print loop) for lambda calculus.
 
-#![doc(html_root_url = "https://docs.rs/lamcal-repl/0.2.0/lamcali")]
+#![doc(html_root_url = "https://docs.rs/lamcal-repl/0.2.1/lamcali")]
 #![warn(
     bare_trait_objects,
     missing_copy_implementations,
