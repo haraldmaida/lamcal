@@ -61,7 +61,7 @@ To use [lamcal] as a library in your project add this to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-lamcal = "0.1"
+lamcal = "0.2"
 ```
 
 and this to your crate root:
@@ -77,7 +77,7 @@ feature. To enable it add the dependency to your `Cargo.toml` like so:
 
 ```toml
 [dependencies]
-lamcal = { version = "0.1", features = ["failure"] }
+lamcal = { version = "0.2", features = ["failure"] }
 ```
 
 ## License

@@ -62,7 +62,7 @@ lamcal/repl> cargo run
 When the application starts we see the following in the command line:
 
 ```
-info: Welcome to lamcal-repl, the Lambda Calculus Repl, version 0.1.0
+info: Welcome to lamcal-repl, the Lambda Calculus Repl, version 0.2.0
 λ>
 ```
 
