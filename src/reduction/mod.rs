@@ -573,7 +573,7 @@ where
     A: AlphaRename,
 {
     /// Performs a β-reduction on a given lambda expression applying a
-    /// call-by-name strategy.
+    /// call-by-value strategy.
     fn reduce(mut expr: Term) -> Term {
         alpha_rec::<A>(&mut expr, Context::new());
         CallByValue::<A>::reduce_rec(&mut expr);
@@ -594,6 +594,58 @@ where
                     Lam(_, _) => {
                         apply_mut::<A>(lhs, rhs);
                         CallByValue::<A>::reduce_rec(lhs);
+                        // defer actual substitution outside match expression
+                        // because of the borrow checker
+                        Some(mem::replace(&mut **lhs, Var(String::new())))
+                    },
+                    _ => None,
+                }
+            },
+            _ => None,
+        } {
+            *expr = subst;
+        }
+    }
+}
+
+/// Implementation of a [β-reduction] applying the applicative-order strategy.
+///
+/// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct ApplicativeOrder<A> {
+    _alpha_rename: PhantomData<A>,
+}
+
+impl<A> BetaReduce for ApplicativeOrder<A>
+where
+    A: AlphaRename,
+{
+    /// Performs a β-reduction on a given lambda expression applying a
+    /// applicative-order strategy.
+    fn reduce(mut expr: Term) -> Term {
+        alpha_rec::<A>(&mut expr, Context::new());
+        ApplicativeOrder::<A>::reduce_rec(&mut expr);
+        expr
+    }
+}
+
+impl<A> ApplicativeOrder<A>
+where
+    A: AlphaRename,
+{
+    fn reduce_rec(expr: &mut Term) {
+        if let Some(subst) = match *expr {
+            Lam(_, ref mut body) => {
+                ApplicativeOrder::<A>::reduce_rec(body);
+                None
+            },
+            App(ref mut lhs, ref mut rhs) => {
+                ApplicativeOrder::<A>::reduce_rec(lhs);
+                ApplicativeOrder::<A>::reduce_rec(rhs);
+                match **lhs {
+                    Lam(_, _) => {
+                        apply_mut::<A>(lhs, rhs);
+                        ApplicativeOrder::<A>::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
                         Some(mem::replace(&mut **lhs, Var(String::new())))
