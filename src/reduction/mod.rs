@@ -230,7 +230,7 @@ impl AlphaRename for Enumerate {
     }
 }
 
-/// Implementation of `AlphaRename` that appends a tick symbol '\'' at the end
+/// Implementation of `AlphaRename` that appends a tick symbol `'` at the end
 /// of a variable name.
 ///
 /// If the given name already ends with a tick symbol another tick symbol is
@@ -484,14 +484,15 @@ where
     A: AlphaRename,
 {
     fn reduce_rec(expr: &mut Term) {
-        if let Some(replace) = match *expr {
+        if let Some(subst) = match *expr {
             App(ref mut lhs, ref rhs) => {
                 CallByName::<A>::reduce_rec(lhs);
                 match **lhs {
                     Lam(_, _) => {
                         apply_mut::<A>(lhs, rhs);
                         CallByName::<A>::reduce_rec(lhs);
-                        // delay replacement outside match expression because of the borrow checker
+                        // defer actual substitution outside match expression
+                        // because of the borrow checker
                         Some(mem::replace(&mut **lhs, Var(String::new())))
                     },
                     _ => None,
@@ -499,7 +500,7 @@ where
             },
             _ => None,
         } {
-            *expr = replace;
+            *expr = subst;
         }
     }
 }
@@ -530,7 +531,7 @@ where
     A: AlphaRename,
 {
     fn reduce_rec(expr: &mut Term) {
-        if let Some(replace) = match *expr {
+        if let Some(subst) = match *expr {
             Lam(_, ref mut body) => {
                 NormalOrder::<A>::reduce_rec(body);
                 None
@@ -541,7 +542,8 @@ where
                     Lam(_, _) => {
                         apply_mut::<A>(lhs, rhs);
                         NormalOrder::<A>::reduce_rec(lhs);
-                        // delay replacement outside match expression because of the borrow checker
+                        // defer actual substitution outside match expression
+                        // because of the borrow checker
                         Some(mem::replace(&mut **lhs, Var(String::new())))
                     },
                     _ => {
@@ -553,7 +555,55 @@ where
             },
             _ => None,
         } {
-            *expr = replace;
+            *expr = subst;
+        }
+    }
+}
+
+/// Implementation of a [β-reduction] applying the call-by-value strategy.
+///
+/// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct CallByValue<A> {
+    _alpha_rename: PhantomData<A>,
+}
+
+impl<A> BetaReduce for CallByValue<A>
+where
+    A: AlphaRename,
+{
+    /// Performs a β-reduction on a given lambda expression applying a
+    /// call-by-name strategy.
+    fn reduce(mut expr: Term) -> Term {
+        alpha_rec::<A>(&mut expr, Context::new());
+        CallByValue::<A>::reduce_rec(&mut expr);
+        expr
+    }
+}
+
+impl<A> CallByValue<A>
+where
+    A: AlphaRename,
+{
+    fn reduce_rec(expr: &mut Term) {
+        if let Some(subst) = match *expr {
+            App(ref mut lhs, ref mut rhs) => {
+                CallByValue::<A>::reduce_rec(lhs);
+                CallByValue::<A>::reduce_rec(rhs);
+                match **lhs {
+                    Lam(_, _) => {
+                        apply_mut::<A>(lhs, rhs);
+                        CallByValue::<A>::reduce_rec(lhs);
+                        // defer actual substitution outside match expression
+                        // because of the borrow checker
+                        Some(mem::replace(&mut **lhs, Var(String::new())))
+                    },
+                    _ => None,
+                }
+            },
+            _ => None,
+        } {
+            *expr = subst;
         }
     }
 }

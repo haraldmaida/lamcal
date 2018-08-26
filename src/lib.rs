@@ -26,10 +26,10 @@
 //! * Variables can be single lower case letters or names with multiple
 //!   characters where the first character must be a lower case letter. The
 //!   characters following the first character can be lower case letters,
-//!   digits, the underscore `_` or the tick '\'' character.
-//! * Lambda abstractions start with the greek lowercase letter lambda 'λ' or
-//!   alternatively with a backslash '\\' for easier typing on traditional
-//!   keyboards. Then follows a variable name as the parameter and a dot '.'
+//!   digits, the underscore `_` or the tick `'` character.
+//! * Lambda abstractions start with the greek lowercase letter lambda `λ` or
+//!   alternatively with a backslash `\` for easier typing on traditional
+//!   keyboards. Then follows a variable name as the parameter and a dot `.`
 //!   that separates the parameter from the body.
 //! * Function applications are written as two terms side by side separated by
 //!   whitespace.
