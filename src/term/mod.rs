@@ -195,7 +195,7 @@ macro_rules! app {
     ($term1:expr, $($term2:expr),+) => {
         {
             let mut __term = $term1;
-            $(__term = app(__term, $term2);)*
+            $(__term = $crate::Term::App(Box::new(__term), Box::new($term2));)*
             __term
         }
     }
