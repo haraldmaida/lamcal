@@ -6,9 +6,13 @@ use std::path::Path;
 #[cfg(feature = "config")]
 use config::{Config, ConfigError, File};
 
+#[cfg(feature = "rustyline")]
+use rustyline;
+
 #[derive(Debug, PartialEq)]
 pub struct Settings {
     pub debug: bool,
+    pub edit: Edit,
     pub history: History,
 }
 
@@ -16,7 +20,44 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             debug: false,
+            edit: Edit::default(),
             history: History::default(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Edit {
+    pub mode: EditMode,
+}
+
+impl Default for Edit {
+    fn default() -> Self {
+        Edit {
+            mode: EditMode::default(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum EditMode {
+    Emacs,
+    Vi,
+}
+
+impl Default for EditMode {
+    fn default() -> Self {
+        EditMode::Vi
+    }
+}
+
+impl EditMode {
+    #[cfg(feature = "rustyline")]
+    pub fn to_rustyline(&self) -> rustyline::EditMode {
+        use self::EditMode::*;
+        match *self {
+            Emacs => rustyline::EditMode::Emacs,
+            Vi => rustyline::EditMode::Vi,
         }
     }
 }

@@ -20,6 +20,9 @@
 #[cfg(feature = "config")]
 extern crate config;
 
+#[cfg(feature = "rustyline")]
+extern crate rustyline;
+
 extern crate lamcal;
 
 pub mod command;

@@ -60,10 +60,13 @@ fn main() {
     } else {
         Settings::default()
     };
-    let mut rl = Editor::<()>::new()
+    let config = rustyline::Config::builder()
+        .edit_mode(settings.edit.mode.to_rustyline())
         .history_ignore_dups(settings.history.ignore_dups)
-        .history_ignore_space(settings.history.ignore_space);
-    rl.set_history_max_len(settings.history.max_len);
+        .history_ignore_space(settings.history.ignore_space)
+        .max_history_size(settings.history.max_len)
+        .build();
+    let mut rl = Editor::<()>::with_config(config);
     match history_file() {
         Ok(history_file) => if let Err(err) = rl.load_history(&history_file) {
             print_warning(err);
@@ -75,7 +78,7 @@ fn main() {
     loop {
         match rl.readline(&prompt) {
             Ok(line) => {
-                rl.add_history_entry(&line);
+                rl.add_history_entry(line.clone());
                 let continuation = match parse_command(&line) {
                     Ok(cmd) => cmd.execute(&mut ctx),
                     Err(err) => {
