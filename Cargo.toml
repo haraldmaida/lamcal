@@ -21,6 +21,11 @@ pretty_assertions = "0.5"
 proptest = "0.8"
 version-sync = "0.5"
 
+[package.metadata.docs.rs]
+features = [
+    "failure",
+]
+
 [workspace]
 members = [
     "repl"

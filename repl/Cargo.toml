@@ -36,3 +36,10 @@ rustyline = { version = "2.0", optional = true }
 
 [dev-dependencies]
 version-sync = "0.5"
+
+[package.metadata.docs.rs]
+features = [
+    "config",
+    "no-color",
+    "rustyline",
+]
