@@ -454,7 +454,7 @@ where
 /// [β-reduction]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B2-reduction
 /// [reduction strategy]: https://en.wikipedia.org/wiki/Reduction_strategy_(lambda_calculus)
 pub trait BetaReduce {
-    /// Performs a β-reduction of the given `Term` and returns the result.
+    /// Performs β-reduction on the given `Term` and returns the result.
     fn reduce(expr: Term) -> Term;
 }
 
@@ -479,7 +479,7 @@ impl<A> BetaReduce for CallByName<A>
 where
     A: AlphaRename,
 {
-    /// Performs a β-reduction on a given lambda expression applying a
+    /// Performs β-reduction on a given lambda expression applying a
     /// call-by-name strategy.
     fn reduce(mut expr: Term) -> Term {
         alpha_rec::<A>(&mut expr, Context::new());
@@ -536,7 +536,7 @@ impl<A> BetaReduce for NormalOrder<A>
 where
     A: AlphaRename,
 {
-    /// Performs a β-reduction on a given lambda expression applying a
+    /// Performs β-reduction on a given lambda expression applying a
     /// normal-order strategy.
     fn reduce(mut expr: Term) -> Term {
         alpha_rec::<A>(&mut expr, Context::new());
@@ -601,7 +601,7 @@ impl<A> BetaReduce for CallByValue<A>
 where
     A: AlphaRename,
 {
-    /// Performs a β-reduction on a given lambda expression applying a
+    /// Performs β-reduction on a given lambda expression applying a
     /// call-by-value strategy.
     fn reduce(mut expr: Term) -> Term {
         alpha_rec::<A>(&mut expr, Context::new());
@@ -658,7 +658,7 @@ impl<A> BetaReduce for ApplicativeOrder<A>
 where
     A: AlphaRename,
 {
-    /// Performs a β-reduction on a given lambda expression applying a
+    /// Performs β-reduction on a given lambda expression applying a
     /// applicative-order strategy.
     fn reduce(mut expr: Term) -> Term {
         alpha_rec::<A>(&mut expr, Context::new());
@@ -722,7 +722,7 @@ impl<A> BetaReduce for HybridApplicativeOrder<A>
 where
     A: AlphaRename,
 {
-    /// Performs a β-reduction on a given lambda expression applying a
+    /// Performs β-reduction on a given lambda expression applying a
     /// applicative-order strategy.
     fn reduce(mut expr: Term) -> Term {
         alpha_rec::<A>(&mut expr, Context::new());
@@ -783,7 +783,7 @@ impl<A> BetaReduce for HeadSpine<A>
 where
     A: AlphaRename,
 {
-    /// Performs a β-reduction on a given lambda expression applying a
+    /// Performs β-reduction on a given lambda expression applying a
     /// applicative-order strategy.
     fn reduce(mut expr: Term) -> Term {
         alpha_rec::<A>(&mut expr, Context::new());
@@ -845,7 +845,7 @@ impl<A> BetaReduce for HybridNormalOrder<A>
 where
     A: AlphaRename,
 {
-    /// Performs a β-reduction on a given lambda expression applying a
+    /// Performs β-reduction on a given lambda expression applying a
     /// applicative-order strategy.
     fn reduce(mut expr: Term) -> Term {
         alpha_rec::<A>(&mut expr, Context::new());
@@ -875,8 +875,8 @@ where
                         Some(mem::replace(&mut **lhs, Var(String::new())))
                     },
                     _ => {
-                        NormalOrder::<A>::reduce_rec(lhs);
-                        NormalOrder::<A>::reduce_rec(rhs);
+                        HybridNormalOrder::<A>::reduce_rec(lhs);
+                        HybridNormalOrder::<A>::reduce_rec(rhs);
                         None
                     },
                 }
