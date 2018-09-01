@@ -1,6 +1,6 @@
 use super::*;
 
-mod var {
+mod var_name {
 
     use super::*;
 
@@ -9,7 +9,7 @@ mod var {
         fn display_string_is_the_variable_name(
             name in "[a-z][a-z0-9_']*"
         ) {
-            let display = Var(name.to_string()).to_string();
+            let display = VarName(name.to_string()).to_string();
 
             prop_assert_eq!(display, name);
         }

@@ -122,6 +122,76 @@ mod alpha_prime {
     }
 }
 
+mod apply {
+
+    use super::*;
+
+    use term::{app, lam, var};
+
+    #[test]
+    fn applying_variable_returns_the_variable() {
+        let expr = var("x");
+
+        let result = apply::<Enumerate>(&expr, &var("y"));
+
+        assert_eq!(result, var("x"));
+    }
+
+    #[test]
+    fn applying_identity_returns_rhs() {
+        let expr = lam("x", var("x"));
+
+        let result = apply::<Enumerate>(&expr, &var("y"));
+
+        assert_eq!(result, var("y"));
+    }
+
+    #[test]
+    fn applying_constant_returns_constant() {
+        let expr = lam("x", var("y"));
+
+        let result = apply::<Enumerate>(&expr, &var("a"));
+
+        assert_eq!(result, var("y"));
+    }
+
+    #[test]
+    fn applying_replication_returns_application_of_rhs() {
+        let expr = lam("x", app(var("x"), var("x")));
+
+        let result = apply::<Enumerate>(&expr, &var("a"));
+
+        assert_eq!(result, app(var("a"), var("a")));
+    }
+
+    #[test]
+    fn applying_simple_abstraction() {
+        let expr = lam("x", app(var("x"), var("y")));
+
+        let result = apply::<Enumerate>(&expr, &var("a"));
+
+        assert_eq!(result, app(var("a"), var("y")));
+    }
+
+    #[test]
+    fn applying_abstraction_of_abstraction() {
+        let expr = lam("x", lam("y", app(var("y"), var("x"))));
+
+        let result = apply::<Enumerate>(&expr, &var("a"));
+
+        assert_eq!(result, lam("y", app(var("y"), var("a"))));
+    }
+
+    #[test]
+    fn applying_abstraction_of_abstraction_with_same_bound_var() {
+        let expr = lam("x", lam("x", app(var("x"), var("y"))));
+
+        let result = apply::<Enumerate>(&expr, &var("a"));
+
+        assert_eq!(result, lam("x", app(var("x"), var("y"))));
+    }
+}
+
 mod beta {
 
     use term::{app, lam, var};

@@ -4,6 +4,7 @@
 //! Currently the De Bruin index notation is not supported.
 
 use std::fmt::{self, Display};
+use std::ops::{Deref, DerefMut};
 
 /// Constructs a variable of the given name.
 ///
@@ -20,13 +21,13 @@ use std::fmt::{self, Display};
 ///
 /// ```
 /// # extern crate lamcal;
-/// # use lamcal::{var, Term};
+/// # use lamcal::{var, Term, VarName};
 /// let variable = var("x");
 ///
-/// assert_eq!(variable, Term::Var("x".to_string()));
+/// assert_eq!(variable, Term::Var(VarName("x".to_string())));
 /// ```
 pub fn var(name: impl Into<String>) -> Term {
-    Term::Var(name.into())
+    Term::Var(VarName(name.into()))
 }
 
 /// Constructs a lambda abstraction with given parameter and body.
@@ -45,16 +46,19 @@ pub fn var(name: impl Into<String>) -> Term {
 ///
 /// ```
 /// # extern crate lamcal;
-/// # use lamcal::{lam, var, Term, Var};
+/// # use lamcal::{lam, var, Term, VarName};
 /// let abstraction = lam("x", var("x"));
 ///
 /// assert_eq!(
 ///     abstraction,
-///     Term::Lam(Var("x".to_string()), Box::new(Term::Var("x".to_string())))
+///     Term::Lam(
+///         VarName("x".to_string()),
+///         Box::new(Term::Var(VarName("x".to_string())))
+///     )
 /// );
 /// ```
 pub fn lam(param: impl Into<String>, body: Term) -> Term {
-    Term::Lam(Var(param.into()), Box::new(body))
+    Term::Lam(VarName(param.into()), Box::new(body))
 }
 
 /// Constructs a function application with the `lhs` term to be applied to the
@@ -73,17 +77,17 @@ pub fn lam(param: impl Into<String>, body: Term) -> Term {
 ///
 /// ```
 /// # extern crate lamcal;
-/// # use lamcal::{app, lam, var, Term, Var};
+/// # use lamcal::{app, lam, var, Term, VarName};
 /// let application = app(lam("x", var("x")), var("y"));
 ///
 /// assert_eq!(
 ///     application,
 ///     Term::App(
 ///         Box::new(Term::Lam(
-///             Var("x".to_string()),
-///             Box::new(Term::Var("x".to_string()))
+///             VarName("x".to_string()),
+///             Box::new(Term::Var(VarName("x".to_string())))
 ///         )),
-///         Box::new(Term::Var("y".to_string()))
+///         Box::new(Term::Var(VarName("y".to_string())))
 ///     )
 /// );
 /// ```
@@ -98,12 +102,12 @@ pub enum Term {
     ///
     /// A character or string representing a parameter or mathematical/logical
     /// value.
-    Var(String),
+    Var(VarName),
     /// An abstraction (λx.M)
     ///
     /// Function definition (M is a lambda term). The variable x becomes bound
     /// in the expression.
-    Lam(Var, Box<Term>),
+    Lam(VarName, Box<Term>),
     /// An application (M N)
     ///
     /// Applying a function to an argument. M and N are lambda terms.
@@ -130,35 +134,141 @@ impl<'a> From<&'a Term> for Term {
     }
 }
 
-impl From<Var> for Term {
-    fn from(var: Var) -> Self {
-        Term::Var(var.0)
+impl From<VarName> for Term {
+    fn from(var: VarName) -> Self {
+        Term::Var(var)
     }
 }
 
-/// A variable with a given name.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Var(pub String);
+impl Term {
+    /// Returns a variable's underlying variable name if this term is of variant
+    /// `Term::Var`.
+    pub fn unwrap_var(self) -> Option<VarName> {
+        if let Term::Var(name) = self {
+            Some(name)
+        } else {
+            None
+        }
+    }
 
-impl Display for Var {
+    /// Returns an abstraction's underlying bound variable name and body if
+    /// this term is of variant `Term::Lam`.
+    pub fn unwrap_lam(self) -> Option<(VarName, Term)> {
+        if let Term::Lam(param, body) = self {
+            Some((param, *body))
+        } else {
+            None
+        }
+    }
+
+    /// Returns an application's underlying left side term and right side term
+    /// if this term is of variant `Term::App`.
+    pub fn unwrap_app(self) -> Option<(Term, Term)> {
+        if let Term::App(left, right) = self {
+            Some((*left, *right))
+        } else {
+            None
+        }
+    }
+
+    /// Returns a reference to a variable's underlying name if this term is of
+    /// variant `Term::Var`.
+    pub fn unwrap_var_ref(&self) -> Option<&VarName> {
+        if let Term::Var(name) = self {
+            Some(name)
+        } else {
+            None
+        }
+    }
+
+    /// Returns references to an abstraction's underlying variable name and
+    /// body if this term is of variant `Term::Lam`.
+    pub fn unwrap_lam_ref(&self) -> Option<(&VarName, &Term)> {
+        if let Term::Lam(param, body) = self {
+            Some((param, body))
+        } else {
+            None
+        }
+    }
+
+    /// Returns references to an application's underlying left side term and
+    /// right side term if this term is of variant `Term::App`.
+    pub fn unwrap_app_ref(&self) -> Option<(&Term, &Term)> {
+        if let Term::App(lhs, rhs) = self {
+            Some((lhs, rhs))
+        } else {
+            None
+        }
+    }
+
+    /// Returns a mutable reference to a variable's underlying name if this
+    /// term is of variant `Term::Var`.
+    pub fn unwrap_var_mut(&mut self) -> Option<&mut VarName> {
+        if let Term::Var(name) = self {
+            Some(name)
+        } else {
+            None
+        }
+    }
+
+    /// Returns mutable references to an abstraction's underlying variable name
+    /// and body if this term is of variant `Term::Lam`.
+    pub fn unwrap_lam_mut(&mut self) -> Option<(&mut VarName, &mut Term)> {
+        if let Term::Lam(param, body) = self {
+            Some((param, body))
+        } else {
+            None
+        }
+    }
+
+    /// Returns mutable references to an application's underlying left side term
+    /// and right side term if this term is of variant `Term::App`.
+    pub fn unwrap_app_mut(&mut self) -> Option<(&mut Term, &mut Term)> {
+        if let Term::App(lhs, rhs) = self {
+            Some((lhs, rhs))
+        } else {
+            None
+        }
+    }
+}
+
+/// A variable name.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct VarName(pub String);
+
+impl Display for VarName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl AsRef<str> for Var {
+impl Deref for VarName {
+    type Target = String;
+
+    fn deref(&self) -> &<Self as Deref>::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for VarName {
+    fn deref_mut(&mut self) -> &mut <Self as Deref>::Target {
+        &mut self.0
+    }
+}
+
+impl AsRef<str> for VarName {
     fn as_ref(&self) -> &str {
         &self.0
     }
 }
 
-impl Var {
+impl VarName {
     /// Constructs a new variable of given name.
     pub fn new(name: impl Into<String>) -> Self {
-        Var(name.into())
+        VarName(name.into())
     }
 
-    /// Unwraps the name out of the variable.
+    /// Unwraps the `String` out of this variable name.
     pub fn unwrap(self) -> String {
         self.0
     }

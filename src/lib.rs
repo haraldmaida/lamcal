@@ -147,4 +147,4 @@ pub use self::reduction::{
     CallByValue, Enumerate, HeadSpine, HybridApplicativeOrder, HybridNormalOrder, NormalOrder,
     Prime,
 };
-pub use self::term::{app, lam, var, Term, Var};
+pub use self::term::{app, lam, var, Term, VarName};

@@ -10,7 +10,11 @@ use std::collections::HashSet;
 use std::marker::PhantomData;
 use std::mem;
 
-use term::{app, Term, Term::*, Var as VarT};
+use term::{app, Term, Term::*, VarName};
+
+fn dummy_term() -> Term {
+    Var(VarName(String::new()))
+}
 
 impl Term {
     /// Returns whether this `Term` is a [beta redex].
@@ -64,7 +68,7 @@ impl Term {
     /// expression `rhs` recursively on the structure of this `Term`.
     ///
     /// [substitutes]: https://en.wikipedia.org/wiki/Lambda_calculus#Substitution
-    pub fn substitute(&mut self, var: &VarT, rhs: &Term) {
+    pub fn substitute(&mut self, var: &VarName, rhs: &Term) {
         substitute_rec(self, var, rhs)
     }
 
@@ -127,7 +131,7 @@ impl Term {
     where
         B: BetaReduce,
     {
-        let expr = mem::replace(self, Var(String::new()));
+        let expr = mem::replace(self, dummy_term());
         *self = <B as BetaReduce>::reduce(expr);
     }
 }
@@ -158,11 +162,11 @@ where
 {
     match *expr {
         Var(ref mut name) => if ctx.free.contains(name) && !ctx.bound.contains(name) {
-            <A as AlphaRename>::rename(name);
+            <A as AlphaRename>::rename(&mut **name);
         },
-        Lam(VarT(ref mut name), ref mut body) => {
+        Lam(ref mut name, ref mut body) => {
             if ctx.free.contains(name) {
-                <A as AlphaRename>::rename(name);
+                <A as AlphaRename>::rename(&mut **name);
             };
             ctx.bound.insert(name.to_owned());
             alpha_rec::<A>(body, ctx);
@@ -246,8 +250,8 @@ impl AlphaRename for Prime {
 
 #[derive(Debug, Clone)]
 struct Context {
-    free: HashSet<String>,
-    bound: HashSet<String>,
+    free: HashSet<VarName>,
+    bound: HashSet<VarName>,
 }
 
 impl Context {
@@ -260,7 +264,7 @@ impl Context {
 }
 
 /// Replaces all free occurrences of the variable `var` in the expression
-/// `expr` with the expression `repl` and returns the resulting expression.
+/// `expr` with the expression `subst` and returns the resulting expression.
 ///
 /// This function implements [substitution] in terms of the lambda calculus as
 /// a recursion on the structure of the given `expr`.
@@ -277,37 +281,37 @@ impl Context {
 /// instead.
 ///
 /// [substitution]: https://en.wikipedia.org/wiki/Lambda_calculus#Substitution
-pub fn substitute<A>(expr: &Term, var: &VarT, repl: &Term) -> Term
+pub fn substitute<A>(expr: &Term, var: &VarName, subst: &Term) -> Term
 where
     A: AlphaRename,
 {
-    let mut t_expr = app(expr.clone(), repl.clone());
+    let mut t_expr = app(expr.clone(), subst.clone());
     alpha_rec::<A>(&mut t_expr, Context::new());
     if let App(mut a_expr, _) = t_expr {
-        substitute_rec(&mut a_expr, var, repl);
+        substitute_rec(&mut a_expr, var, subst);
         *a_expr
     } else {
-        unreachable!("we just created a Term::App before")
+        unreachable!("didn't we just create a Term::App before?")
     }
 }
 
-fn substitute_rec(expr: &mut Term, var: &VarT, repl: &Term) {
-    let subst = match *expr {
-        Var(ref name) => name == var.as_ref(),
+fn substitute_rec(expr: &mut Term, var: &VarName, subst: &Term) {
+    let do_subst = match *expr {
+        Var(ref name) => name == var,
         Lam(ref mut param, ref mut body) => {
             if param != var {
-                substitute_rec(body, var, repl);
+                substitute_rec(body, var, subst);
             }
             false
         },
         App(ref mut lhs, ref mut rhs) => {
-            substitute_rec(lhs, var, repl);
-            substitute_rec(rhs, var, repl);
+            substitute_rec(lhs, var, subst);
+            substitute_rec(rhs, var, subst);
             false
         },
     };
-    if subst {
-        *expr = repl.clone();
+    if do_subst {
+        *expr = subst.clone();
     }
 }
 
@@ -359,11 +363,15 @@ where
 {
     let mut t_expr = app(expr.clone(), subst.clone());
     alpha_rec::<A>(&mut t_expr, Context::new());
-    if let App(mut a_expr, _) = t_expr {
-        apply_mut::<A>(&mut a_expr, subst);
-        *a_expr
+    let (a_expr, _) = t_expr
+        .unwrap_app()
+        .expect("didn't we just create a Term::App before?");
+
+    if let Lam(param, mut body) = a_expr {
+        substitute_rec(&mut body, &param, subst);
+        *body
     } else {
-        unreachable!("we just created a Term::App before")
+        a_expr
     }
 }
 
@@ -372,36 +380,11 @@ where
     A: AlphaRename,
 {
     alpha_rec::<A>(expr, Context::new());
-    if let Some(bound) = match *expr {
-        Lam(ref param, _) => Some(param.as_ref().to_owned()),
-        _ => None,
-    } {
-        apply_rec(expr, subst, &bound);
-        if let Some(replace) = match *expr {
-            Lam(_, ref mut body) => Some(mem::replace(&mut **body, Var(String::new()))),
-            _ => None,
-        } {
-            *expr = replace;
-        }
-    }
-}
-
-fn apply_rec(expr: &mut Term, subst: &Term, bound: &str) {
-    if let Some(replace) = match *expr {
-        Var(ref name) => if name == bound {
-            Some(subst.clone())
-        } else {
-            None
-        },
-        Lam(_, ref mut body) => {
-            apply_rec(body, subst, bound);
-            None
-        },
-        App(ref mut lhs, ref mut rhs) => {
-            apply_rec(lhs, subst, bound);
-            apply_rec(rhs, subst, bound);
-            None
-        },
+    if let Some(replace) = if let Some((param, body)) = expr.unwrap_lam_mut() {
+        substitute_rec(body, param, subst);
+        Some(mem::replace(body, dummy_term()))
+    } else {
+        None
     } {
         *expr = replace;
     }
@@ -482,7 +465,6 @@ where
     /// Performs β-reduction on a given lambda expression applying a
     /// call-by-name strategy.
     fn reduce(mut expr: Term) -> Term {
-        alpha_rec::<A>(&mut expr, Context::new());
         CallByName::<A>::reduce_rec(&mut expr);
         expr
     }
@@ -502,7 +484,7 @@ where
                         CallByName::<A>::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
-                        Some(mem::replace(&mut **lhs, Var(String::new())))
+                        Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => None,
                 }
@@ -539,7 +521,6 @@ where
     /// Performs β-reduction on a given lambda expression applying a
     /// normal-order strategy.
     fn reduce(mut expr: Term) -> Term {
-        alpha_rec::<A>(&mut expr, Context::new());
         NormalOrder::<A>::reduce_rec(&mut expr);
         expr
     }
@@ -563,7 +544,7 @@ where
                         NormalOrder::<A>::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
-                        Some(mem::replace(&mut **lhs, Var(String::new())))
+                        Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => {
                         NormalOrder::<A>::reduce_rec(lhs);
@@ -604,7 +585,6 @@ where
     /// Performs β-reduction on a given lambda expression applying a
     /// call-by-value strategy.
     fn reduce(mut expr: Term) -> Term {
-        alpha_rec::<A>(&mut expr, Context::new());
         CallByValue::<A>::reduce_rec(&mut expr);
         expr
     }
@@ -625,7 +605,7 @@ where
                         CallByValue::<A>::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
-                        Some(mem::replace(&mut **lhs, Var(String::new())))
+                        Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => None,
                 }
@@ -661,7 +641,6 @@ where
     /// Performs β-reduction on a given lambda expression applying a
     /// applicative-order strategy.
     fn reduce(mut expr: Term) -> Term {
-        alpha_rec::<A>(&mut expr, Context::new());
         ApplicativeOrder::<A>::reduce_rec(&mut expr);
         expr
     }
@@ -686,7 +665,7 @@ where
                         ApplicativeOrder::<A>::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
-                        Some(mem::replace(&mut **lhs, Var(String::new())))
+                        Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => None,
                 }
@@ -725,7 +704,6 @@ where
     /// Performs β-reduction on a given lambda expression applying a
     /// applicative-order strategy.
     fn reduce(mut expr: Term) -> Term {
-        alpha_rec::<A>(&mut expr, Context::new());
         HybridApplicativeOrder::<A>::reduce_rec(&mut expr);
         expr
     }
@@ -750,7 +728,7 @@ where
                         HybridApplicativeOrder::<A>::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
-                        Some(mem::replace(&mut **lhs, Var(String::new())))
+                        Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => {
                         HybridApplicativeOrder::<A>::reduce_rec(lhs);
@@ -786,7 +764,6 @@ where
     /// Performs β-reduction on a given lambda expression applying a
     /// applicative-order strategy.
     fn reduce(mut expr: Term) -> Term {
-        alpha_rec::<A>(&mut expr, Context::new());
         HeadSpine::<A>::reduce_rec(&mut expr);
         expr
     }
@@ -810,7 +787,7 @@ where
                         HeadSpine::<A>::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
-                        Some(mem::replace(&mut **lhs, Var(String::new())))
+                        Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => None,
                 }
@@ -848,7 +825,6 @@ where
     /// Performs β-reduction on a given lambda expression applying a
     /// applicative-order strategy.
     fn reduce(mut expr: Term) -> Term {
-        alpha_rec::<A>(&mut expr, Context::new());
         HybridNormalOrder::<A>::reduce_rec(&mut expr);
         expr
     }
@@ -872,7 +848,7 @@ where
                         HybridNormalOrder::<A>::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
-                        Some(mem::replace(&mut **lhs, Var(String::new())))
+                        Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => {
                         HybridNormalOrder::<A>::reduce_rec(lhs);
