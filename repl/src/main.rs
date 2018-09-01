@@ -328,7 +328,7 @@ fn parse_command(line: &str) -> Result<LciCommand, Error> {
                 Err(err_msg(format!("unknown command `{}`", cmd)))
             }
         },
-        cmd if cmd.starts_with(":") => Err(err_msg(format!("unknown command `{}`", cmd))),
+        cmd if cmd.starts_with(':') => Err(err_msg(format!("unknown command `{}`", cmd))),
         cmd => Ok(EvaluateLambdaExpression::with_input(cmd).into()),
     }
 }
