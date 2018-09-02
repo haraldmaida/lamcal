@@ -194,13 +194,13 @@ mod apply {
 
 mod beta {
 
-    use term::{app, lam, var};
+    use term::{app, con, lam, var};
 
     #[test]
-    fn test_for_beta_redex_on_identity_application() {
-        let expr = app(lam("x", var("x")), var("a"));
+    fn test_for_beta_redex_on_variable() {
+        let expr = var("x");
 
-        assert!(expr.is_beta_redex());
+        assert!(!expr.is_beta_redex());
     }
 
     #[test]
@@ -211,10 +211,10 @@ mod beta {
     }
 
     #[test]
-    fn test_for_beta_redex_on_variable() {
-        let expr = var("x");
+    fn test_for_beta_redex_on_identity_application() {
+        let expr = app(lam("x", var("x")), var("a"));
 
-        assert!(!expr.is_beta_redex());
+        assert!(expr.is_beta_redex());
     }
 
     #[test]
@@ -232,10 +232,31 @@ mod beta {
     }
 
     #[test]
-    fn test_for_beta_normal_on_identity_application() {
-        let expr = app(lam("x", var("x")), var("a"));
+    fn test_for_beta_redex_on_application_with_redex_on_left_hand_side() {
+        let expr = app(app(lam("x", var("x")), var("a")), var("b"));
 
-        assert!(!expr.is_beta_normal());
+        assert!(expr.is_beta_redex());
+    }
+
+    #[test]
+    fn test_for_beta_redex_on_application_with_redex_on_right_hand_side() {
+        let expr = app(var("b"), app(lam("x", var("x")), var("a")));
+
+        assert!(expr.is_beta_redex());
+    }
+
+    #[test]
+    fn test_for_beta_redex_on_constant() {
+        let expr = con("K");
+
+        assert!(!expr.is_beta_redex());
+    }
+
+    #[test]
+    fn test_for_beta_normal_on_variable() {
+        let expr = var("x");
+
+        assert!(expr.is_beta_normal());
     }
 
     #[test]
@@ -246,10 +267,10 @@ mod beta {
     }
 
     #[test]
-    fn test_for_beta_normal_on_variable() {
-        let expr = var("x");
+    fn test_for_beta_normal_on_identity_application() {
+        let expr = app(lam("x", var("x")), var("a"));
 
-        assert!(expr.is_beta_normal());
+        assert!(!expr.is_beta_normal());
     }
 
     #[test]
@@ -264,6 +285,27 @@ mod beta {
         let expr = lam("x", app(lam("y", var("y")), var("a")));
 
         assert!(!expr.is_beta_normal());
+    }
+
+    #[test]
+    fn test_for_beta_normal_on_application_with_redex_on_left_hand_side() {
+        let expr = app(app(lam("x", var("x")), var("a")), var("b"));
+
+        assert!(!expr.is_beta_normal());
+    }
+
+    #[test]
+    fn test_for_beta_normal_on_application_with_redex_on_right_hand_side() {
+        let expr = app(var("b"), app(lam("x", var("x")), var("a")));
+
+        assert!(!expr.is_beta_normal());
+    }
+
+    #[test]
+    fn test_for_beta_normal_on_constant() {
+        let expr = con("x");
+
+        assert!(expr.is_beta_normal());
     }
 }
 

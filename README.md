@@ -25,9 +25,10 @@
 [lamcal]: https://github.com/haraldmaida/lamcal
 [lamcal-repl]: repl
 
-[lamcal] is a [Lambda Calculus] parser and evaluator written in [Rust].
+[lamcal] is a [Lambda Calculus] parser and evaluator written in [Rust]. It implements a pure
+untyped lambda calculus with the addition of named constants.
  
-It can be used to
+The library can be used to
     
 * parse lambda expressions in classic notation into terms, like `parse_str("(λx.(λy.x y) a) b")`
   <br /> or `parse_str("(\\x.(\\y.x y) a) b")`
@@ -47,8 +48,8 @@ to play around with lambda calculus terms and applying α-conversion and β-redu
 Features:
 
 * Evaluation functions are provided in two variants: An associated function, e.g. `Term::reduce`,
-  that mutate the term in place and a standalone function, e.g. `reduce`, that leave the original
-  term unchanged and return the result as a new term.
+  that mutates the term in place and a standalone function, e.g. `reduce`, that leaves the original
+  term unchanged and returns the result as a new term.
 * Strategies for α-conversion and β-reduction are defined as traits to easily implement custom
   strategies and use it with the functionality of this library.
 * The parser gives detailed information about parse errors, like the position of the error in the 

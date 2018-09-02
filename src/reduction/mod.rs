@@ -27,12 +27,12 @@ impl Term {
     /// [beta redex]: https://en.wikipedia.org/wiki/Beta_normal_form#Beta_reduction
     pub fn is_beta_redex(&self) -> bool {
         match *self {
-            App(ref lhs, _) => match **lhs {
-                Lam(_, _) => true,
-                _ => false,
-            },
+            Var(_) | Const(_) => false,
             Lam(_, ref body) => body.is_beta_redex(),
-            _ => false,
+            App(ref lhs, ref rhs) => match **lhs {
+                Lam(_, _) => true,
+                _ => lhs.is_beta_redex() || rhs.is_beta_redex(),
+            },
         }
     }
 
@@ -43,15 +43,7 @@ impl Term {
     ///
     /// [beta normal form]: https://en.wikipedia.org/wiki/Beta_normal_form
     pub fn is_beta_normal(&self) -> bool {
-        if self.is_beta_redex() {
-            false
-        } else {
-            match *self {
-                App(ref lhs, ref rhs) => lhs.is_beta_normal() && rhs.is_beta_normal(),
-                Lam(_, ref body) => body.is_beta_normal(),
-                _ => true,
-            }
-        }
+        !self.is_beta_redex()
     }
 
     /// Performs an [α-conversion] on this `Term`.
