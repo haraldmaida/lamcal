@@ -6,7 +6,7 @@ mod tests;
 use std::fmt::{self, Display};
 use std::iter::IntoIterator;
 
-use term::{app, lam, var, Term};
+use term::{app, con, lam, var, Term};
 
 use self::ParseErrorKind::*;
 use self::Token::*;
@@ -88,7 +88,7 @@ pub fn tokenize(
                     InvalidCharacter,
                     position,
                     format!("{}", chr),
-                    "any lower case letter or 'λ', '.', '(', ')'",
+                    "any unicode letter or 'λ', '.', '(', ')'",
                     None,
                 ));
             } else {
@@ -101,7 +101,7 @@ pub fn tokenize(
                 tokens.push((Identifier(name), name_pos));
                 name = String::new();
             },
-            chr if chr.is_lowercase() => {
+            chr if chr.is_alphabetic() => {
                 if name.is_empty() {
                     name_pos = position;
                 }
@@ -112,13 +112,10 @@ pub fn tokenize(
                     InvalidCharacter,
                     position,
                     format!("{}", chr),
-                    "any lower case letter or 'λ', '.', '(', ')'",
+                    "any unicode letter or 'λ', '.', '(', ')'",
                     None,
                 ));
             } else {
-                if name.is_empty() {
-                    name_pos = position;
-                }
                 name.push(chr);
             },
             _ => {
@@ -126,7 +123,7 @@ pub fn tokenize(
                     InvalidCharacter,
                     position,
                     format!("{}", chr),
-                    "any lower case letter, digit or 'λ', '.', '(', ')', '_', '\''",
+                    "any unicode letter, digit or 'λ', '.', '(', ')', '_', '\''",
                     None,
                 ))
             },
@@ -136,6 +133,21 @@ pub fn tokenize(
         tokens.push((Identifier(name), name_pos));
     }
     Ok(tokens)
+}
+
+trait StringExt {
+    fn first_char_matches<P>(&self, predicate: P) -> bool
+    where
+        P: Fn(&char) -> bool;
+}
+
+impl StringExt for String {
+    fn first_char_matches<P>(&self, predicate: P) -> bool
+    where
+        P: Fn(&char) -> bool,
+    {
+        self.chars().take(1).next().filter(predicate).is_some()
+    }
 }
 
 /// Parses a list of `Token`s into a `Term`.
@@ -163,11 +175,27 @@ where
     let mut term_seq = Vec::with_capacity(8);
     while let Some((token, position)) = token_iter.next() {
         match token {
-            Identifier(name) => term_seq.push(var(name)),
+            Identifier(name) => if name.first_char_matches(|c| c.is_lowercase()) {
+                term_seq.push(var(name))
+            } else {
+                term_seq.push(con(name))
+            },
             Lambda => {
                 let token_opt = token_iter.next();
                 let name = match token_opt {
-                    Some((Identifier(name), _)) => name,
+                    Some((Identifier(name), position)) => {
+                        if name.first_char_matches(|c| c.is_lowercase()) {
+                            name
+                        } else {
+                            return Err(ParseError::new(
+                                NamedConstantNotAllowedInLambdaHead,
+                                position,
+                                name,
+                                "a variable name",
+                                hint("the first character in variable names must be a lowercase unicode letter"),
+                            ));
+                        }
+                    },
                     Some((token, position)) => {
                         return Err(ParseError::new(
                             LambdaHeadExpected,
@@ -236,7 +264,7 @@ where
                 let _ = ctx.lparens.pop();
                 break;
             },
-            _ => {
+            BodySeparator => {
                 return Err(ParseError::new(
                     UnexpectedToken,
                     position,
@@ -495,6 +523,8 @@ pub enum ParseErrorKind {
     MissingOpeningParen,
     /// Missing a closing parenthesis for a found opening one.
     MissingClosingParen,
+    /// Named constants are not allowed in lambda head.
+    NamedConstantNotAllowedInLambdaHead,
     /// End of input before a term is complete.
     UnexpectedEndOfInput,
     /// Unexpected token at this position.
@@ -522,6 +552,7 @@ impl ParseErrorKind {
             },
             MissingClosingParen => "opening parenthesis without a matching closing one",
             MissingOpeningParen => "closing parenthesis without a matching opening one",
+            NamedConstantNotAllowedInLambdaHead => "named constants not allowed in lambda head",
             UnexpectedEndOfInput => "unexpected end of input",
             UnexpectedToken => "unexpected token found",
         }

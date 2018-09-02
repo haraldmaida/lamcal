@@ -189,6 +189,7 @@ where
                 alpha_rec::<A>(rhs, ctx);
             }
         },
+        Const(_) => {},
     }
 }
 
@@ -309,6 +310,7 @@ fn substitute_rec(expr: &mut Term, var: &VarName, subst: &Term) {
             substitute_rec(rhs, var, subst);
             false
         },
+        Const(_) => false,
     };
     if do_subst {
         *expr = subst.clone();

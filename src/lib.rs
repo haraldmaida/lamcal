@@ -1,19 +1,22 @@
 //! A lambda calculus parser and evaluator library.
 //!
-//! This crate implements a pure [lambda calculus] with the notation of a term
-//! as the main data type. A term is either a variable, a lambda abstraction or
-//! a function application.
+//! This crate implements an untyped [lambda calculus] with the notation of a
+//! term as the main data type. A term is either a variable, a lambda
+//! abstraction or a function application.
 //!
 //! ## the term
 //!
 //! The lambda term is the main data type in *lamcal*. A lambda term is
-//! represented by the enum [`Term`](enum.Term.html) with its variants
-//! `Term::Var` for variables, `Term::Lam` for lambda abstractions and
-//! `Term::App` for function applications.
+//! represented by the enum [`Term`](enum.Term.html). Its variants are:
+//!
+//! * `Term::Var` for variables
+//! * `Term::Lam` for lambda abstractions
+//! * `Term::App` for function applications
+//! * `Term::Const` for named constants
 //!
 //! We can construct lambda terms programmatically by using the convenient
-//! functions [`var`](fn.var.html), [`lam`](fn.lam.html), [`app`](fn.app.html)
-//! and the macro [`app!`](macro.app.html).
+//! functions [`var`](fn.var.html), [`lam`](fn.lam.html), [`app`](fn.app.html),
+//! [`const`](fn.con.html) and the macro [`app!`](macro.app.html).
 //!
 //! ## the parser
 //!
@@ -23,9 +26,9 @@
 //! `char` items. To parse a term from a `str` slice we can use the function
 //! [`parse_str`](fn.parse_str.html).
 //!
-//! * Variables can be single lower case letters or names with multiple
-//!   characters where the first character must be a lower case letter. The
-//!   characters following the first character can be lower case letters,
+//! * Variables can be single lowercase letter or names with multiple
+//!   characters where the first character must be a lowercase letter. The
+//!   characters following the first character can be lowercase letters,
 //!   digits, the underscore `_` or the tick `'` character.
 //! * Lambda abstractions start with the greek lowercase letter lambda `λ` or
 //!   alternatively with a backslash `\` for easier typing on traditional
@@ -41,6 +44,10 @@
 //!   means the expression `λx.x y z` is equivalent to the expression
 //!   `λx.(x y z)`. To apply this abstraction to a variable `a` we have to use
 //!   parenthesis like so `(λx.x y z) a`.
+//! * Named constants can be single uppercase letter or names with multiple
+//!   characters where the first character must be an uppercase letter. The
+//!   characters following the first character can be uppercase letters,
+//!   lowercase letters, digits, the underscore `_` or the tick `'` character.
 //!
 //! The parser fully supports unicode characters.
 //!
@@ -135,9 +142,11 @@ extern crate failure;
 
 #[macro_use]
 mod term;
+mod environment;
 mod parser;
 mod reduction;
 
+pub use self::environment::{bind, Binding, Environment};
 pub use self::parser::{
     hint, parse, parse_str, parse_tokens, pos, tokenize, tokenize_str, CharPosition, Hint,
     ParseError, ParseErrorKind, Token,
@@ -147,4 +156,4 @@ pub use self::reduction::{
     CallByValue, Enumerate, HeadSpine, HybridApplicativeOrder, HybridNormalOrder, NormalOrder,
     Prime,
 };
-pub use self::term::{app, lam, var, Term, VarName};
+pub use self::term::{app, con, lam, var, ConstName, Term, VarName};
