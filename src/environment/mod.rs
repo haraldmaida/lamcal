@@ -2,7 +2,9 @@
 
 use std::collections::HashMap;
 use std::fmt::{self, Display};
+use std::iter::FromIterator;
 
+use combinator;
 use term::{ConstName, Term};
 
 /// Constructs a new `Binding` with the given term bound to the given name.
@@ -11,7 +13,7 @@ pub fn bind(name: impl Into<String>, term: impl Into<Term>) -> Binding {
 }
 
 /// The environment in for evaluating lambda terms.
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Environment {
     bindings: HashMap<ConstName, Term>,
 }
@@ -46,6 +48,34 @@ impl Environment {
     /// term if a binding exists for the given name.
     pub fn lookup_term(&self, name: &ConstName) -> Option<&Term> {
         self.bindings.get(name)
+    }
+}
+
+impl Default for Environment {
+    fn default() -> Self {
+        Environment::from_iter(combinator::all())
+    }
+}
+
+impl FromIterator<(ConstName, Term)> for Environment {
+    fn from_iter<I>(set: I) -> Self
+    where
+        I: IntoIterator<Item = (ConstName, Term)>,
+    {
+        Environment {
+            bindings: HashMap::from_iter(set.into_iter()),
+        }
+    }
+}
+
+impl FromIterator<Binding> for Environment {
+    fn from_iter<I>(set: I) -> Self
+    where
+        I: IntoIterator<Item = Binding>,
+    {
+        Environment {
+            bindings: HashMap::from_iter(set.into_iter().map(|b| (b.name, b.term))),
+        }
     }
 }
 
