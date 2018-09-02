@@ -142,9 +142,12 @@ extern crate failure;
 
 #[macro_use]
 mod term;
+#[macro_use]
 mod environment;
 mod parser;
 mod reduction;
+
+pub mod combinator;
 
 pub use self::environment::{bind, Binding, Environment};
 pub use self::parser::{
