@@ -92,9 +92,6 @@ pub fn tokenize(
                     None,
                 ));
             } else {
-                if name.is_empty() {
-                    name_pos = position;
-                }
                 name.push(chr);
             },
             chr if chr.is_whitespace() => if !name.is_empty() {
