@@ -1,5 +1,59 @@
 use super::*;
 
+mod token {
+
+    use super::*;
+
+    #[test]
+    fn display_format_a_lambda_token() {
+        let token = Lambda;
+
+        let formatted = token.to_string();
+
+        assert_eq!(formatted, "lambda");
+    }
+
+    #[test]
+    fn display_format_a_body_separator_token() {
+        let token = BodySeparator;
+
+        let formatted = token.to_string();
+
+        assert_eq!(formatted, "'.'");
+    }
+
+    #[test]
+    fn display_format_a_left_paren_token() {
+        let token = LParen;
+
+        let formatted = token.to_string();
+
+        assert_eq!(formatted, "'('");
+    }
+
+    #[test]
+    fn display_format_a_right_paren_token() {
+        let token = RParen;
+
+        let formatted = token.to_string();
+
+        assert_eq!(formatted, "')'");
+    }
+
+    proptest! {
+        #[test]
+        fn display_format_an_identifier_token(
+            name in "[A-Za-z][A-Za-z0-9_']*",
+        ) {
+            let token = Identifier(name);
+
+            let formatted = token.to_string();
+
+            assert_eq!(formatted, "identifier");
+        }
+    }
+}
+
 mod tokenize {
 
     use super::*;
