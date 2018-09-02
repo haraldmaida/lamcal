@@ -170,7 +170,7 @@ macro_rules! bind {
     };
 }
 
-/// Constructs a set of `Binding`s from identifier to a `Term`.
+/// Constructs a set of `Binding`s from identifier to `Term`.
 ///
 /// The binds! macro can be used to conveniently construct multiple `Binding`s.
 /// The resulting set of bindings is returned as a `std::collections::HashSet`.
