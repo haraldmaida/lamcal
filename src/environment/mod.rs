@@ -49,6 +49,19 @@ impl Environment {
     }
 }
 
+impl Extend<(ConstName, Term)> for Environment {
+    fn extend<I: IntoIterator<Item = (ConstName, Term)>>(&mut self, iter: I) {
+        self.bindings.extend(iter)
+    }
+}
+
+impl Extend<Binding> for Environment {
+    fn extend<I: IntoIterator<Item = Binding>>(&mut self, iter: I) {
+        self.bindings
+            .extend(iter.into_iter().map(|b| (b.name, b.term)))
+    }
+}
+
 /// A binding definition.
 ///
 /// It represents a lambda term bound to a name. Bindings are stored in an
@@ -63,7 +76,7 @@ impl Environment {
 /// parser bindings are defined by `let` statements. For more details see the
 /// [`parse`](fn.parse.html) function and the
 /// [the parser chapter](index.html#the-parser) in the crate documentation.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Binding {
     name: ConstName,
     term: Term,
@@ -96,6 +109,124 @@ impl Binding {
     pub fn term(&self) -> &Term {
         &self.term
     }
+}
+
+/// Constructs a `Binding`s from an identifier to a `Term`.
+///
+/// The bind! macro can be used to conveniently construct a `Binding` either
+/// from an identifier and a `Term` or a `String` and a `Term`.
+///
+/// # Example 1
+///
+/// This example binds the identifier of an combinator function to its term.
+///
+/// ```
+/// #[macro_use]
+/// extern crate lamcal;
+/// use lamcal::combinator::I;
+/// use lamcal::{bind, lam, var};
+///
+/// # fn main() {
+/// let binding = bind!(I => I());
+///
+/// assert_eq!(binding, bind("I", lam("a", var("a"))));
+/// # }
+/// ```
+///
+/// # Example 2
+///
+/// This example binds a name to an arbitrary term.
+///
+/// ```
+/// #[macro_use]
+/// extern crate lamcal;
+/// use lamcal::combinator::I;
+/// use lamcal::{bind, lam, var};
+///
+/// # fn main() {
+/// let binding = bind! {
+///     "Hummingbird" => lam("a", lam("b", lam("c", app![var("a"), var("b"), var("c"), var("b")])))
+/// };
+///
+/// assert_eq!(
+///     binding,
+///     bind(
+///         "Hummingbird",
+///         lam(
+///             "a",
+///             lam("b", lam("c", app![var("a"), var("b"), var("c"), var("b")]))
+///         )
+///     )
+/// );
+/// # }
+/// ```
+#[macro_export]
+macro_rules! bind {
+    ($name:ident => $term:expr) => {
+        $crate::Binding::new($crate::ConstName(String::from(stringify!($name))), $term)
+    };
+    ($name:expr => $term:expr) => {
+        $crate::Binding::new($crate::ConstName(String::from($name)), $term)
+    };
+}
+
+/// Constructs a set of `Binding`s from identifier to a `Term`.
+///
+/// The binds! macro can be used to conveniently construct multiple `Binding`s.
+/// The resulting set of bindings is returned as a `std::collections::HashSet`.
+///
+/// # Example
+///
+/// This example creates a set of bindings.
+///
+/// ```
+/// #[macro_use]
+/// extern crate lamcal;
+/// use lamcal::combinator::{I, K};
+/// use lamcal::{bind, lam, var};
+/// use std::collections::HashSet;
+///
+/// # fn main() {
+/// let bindings = binds! {
+///     "I" => I(),
+///     "Hummingbird" => lam("a", lam("b", lam("c", app![var("a"), var("b"), var("c"), var("b")]))),
+///     "K" => K(),
+/// };
+///
+/// let mut expected = HashSet::new();
+/// expected.insert(bind("I", lam("a", var("a"))));
+/// expected.insert(bind(
+///     "Hummingbird",
+///     lam(
+///         "a",
+///         lam("b", lam("c", app![var("a"), var("b"), var("c"), var("b")])),
+///     ),
+/// ));
+/// expected.insert(bind("K", lam("a", lam("b", var("a")))));
+///
+/// assert_eq!(bindings, expected);
+/// # }
+/// ```
+#[macro_export]
+macro_rules! binds {
+    ($($name:ident => $term:expr),* $(,)*) => {
+        {
+            let mut binds = HashSet::new();
+            $(
+                binds.insert($crate::Binding::new($crate::ConstName(String::from(stringify!($name))), $term));
+            )*
+            binds
+        }
+    };
+    ($($name:expr => $term:expr),* $(,)*) => {
+        {
+            let mut binds = HashSet::new();
+            $(
+                binds.insert($crate::Binding::new($crate::ConstName(String::from($name)), $term));
+            )*
+            binds
+        }
+    };
 }
 
 #[cfg(test)]

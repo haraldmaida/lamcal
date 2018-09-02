@@ -387,15 +387,18 @@ impl ConstName {
     }
 }
 
-/// The app! macro can be used to conveniently construct an sequence of function
-/// applications.
+/// Constructs a `Term` from a sequence of function applications.
+///
+/// The app! macro can be used to conveniently construct a `Term` from a
+/// sequence of function applications without all the nested calls of the `app`
+/// functions which would be the alternative way.
 ///
 /// # Example
 ///
 /// ```
 /// #[macro_use]
 /// extern crate lamcal;
-/// # use lamcal::{app, var, lam};
+/// use lamcal::{app, lam, var};
 ///
 /// # fn main() {
 /// let expr = app![
