@@ -1,8 +1,8 @@
 //! [Standard term]s and [combinator]s
 //!
 //! This module defines [standard term]s and [combinator]s with commonly
-//! accepted names. A combinator is a lambda calculus term that contains no
-//! free variables.
+//! accepted names. A combinator is a closed lambda expression, meaning that it
+//! has no free variables.
 //!
 //! The combinators are collected from these sources:
 //!
@@ -14,7 +14,7 @@
 //! * the reverse application (thrush) combinator
 //!
 //! The standard terms and combinators defined in this module are also builtin
-//! named constants in the default environment created by
+//! named constants in the default environment which can be created by calling
 //! `Environment::default()`.
 //!
 //! [standard term]: https://en.wikipedia.org/w/index.php?title=Lambda_calculus#Standard_terms
@@ -47,6 +47,10 @@ pub fn all() -> HashSet<Binding> {
         T => T(),
         U => U(),
         V => V(),
+        Y => Y(),
+        Z => Z(),
+        Θ => UU(),
+        UU => UU(),
     }
 }
 
@@ -176,4 +180,56 @@ pub fn U() -> Term {
 /// V ≡ λabc.cab ≡ B C T
 pub fn V() -> Term {
     lam("a", lam("b", lam("c", app![var("c"), var("a"), var("b")])))
+}
+
+/// Y - lazy fixed-point combinator
+///
+/// Y ≡ λf.(λa.f(aa))(λa.f(aa))
+///
+/// discovered by Haskell Curry.
+pub fn Y() -> Term {
+    lam(
+        "f",
+        app(
+            lam("a", app(var("f"), app(var("a"), var("a")))),
+            lam("a", app(var("f"), app(var("a"), var("a")))),
+        ),
+    )
+}
+
+/// Z - strict fixed-point combinator
+///
+/// Z ≡ λf.(λa.f(λb.aab))(λa.f(λb.aab))
+pub fn Z() -> Term {
+    lam(
+        "f",
+        app(
+            lam(
+                "a",
+                app(var("f"), lam("b", app![var("a"), var("a"), var("b")])),
+            ),
+            lam(
+                "a",
+                app(var("f"), lam("b", app![var("a"), var("a"), var("b")])),
+            ),
+        ),
+    )
+}
+
+/// Θ - fixed-point combinator
+///
+/// Θ ≡ (λab.b(aab))(λab.b(aab))
+///
+/// discovered by Alan Turing.
+pub fn UU() -> Term {
+    app(
+        lam(
+            "a",
+            lam("b", app(var("b"), app![var("a"), var("a"), var("b")])),
+        ),
+        lam(
+            "a",
+            lam("b", app(var("b"), app![var("a"), var("a"), var("b")])),
+        ),
+    )
 }
