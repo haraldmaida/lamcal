@@ -31,8 +31,8 @@ use std::collections::HashSet;
 use environment::Binding;
 use term::{app, lam, var, Term};
 
-/// Creates a set of all bindings implemented in this module.
-pub fn all() -> HashSet<Binding> {
+/// Creates a set of bindings for all combinators implemented in this module.
+pub fn complete_set() -> HashSet<Binding> {
     binds! {
         I => I(),
         K => K(),
@@ -63,7 +63,7 @@ pub fn all() -> HashSet<Binding> {
 /// * I - Idiot    - Identity
 ///
 /// [SKI]: https://en.wikipedia.org/wiki/SKI_combinator_calculus
-pub fn SKI() -> HashSet<Binding> {
+pub fn ski_set() -> HashSet<Binding> {
     binds! {
         S => S(),
         K => K(),
@@ -85,7 +85,7 @@ pub fn K() -> Term {
     lam("a", lam("b", var("a")))
 }
 
-/// S - Starling - Substitution
+/// S - Starling - Substitution combinator
 ///
 /// S ≡ λabc.ac(bc)
 pub fn S() -> Term {
@@ -108,7 +108,7 @@ pub fn S() -> Term {
 /// * W - Warbler  - Duplication
 ///
 /// [BCKW]: https://en.wikipedia.org/wiki/B,_C,_K,_W_system
-pub fn BCKW() -> HashSet<Binding> {
+pub fn bckw_set() -> HashSet<Binding> {
     binds! {
         B => B(),
         C => C(),
@@ -216,9 +216,9 @@ pub fn Z() -> Term {
     )
 }
 
-/// Θ - fixed-point combinator
+/// Θ - Turing fixed-point combinator
 ///
-/// Θ ≡ (λab.b(aab))(λab.b(aab))
+/// Θ ≡ (λab.b(aab))(λab.b(aab)) ≡ U U
 ///
 /// discovered by Alan Turing.
 pub fn UU() -> Term {

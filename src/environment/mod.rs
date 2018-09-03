@@ -53,7 +53,7 @@ impl Environment {
 
 impl Default for Environment {
     fn default() -> Self {
-        Environment::from_iter(combinator::all())
+        Environment::from_iter(combinator::complete_set())
     }
 }
 
