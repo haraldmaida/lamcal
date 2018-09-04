@@ -12,7 +12,14 @@ pub fn bind(name: impl Into<String>, term: impl Into<Term>) -> Binding {
     Binding::new(ConstName(name.into()), term.into())
 }
 
-/// The environment in for evaluating lambda terms.
+/// The environment in which lambda terms get evaluated.
+///
+/// There are two possibilities to create an instance of `Environment`:
+///
+/// * `Environment::new()` - creates an empty environment.
+/// * `Environment::default()` - creates an environment containing predefined
+///   bindings to all the builtin standard terms, combinators and data encoding
+///   terms.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Environment {
     bindings: HashMap<ConstName, Term>,
@@ -20,6 +27,11 @@ pub struct Environment {
 
 impl Environment {
     /// Creates a new empty environment.
+    ///
+    /// The empty environment does not contain any bindings at all. If you want
+    /// to create an environment with predefined bindings to all the builtin
+    /// standard terms, combinators and data encodings use the
+    /// `Environment::default()` function.
     pub fn new() -> Self {
         Environment {
             bindings: HashMap::new(),
@@ -52,6 +64,9 @@ impl Environment {
 }
 
 impl Default for Environment {
+    /// Creates an `Environment` containing predefined bindings to all the
+    /// standard terms, combinators and data encoding terms that are provided
+    /// by this crate.
     fn default() -> Self {
         Environment::from_iter(combinator::complete_set())
     }
