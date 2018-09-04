@@ -10,6 +10,7 @@ use std::collections::HashSet;
 use std::marker::PhantomData;
 use std::mem;
 
+use environment::Environment;
 use term::{app, Term, Term::*, VarName};
 
 fn dummy_term() -> Term {
@@ -72,8 +73,8 @@ impl Term {
     /// If this `Term` is not a lambda abstraction this function does nothing.
     ///
     /// To avoid name clashes this function performs α-conversions when
-    /// appropriate. Therefore a strategy for α-conversion must be given as a
-    /// type parameter.
+    /// appropriate. Therefore a strategy for α-conversion must be given as the
+    /// type parameter `A`.
     ///
     /// # Example
     ///
@@ -95,8 +96,8 @@ impl Term {
 
     /// Performs a [β-reduction] on this `Term`.
     ///
-    /// The reduction strategy to be used must be given as a type parameter,
-    /// like in the example below.
+    /// The reduction strategy to be used must be given as the type parameter
+    /// `B`, like in the example below.
     ///
     /// # Example
     ///
@@ -126,12 +127,223 @@ impl Term {
         let expr = mem::replace(self, dummy_term());
         *self = <B as BetaReduce>::reduce(expr);
     }
+
+    /// Substitutes named constants in this term with the term that is bound to
+    /// a constant's name in the given environment.
+    ///
+    /// This method walks through this whole term and replaces any named
+    /// constant with the term bound to the constant's name in the given
+    /// environment.
+    ///
+    /// This method modifies this `Term` in place. If you want to expand named
+    /// constants and get the result as a new `Term` while keeping the original
+    /// `Term` unchanged use the standalone function [`expand`](fn.expand.html)
+    /// instead.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # #[macro_use]
+    /// # extern crate lamcal;
+    /// # use lamcal::{app, con, expand, lam, var, Environment};
+    /// # fn main() {
+    /// let env = Environment::default();
+    ///
+    /// let mut expr = app![
+    ///     con("C"),
+    ///     lam("a", app(con("K"), con("I"))),
+    ///     var("e"),
+    ///     var("f")
+    /// ];
+    ///
+    /// expr.expand(&env);
+    ///
+    /// assert_eq!(
+    ///     expr,
+    ///     app![
+    ///         lam("a", lam("b", lam("c", app![var("a"), var("c"), var("b")]))),
+    ///         lam("a", app(lam("a", lam("b", var("a"))), lam("a", var("a")))),
+    ///         var("e"),
+    ///         var("f")
+    ///     ]
+    /// );
+    /// # }
+    /// ```
+    pub fn expand(&mut self, env: &Environment) {
+        expand_rec(self, env)
+    }
+
+    /// Evaluates this lambda expression in the given environment.
+    ///
+    /// Evaluation comprises the following steps in the given order:
+    ///
+    /// * expand all named constants with their bound terms found in the
+    ///   environment recursively
+    /// * perform β-reduction on the expression
+    /// * perform α-conversion where needed to avoid name clashes
+    ///
+    /// For the β-reduction step a reduction strategy is required. Therefore the
+    /// reduction strategy must be specified as the type parameter `B`.
+    ///
+    /// The expansion of named constants step as done by this function is
+    /// equivalent to calling the
+    /// [`Term::expand`](enum.Term.html#method.expand) method. Similar the
+    /// β-reduction step performed by this the function is equivalent to calling
+    /// the [`Term::reduce`](enum.Term.html#method.reduce) method.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # #[macro_use]
+    /// # extern crate lamcal;
+    /// # use lamcal::{app, con, evaluate, lam, var, Enumerate, Environment, NormalOrder};
+    /// # fn main() {
+    /// let env = Environment::default();
+    ///
+    /// let mut expr = app![
+    ///     con("C"),
+    ///     lam("x", lam("y", app(var("x"), var("y")))),
+    ///     var("e"),
+    ///     var("f")
+    /// ];
+    ///
+    /// expr.evaluate::<NormalOrder<Enumerate>>(&env);
+    ///
+    /// assert_eq!(expr, app(var("f"), var("e")));
+    /// # }
+    /// ```
+    pub fn evaluate<B>(&mut self, env: &Environment)
+    where
+        B: BetaReduce,
+    {
+        self.expand(env);
+        self.reduce::<B>();
+    }
+}
+
+/// Evaluates a lambda expression in the given environment.
+///
+/// This function takes the given expression by reference and returns a new
+/// `Term` with the evaluation applied. The given `Term` remains unchanged.
+///
+/// Evaluation comprises the following steps in the given order:
+///
+/// * expand all named constants with their bound terms found in the
+///   environment recursively
+/// * perform β-reduction on the expression
+/// * perform α-conversion where needed to avoid name clashes
+///
+/// For the β-reduction step a reduction strategy is required. Therefore the
+/// reduction strategy must be specified as the type parameter `B`.
+///
+/// The expansion of named constants step as done by this function is
+/// equivalent to calling the [`expand`](fn.expand.html) function. Similar the
+/// β-reduction step performed by this the function is equivalent to calling
+/// the [`reduce`](fn.reduce.html) function.
+///
+/// # Example
+///
+/// ```
+/// # #[macro_use]
+/// # extern crate lamcal;
+/// # use lamcal::{app, con, evaluate, lam, var, Enumerate, Environment, NormalOrder};
+/// # fn main() {
+/// let env = Environment::default();
+///
+/// let expr = app![
+///     con("C"),
+///     lam("x", lam("y", app(var("x"), var("y")))),
+///     var("e"),
+///     var("f")
+/// ];
+///
+/// let result = evaluate::<NormalOrder<Enumerate>>(&expr, &env);
+///
+/// assert_eq!(result, app(var("f"), var("e")));
+/// # }
+/// ```
+pub fn evaluate<B>(expr: &Term, env: &Environment) -> Term
+where
+    B: BetaReduce,
+{
+    let mut expr2 = expr.clone();
+    expr2.evaluate::<B>(env);
+    expr2
+}
+
+/// Substitutes named constants in a term with the term that is bound to a
+/// constant's name in the given environment.
+///
+/// This function walks through the whole term and replaces any named constant
+/// with the term bound to the constant's name in the given environment. The
+/// result is returned as a new `Term`. The given term remains unchanged. If
+/// you want to expand named constants in a term in place use the associated
+/// function [`Term::expand`](enum.Term.html#method.expand) instead.
+///
+/// # Example
+///
+/// ```
+/// # #[macro_use]
+/// # extern crate lamcal;
+/// # use lamcal::{app, con, expand, lam, var, Environment};
+/// # fn main() {
+/// let env = Environment::default();
+///
+/// let expr = app![
+///     con("C"),
+///     lam("a", app(con("K"), con("I"))),
+///     var("e"),
+///     var("f")
+/// ];
+///
+/// let result = expand(&expr, &env);
+///
+/// assert_eq!(
+///     result,
+///     app![
+///         lam("a", lam("b", lam("c", app![var("a"), var("c"), var("b")]))),
+///         lam("a", app(lam("a", lam("b", var("a"))), lam("a", var("a")))),
+///         var("e"),
+///         var("f")
+///     ]
+/// );
+/// # }
+/// ```
+pub fn expand(expr: &Term, env: &Environment) -> Term {
+    let mut expr2 = expr.clone();
+    expand_rec(&mut expr2, env);
+    expr2
+}
+
+fn expand_rec(expr: &mut Term, env: &Environment) {
+    let maybe_expand_with = match *expr {
+        Var(_) => None,
+        Lam(_, ref mut body) => {
+            expand_rec(body, env);
+            None
+        },
+        App(ref mut lhs, ref mut rhs) => {
+            expand_rec(lhs, env);
+            expand_rec(rhs, env);
+            None
+        },
+        Const(ref name) => match env.lookup_term(name).cloned() {
+            Some(mut expansion) => {
+                expand_rec(&mut expansion, env);
+                Some(expansion)
+            },
+            None => None,
+        },
+    };
+    if let Some(expand_with) = maybe_expand_with {
+        *expr = expand_with;
+    }
 }
 
 /// Performs an [α-conversion] on a given lambda expression and returns the
 /// result as a new `Term`.
 ///
-/// The type parameter A defines the strategy to be used for renaming bound
+/// The type parameter `A` defines the strategy to be used for renaming bound
 /// variables.
 ///
 /// The result is returned as a new `Term`. The original term `expr` is not
@@ -143,9 +355,9 @@ pub fn alpha<A>(expr: &Term) -> Term
 where
     A: AlphaRename,
 {
-    let mut expr = expr.clone();
-    alpha_rec::<A>(&mut expr, Context::new());
-    expr
+    let mut expr2 = expr.clone();
+    alpha_rec::<A>(&mut expr2, Context::new());
+    expr2
 }
 
 fn alpha_rec<A>(expr: &mut Term, mut ctx: Context)
@@ -266,7 +478,8 @@ impl Context {
 /// changed.
 ///
 /// To avoid name clashes this function performs α-conversions when appropriate.
-/// Therefore a strategy for α-conversion must be given as a type parameter.
+/// Therefore a strategy for α-conversion must be specified as the type
+/// parameter `A`.
 ///
 /// This function returns the result as a new `Term`. The given term `expr`
 /// remains unmodified. If you want to substitute the original term in place use
@@ -321,7 +534,8 @@ fn substitute_rec(expr: &mut Term, var: &VarName, subst: &Term) {
 /// unmodified clone of the term `expr` is returned.
 ///
 /// To avoid name clashes this function performs α-conversions when appropriate.
-/// Therefore a strategy for α-conversion must be given as a type parameter.
+/// Therefore a strategy for α-conversion must be specified as a type parameter
+/// `A`.
 ///
 /// This function returns the result as a new `Term`. The given term `expr`
 /// remains unmodified. If you want to apply an α-conversion on the original
@@ -387,8 +601,8 @@ where
 /// Performs a [β-reduction] on a given lambda expression applying the given
 /// reduction strategy.
 ///
-/// The reduction strategy to be used must be given as a type parameter, like
-/// in the example below.
+/// The reduction strategy to be used must be given as the type parameter `B`,
+/// like in the example below.
 ///
 /// This function returns the result as a new `Term`. The given `Term` remains
 /// unchanged. If you want to apply a β-reduction modifying the term in place

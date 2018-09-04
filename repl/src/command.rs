@@ -216,37 +216,49 @@ impl<'a> Command for EvaluateLambdaExpression<'a> {
                 match ctx.alpha_renaming_strategy() {
                     AlphaRenamingStrategy::Enumerate => match ctx.beta_reduction_strategy() {
                         BetaReductionStrategy::ApplicativeOrder => {
-                            expr.reduce::<ApplicativeOrder<Enumerate>>()
+                            expr.evaluate::<ApplicativeOrder<Enumerate>>(ctx.env())
                         },
-                        BetaReductionStrategy::CallByName => expr.reduce::<CallByName<Enumerate>>(),
+                        BetaReductionStrategy::CallByName => {
+                            expr.evaluate::<CallByName<Enumerate>>(ctx.env())
+                        },
                         BetaReductionStrategy::CallByValue => {
-                            expr.reduce::<CallByValue<Enumerate>>()
+                            expr.evaluate::<CallByValue<Enumerate>>(ctx.env())
                         },
-                        BetaReductionStrategy::HeadSpine => expr.reduce::<HeadSpine<Enumerate>>(),
+                        BetaReductionStrategy::HeadSpine => {
+                            expr.evaluate::<HeadSpine<Enumerate>>(ctx.env())
+                        },
                         BetaReductionStrategy::HybridApplicativeOrder => {
-                            expr.reduce::<HybridApplicativeOrder<Enumerate>>()
+                            expr.evaluate::<HybridApplicativeOrder<Enumerate>>(ctx.env())
                         },
                         BetaReductionStrategy::HybridNormalOrder => {
-                            expr.reduce::<HybridNormalOrder<Enumerate>>()
+                            expr.evaluate::<HybridNormalOrder<Enumerate>>(ctx.env())
                         },
                         BetaReductionStrategy::NormalOrder => {
-                            expr.reduce::<NormalOrder<Enumerate>>()
+                            expr.evaluate::<NormalOrder<Enumerate>>(ctx.env())
                         },
                     },
                     AlphaRenamingStrategy::Prime => match ctx.beta_reduction_strategy() {
                         BetaReductionStrategy::ApplicativeOrder => {
-                            expr.reduce::<ApplicativeOrder<Prime>>()
+                            expr.evaluate::<ApplicativeOrder<Prime>>(ctx.env())
                         },
-                        BetaReductionStrategy::CallByName => expr.reduce::<CallByName<Prime>>(),
-                        BetaReductionStrategy::CallByValue => expr.reduce::<CallByValue<Prime>>(),
-                        BetaReductionStrategy::HeadSpine => expr.reduce::<HeadSpine<Prime>>(),
+                        BetaReductionStrategy::CallByName => {
+                            expr.evaluate::<CallByName<Prime>>(ctx.env())
+                        },
+                        BetaReductionStrategy::CallByValue => {
+                            expr.evaluate::<CallByValue<Prime>>(ctx.env())
+                        },
+                        BetaReductionStrategy::HeadSpine => {
+                            expr.evaluate::<HeadSpine<Prime>>(ctx.env())
+                        },
                         BetaReductionStrategy::HybridApplicativeOrder => {
-                            expr.reduce::<HybridApplicativeOrder<Prime>>()
+                            expr.evaluate::<HybridApplicativeOrder<Prime>>(ctx.env())
                         },
                         BetaReductionStrategy::HybridNormalOrder => {
-                            expr.reduce::<HybridNormalOrder<Prime>>()
+                            expr.evaluate::<HybridNormalOrder<Prime>>(ctx.env())
                         },
-                        BetaReductionStrategy::NormalOrder => expr.reduce::<NormalOrder<Prime>>(),
+                        BetaReductionStrategy::NormalOrder => {
+                            expr.evaluate::<NormalOrder<Prime>>(ctx.env())
+                        },
                     },
                 }
                 cont_output(expr, "")

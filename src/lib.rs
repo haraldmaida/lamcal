@@ -155,8 +155,8 @@ pub use self::parser::{
     ParseError, ParseErrorKind, Token,
 };
 pub use self::reduction::{
-    alpha, apply, reduce, substitute, AlphaRename, ApplicativeOrder, BetaReduce, CallByName,
-    CallByValue, Enumerate, HeadSpine, HybridApplicativeOrder, HybridNormalOrder, NormalOrder,
-    Prime,
+    alpha, apply, evaluate, expand, reduce, substitute, AlphaRename, ApplicativeOrder, BetaReduce,
+    CallByName, CallByValue, Enumerate, HeadSpine, HybridApplicativeOrder, HybridNormalOrder,
+    NormalOrder, Prime,
 };
 pub use self::term::{app, con, lam, var, ConstName, Term, VarName};
