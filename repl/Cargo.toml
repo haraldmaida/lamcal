@@ -40,6 +40,5 @@ version-sync = "0.5"
 [package.metadata.docs.rs]
 features = [
     "config",
-    "no-color",
     "rustyline",
 ]
