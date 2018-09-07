@@ -3,8 +3,11 @@
 //! This implementation of the lambda calculus uses the classic notation.
 //! Currently the De Bruin index notation is not supported.
 
+use std::collections::HashSet;
 use std::fmt::{self, Display};
 use std::ops::{Deref, DerefMut};
+
+use self::Term::*;
 
 /// Constructs a variable of the given name.
 ///
@@ -17,7 +20,7 @@ use std::ops::{Deref, DerefMut};
 /// [`app`](fn.app.html) and [`con`](fn.con.html) let us construct any
 /// [`Term`](enum.Term.html) in the untyped lambda calculus.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # extern crate lamcal;
@@ -27,7 +30,7 @@ use std::ops::{Deref, DerefMut};
 /// assert_eq!(variable, Term::Var(VarName("x".to_string())));
 /// ```
 pub fn var(name: impl Into<String>) -> Term {
-    Term::Var(VarName(name.into()))
+    Var(VarName(name.into()))
 }
 
 /// Constructs a lambda abstraction with given parameter and body.
@@ -42,7 +45,7 @@ pub fn var(name: impl Into<String>) -> Term {
 /// [`app`](fn.app.html) and [`con`](fn.con.html) let us construct any
 /// [`Term`](enum.Term.html) in the untyped lambda calculus.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # extern crate lamcal;
@@ -58,7 +61,7 @@ pub fn var(name: impl Into<String>) -> Term {
 /// );
 /// ```
 pub fn lam(param: impl Into<String>, body: Term) -> Term {
-    Term::Lam(VarName(param.into()), Box::new(body))
+    Lam(VarName(param.into()), Box::new(body))
 }
 
 /// Constructs a function application with the `lhs` term to be applied to the
@@ -73,7 +76,7 @@ pub fn lam(param: impl Into<String>, body: Term) -> Term {
 /// [`lam`](fn.lam.html) and [`con`](fn.con.html) let us construct any
 /// [`Term`](enum.Term.html) in the untyped lambda calculus.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # extern crate lamcal;
@@ -92,7 +95,7 @@ pub fn lam(param: impl Into<String>, body: Term) -> Term {
 /// );
 /// ```
 pub fn app(lhs: Term, rhs: Term) -> Term {
-    Term::App(Box::new(lhs), Box::new(rhs))
+    App(Box::new(lhs), Box::new(rhs))
 }
 
 /// Constructs a named constant of the given name.
@@ -106,7 +109,7 @@ pub fn app(lhs: Term, rhs: Term) -> Term {
 /// [`lam`](fn.lam.html) and [`app`](fn.app.html) let us construct any
 /// [`Term`](enum.Term.html) in the untyped lambda calculus.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # extern crate lamcal;
@@ -122,7 +125,7 @@ pub fn app(lhs: Term, rhs: Term) -> Term {
 /// );
 /// ```
 pub fn con(name: impl Into<String>) -> Term {
-    Term::Const(ConstName(name.into()))
+    Const(ConstName(name.into()))
 }
 
 /// A term in the lambda calculus.
@@ -171,13 +174,13 @@ impl<'a> From<&'a Term> for Term {
 
 impl From<VarName> for Term {
     fn from(var: VarName) -> Self {
-        Term::Var(var)
+        Var(var)
     }
 }
 
 impl From<ConstName> for Term {
     fn from(con: ConstName) -> Self {
-        Term::Const(con)
+        Const(con)
     }
 }
 
@@ -185,7 +188,7 @@ impl Term {
     /// Returns a variable's underlying variable name if this term is of variant
     /// `Term::Var`.
     pub fn unwrap_var(self) -> Option<VarName> {
-        if let Term::Var(name) = self {
+        if let Var(name) = self {
             Some(name)
         } else {
             None
@@ -195,7 +198,7 @@ impl Term {
     /// Returns an abstraction's underlying bound variable name and body if
     /// this term is of variant `Term::Lam`.
     pub fn unwrap_lam(self) -> Option<(VarName, Term)> {
-        if let Term::Lam(param, body) = self {
+        if let Lam(param, body) = self {
             Some((param, *body))
         } else {
             None
@@ -205,7 +208,7 @@ impl Term {
     /// Returns an application's underlying left side term and right side term
     /// if this term is of variant `Term::App`.
     pub fn unwrap_app(self) -> Option<(Term, Term)> {
-        if let Term::App(left, right) = self {
+        if let App(left, right) = self {
             Some((*left, *right))
         } else {
             None
@@ -215,7 +218,7 @@ impl Term {
     /// Returns a named constant's underlying name if this term is of variant
     /// `Term::Const`.
     pub fn unwrap_const(self) -> Option<ConstName> {
-        if let Term::Const(name) = self {
+        if let Const(name) = self {
             Some(name)
         } else {
             None
@@ -225,7 +228,7 @@ impl Term {
     /// Returns a reference to a variable's underlying name if this term is of
     /// variant `Term::Var`.
     pub fn unwrap_var_ref(&self) -> Option<&VarName> {
-        if let Term::Var(name) = self {
+        if let Var(name) = self {
             Some(name)
         } else {
             None
@@ -235,7 +238,7 @@ impl Term {
     /// Returns references to an abstraction's underlying variable name and
     /// body if this term is of variant `Term::Lam`.
     pub fn unwrap_lam_ref(&self) -> Option<(&VarName, &Term)> {
-        if let Term::Lam(param, body) = self {
+        if let Lam(param, body) = self {
             Some((param, body))
         } else {
             None
@@ -245,7 +248,7 @@ impl Term {
     /// Returns references to an application's underlying left side term and
     /// right side term if this term is of variant `Term::App`.
     pub fn unwrap_app_ref(&self) -> Option<(&Term, &Term)> {
-        if let Term::App(lhs, rhs) = self {
+        if let App(lhs, rhs) = self {
             Some((lhs, rhs))
         } else {
             None
@@ -255,7 +258,7 @@ impl Term {
     /// Returns a reference to a named constant's underlying name if this term
     /// is of variant `Term::Const`.
     pub fn unwrap_const_ref(&self) -> Option<&ConstName> {
-        if let Term::Const(name) = self {
+        if let Const(name) = self {
             Some(name)
         } else {
             None
@@ -265,7 +268,7 @@ impl Term {
     /// Returns a mutable reference to a variable's underlying name if this
     /// term is of variant `Term::Var`.
     pub fn unwrap_var_mut(&mut self) -> Option<&mut VarName> {
-        if let Term::Var(name) = self {
+        if let Var(name) = self {
             Some(name)
         } else {
             None
@@ -275,7 +278,7 @@ impl Term {
     /// Returns a mutable references to an abstraction's underlying variable
     /// name and body if this term is of variant `Term::Lam`.
     pub fn unwrap_lam_mut(&mut self) -> Option<(&mut VarName, &mut Term)> {
-        if let Term::Lam(param, body) = self {
+        if let Lam(param, body) = self {
             Some((param, body))
         } else {
             None
@@ -285,7 +288,7 @@ impl Term {
     /// Returns a mutable references to an application's underlying left side
     /// term and right side term if this term is of variant `Term::App`.
     pub fn unwrap_app_mut(&mut self) -> Option<(&mut Term, &mut Term)> {
-        if let Term::App(lhs, rhs) = self {
+        if let App(lhs, rhs) = self {
             Some((lhs, rhs))
         } else {
             None
@@ -295,11 +298,37 @@ impl Term {
     /// Returns a mutable reference to a named constant's underlying name if
     /// this term is of variant `Term::Const`.
     pub fn unwrap_const_mut(&mut self) -> Option<&mut ConstName> {
-        if let Term::Const(name) = self {
+        if let Const(name) = self {
             Some(name)
         } else {
             None
         }
+    }
+
+    /// Returns a set of references to all free variables in this term.
+    pub fn free_vars(&self) -> HashSet<&VarName> {
+        let mut free_vars = HashSet::new();
+        let mut terms = vec![(self, HashSet::new())];
+        while !terms.is_empty() {
+            let (term, mut bound_vars) = terms.remove(0);
+            match *term {
+                Var(ref name) => {
+                    if !bound_vars.contains(name) {
+                        free_vars.insert(name);
+                    }
+                },
+                Lam(ref param, ref body) => {
+                    bound_vars.insert(param);
+                    terms.push((&*body, bound_vars));
+                },
+                App(ref lhs, ref rhs) => {
+                    terms.push((&*lhs, bound_vars.clone()));
+                    terms.push((&*rhs, bound_vars));
+                },
+                Const(_) => {},
+            }
+        }
+        free_vars
     }
 }
 
@@ -393,7 +422,7 @@ impl ConstName {
 /// sequence of function applications without all the nested calls of the `app`
 /// functions which would be the alternative way.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// #[macro_use]

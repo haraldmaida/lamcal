@@ -1,124 +1,132 @@
 use super::*;
 
-mod alpha_enumerate {
+mod alpha {
 
     use super::*;
 
     use term::{app, lam, var};
 
     #[test]
-    fn renames_bound_x_to_x1_in_lambda1() {
-        let expr = app(lam("y", lam("x", app(var("x"), var("y")))), var("x"));
-        let a_expr = app(lam("y", lam("x1", app(var("x1"), var("y")))), var("x"));
+    fn renames_bound_x_in_second_level_lambda_abstraction() {
+        let expr = lam("y", lam("x", app(var("x"), var("y"))));
+        let expected = lam("y", lam("x1", app(var("x1"), var("y"))));
 
-        let result = alpha::<Enumerate>(&expr);
+        let result = alpha::<Enumerate>(&expr, &var("x").free_vars());
 
-        assert_eq!(result, a_expr);
+        assert_eq!(result, expected);
     }
 
     #[test]
-    fn renames_bound_x_to_x1_in_lambda2() {
-        let expr = app(lam("y", app(var("y"), var("x"))), var("x"));
-        let a_expr = app(lam("y", app(var("y"), var("x1"))), var("x"));
+    fn does_not_rename_free_x_in_body() {
+        let expr = lam("y", app(var("x"), var("y")));
+        let expected = lam("y", app(var("x"), var("y")));
 
-        let result = alpha::<Enumerate>(&expr);
+        let result = alpha::<Enumerate>(&expr, &var("x").free_vars());
 
-        assert_eq!(result, a_expr);
+        assert_eq!(result, expected);
     }
 
     #[test]
-    fn renames_bound_x_to_x1_in_lambda3() {
+    fn does_not_rename_free_x_in_all_bodies() {
         let expr = app(
-            app(
-                lam("y", app(var("y"), var("x"))),
-                lam("y", app(var("y"), var("x"))),
-            ),
-            var("x"),
+            lam("y", app(var("y"), var("x"))),
+            lam("y", app(var("y"), var("x"))),
         );
-        let a_expr = app(
-            app(
-                lam("y", app(var("y"), var("x1"))),
-                lam("y", app(var("y"), var("x1"))),
-            ),
-            var("x"),
+        let expected = app(
+            lam("y", app(var("y"), var("x"))),
+            lam("y", app(var("y"), var("x"))),
         );
 
-        let result = alpha::<Enumerate>(&expr);
+        let result = alpha::<Enumerate>(&expr, &var("x").free_vars());
 
-        assert_eq!(result, a_expr);
+        assert_eq!(result, expected);
     }
 
     #[test]
-    fn renames_bound_x1_to_x2_in_lambda1() {
-        let expr = app(lam("y", lam("x1", app(var("x1"), var("y")))), var("x1"));
-        let a_expr = app(lam("y", lam("x2", app(var("x2"), var("y")))), var("x1"));
+    fn renames_bound_x_to_x2_when_x1_is_free_variable_in_body() {
+        let expr = lam("y", lam("x", app![var("x"), var("x1"), var("y")]));
+        let expected = lam("y", lam("x2", app![var("x2"), var("x1"), var("y")]));
 
-        let result = alpha::<Enumerate>(&expr);
+        let result = alpha::<Enumerate>(&expr, &var("x").free_vars());
 
-        assert_eq!(result, a_expr);
+        assert_eq!(result, expected);
     }
 
     #[test]
-    fn renames_bound_x19_to_x20_in_lambda1() {
-        let expr = app(lam("y", lam("x19", app(var("x19"), var("y")))), var("x19"));
-        let a_expr = app(lam("y", lam("x20", app(var("x20"), var("y")))), var("x19"));
+    fn renames_outer_bound_x_and_shadowing_inner_bound_x() {
+        let expr = lam("x", lam("x", app![var("z"), var("y"), var("x")]));
+        let expected = lam("x1", lam("x1", app![var("z"), var("y"), var("x1")]));
 
-        let result = alpha::<Enumerate>(&expr);
+        let result = alpha::<Enumerate>(&expr, &var("x").free_vars());
 
-        assert_eq!(result, a_expr);
-    }
-
-    #[test]
-    fn renames_bound_x1x19_to_x1x20_in_lambda1() {
-        let expr = app(
-            lam("y", lam("x1x19", app(var("x1x19"), var("y")))),
-            var("x1x19"),
-        );
-        let a_expr = app(
-            lam("y", lam("x1x20", app(var("x1x20"), var("y")))),
-            var("x1x19"),
-        );
-
-        let result = alpha::<Enumerate>(&expr);
-
-        assert_eq!(result, a_expr);
+        assert_eq!(result, expected);
     }
 }
 
-mod alpha_prime {
+mod alpha_rename_enumerate {
 
     use super::*;
 
-    use term::{app, lam, var};
+    use std::u32;
 
-    #[test]
-    fn renames_bound_x_to_xp_in_lambda1() {
-        let expr = app(lam("y", lam("x", app(var("x"), var("y")))), var("x"));
-        let a_expr = app(lam("y", lam("x'", app(var("x'"), var("y")))), var("x"));
+    proptest! {
 
-        let result = alpha::<Prime>(&expr);
+        #[test]
+        fn appends_digit_1_if_name_does_not_end_with_digit(
+            name in "[a-z][a-zA-Z0-9_']*[a-zA-Z_']",
+        ) {
+            let expected = name.clone() + "1";
+            let mut name = name.clone();
 
-        assert_eq!(result, a_expr);
+            Enumerate::rename(&mut name);
+
+            prop_assert_eq!(name, expected);
+        }
+
+        #[test]
+        fn increases_number_by_1_if_name_ends_with_number(
+            name in "[a-z][a-zA-Z0-9_']*[a-zA-Z_']",
+            digit in 0..u32::MAX,
+        ) {
+            let expected = name.clone() + &(digit + 1).to_string();
+            let mut name = name.clone() + &digit.to_string();
+
+            Enumerate::rename(&mut name);
+
+            prop_assert_eq!(name, expected);
+        }
     }
+}
 
-    #[test]
-    fn renames_bound_x_to_xp_in_lambda2() {
-        let expr = app(lam("y", app(var("y"), var("x"))), var("x"));
-        let a_expr = app(lam("y", app(var("y"), var("x'"))), var("x"));
+mod alpha_rename_prime {
 
-        let result = alpha::<Prime>(&expr);
+    use super::*;
 
-        assert_eq!(result, a_expr);
-    }
+    proptest! {
 
-    #[test]
-    fn renames_bound_xp_to_xpp_in_lambda1() {
-        let expr = app(lam("y", lam("x'", app(var("x'"), var("y")))), var("x'"));
-        let a_expr = app(lam("y", lam("x''", app(var("x''"), var("y")))), var("x'"));
+        #[test]
+        fn appends_tick_symbol(
+            name in "[a-z][a-zA-Z0-9_']*",
+        ) {
+            let expected = name.clone() + "'";
+            let mut name = name.clone();
 
-        let result = alpha::<Prime>(&expr);
+            Prime::rename(&mut name);
 
-        assert_eq!(result, a_expr);
+            prop_assert_eq!(name, expected);
+        }
+
+        #[test]
+        fn appends_another_tick_symbol_if_name_ends_with_tick(
+            name in "[a-z][a-zA-Z0-9_']*",
+        ) {
+            let expected = name.clone() + "''";
+            let mut name = name.clone() + "'";
+
+            Prime::rename(&mut name);
+
+            prop_assert_eq!(name, expected);
+        }
     }
 }
 
@@ -355,7 +363,7 @@ mod beta_call_by_name {
     }
 
     #[test]
-    fn complex_term1() {
+    fn complex_expr1() {
         // (λx.(λy.x y) a) b
         let expr = app(
             lam("x", app(lam("y", app(var("x"), var("y"))), var("a"))),
@@ -367,7 +375,7 @@ mod beta_call_by_name {
     }
 
     #[test]
-    fn complex_term2() {
+    fn complex_expr2() {
         // ((\a.a)\b.\c.b)(x)\e.f
         let expr = app(
             app(
@@ -383,7 +391,7 @@ mod beta_call_by_name {
     }
 
     #[test]
-    fn complex_term3() {
+    fn complex_expr3() {
         // ( \x.(\y.x (\z.z) y) ) ( (\a.a) (\b.b) )
         let expr = app(
             lam(
@@ -452,7 +460,7 @@ mod beta_normal_order {
     }
 
     #[test]
-    fn complex_term1() {
+    fn complex_expr1() {
         // (λx.(λy.x y) a) b
         let expr = app(
             lam("x", app(lam("y", app(var("x"), var("y"))), var("a"))),
@@ -464,7 +472,7 @@ mod beta_normal_order {
     }
 
     #[test]
-    fn complex_term2() {
+    fn complex_expr2() {
         // ((\a.a)\b.\c.b)(x)\e.f
         let expr = app(
             app(
@@ -480,7 +488,7 @@ mod beta_normal_order {
     }
 
     #[test]
-    fn complex_term3() {
+    fn complex_expr3() {
         // ( \x.(\y.x (\z.z) y) ) ( (\a.a) (\b.b) )
         let expr = app(
             lam(
@@ -539,7 +547,7 @@ mod beta_call_by_value {
     }
 
     #[test]
-    fn complex_term1() {
+    fn complex_expr1() {
         // (λx.(λy.x y) a) b
         let expr = app(
             lam("x", app(lam("y", app(var("x"), var("y"))), var("a"))),
@@ -551,7 +559,7 @@ mod beta_call_by_value {
     }
 
     #[test]
-    fn complex_term2() {
+    fn complex_expr2() {
         // ((\a.a)\b.\c.b)(x)\e.f
         let expr = app(
             app(
@@ -567,7 +575,7 @@ mod beta_call_by_value {
     }
 
     #[test]
-    fn complex_term3() {
+    fn complex_expr3() {
         // ( \x.(\y.x (\z.z) y) ) ( (\a.a) (\b.b) )
         let expr = app(
             lam(
@@ -632,7 +640,7 @@ mod beta_applicative_order {
     }
 
     #[test]
-    fn complex_term1() {
+    fn complex_expr1() {
         // (λx.(λy.x y) a) b
         let expr = app(
             lam("x", app(lam("y", app(var("x"), var("y"))), var("a"))),
@@ -644,7 +652,7 @@ mod beta_applicative_order {
     }
 
     #[test]
-    fn complex_term2() {
+    fn complex_expr2() {
         // ((\a.a)\b.\c.b)(x)\e.f
         let expr = app(
             app(
@@ -660,7 +668,7 @@ mod beta_applicative_order {
     }
 
     #[test]
-    fn complex_term3() {
+    fn complex_expr3() {
         // ( \x.(\y.x (\z.z) y) ) ( (\a.a) (\b.b) )
         let expr = app(
             lam(
@@ -719,7 +727,7 @@ mod beta_hybrid_applicative_order {
     }
 
     #[test]
-    fn complex_term1() {
+    fn complex_expr1() {
         // (λx.(λy.x y) a) b
         let expr = app(
             lam("x", app(lam("y", app(var("x"), var("y"))), var("a"))),
@@ -731,7 +739,7 @@ mod beta_hybrid_applicative_order {
     }
 
     #[test]
-    fn complex_term2() {
+    fn complex_expr2() {
         // ((\a.a)\b.\c.b)(x)\e.f
         let expr = app(
             app(
@@ -747,7 +755,7 @@ mod beta_hybrid_applicative_order {
     }
 
     #[test]
-    fn complex_term3() {
+    fn complex_expr3() {
         // ( \x.(\y.x (\z.z) y) ) ( (\a.a) (\b.b) )
         let expr = app(
             lam(
@@ -809,7 +817,7 @@ mod beta_head_spine_order {
     }
 
     #[test]
-    fn complex_term1() {
+    fn complex_expr1() {
         // (λx.(λy.x y) a) b
         let expr = app(
             lam("x", app(lam("y", app(var("x"), var("y"))), var("a"))),
@@ -821,7 +829,7 @@ mod beta_head_spine_order {
     }
 
     #[test]
-    fn complex_term2() {
+    fn complex_expr2() {
         // ((\a.a)\b.\c.b)(x)\e.f
         let expr = app(
             app(
@@ -837,7 +845,7 @@ mod beta_head_spine_order {
     }
 
     #[test]
-    fn complex_term3() {
+    fn complex_expr3() {
         // ( \x.(\y.x (\z.z) y) ) ( (\a.a) (\b.b) )
         let expr = app(
             lam(
@@ -896,7 +904,7 @@ mod beta_hybrid_normal_order {
     }
 
     #[test]
-    fn complex_term1() {
+    fn complex_expr1() {
         // (λx.(λy.x y) a) b
         let expr = app(
             lam("x", app(lam("y", app(var("x"), var("y"))), var("a"))),
@@ -908,7 +916,7 @@ mod beta_hybrid_normal_order {
     }
 
     #[test]
-    fn complex_term2() {
+    fn complex_expr2() {
         // ((\a.a)\b.\c.b)(x)\e.f
         let expr = app(
             app(
@@ -924,7 +932,7 @@ mod beta_hybrid_normal_order {
     }
 
     #[test]
-    fn complex_term3() {
+    fn complex_expr3() {
         // ( \x.(\y.x (\z.z) y) ) ( (\a.a) (\b.b) )
         let expr = app(
             lam(

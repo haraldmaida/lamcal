@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::fmt::{self, Display};
 use std::iter::FromIterator;
 
-use combinator;
 use term::{ConstName, Term};
 
 /// Constructs a new `Binding` with the given term bound to the given name.
@@ -60,15 +59,6 @@ impl Environment {
     /// term if a binding exists for the given name.
     pub fn lookup_term(&self, name: &ConstName) -> Option<&Term> {
         self.bindings.get(name)
-    }
-}
-
-impl Default for Environment {
-    /// Creates an `Environment` containing predefined bindings to all the
-    /// standard terms, combinators and data encoding terms that are provided
-    /// by this crate.
-    fn default() -> Self {
-        Environment::from_iter(combinator::complete_set())
     }
 }
 
@@ -161,7 +151,7 @@ impl Binding {
 /// The bind! macro can be used to conveniently construct a `Binding` either
 /// from an identifier and a `Term` or a `String` and a `Term`.
 ///
-/// # Example 1
+/// # Examples
 ///
 /// This example binds the identifier of an combinator function to its term.
 ///
@@ -177,8 +167,6 @@ impl Binding {
 /// assert_eq!(binding, bind("I", lam("a", var("a"))));
 /// # }
 /// ```
-///
-/// # Example 2
 ///
 /// This example binds a name to an arbitrary term.
 ///
@@ -220,7 +208,7 @@ macro_rules! bind {
 /// The binds! macro can be used to conveniently construct multiple `Binding`s.
 /// The resulting set of bindings is returned as a `std::collections::HashSet`.
 ///
-/// # Example
+/// # Examples
 ///
 /// This example creates a set of bindings.
 ///

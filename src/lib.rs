@@ -147,6 +147,7 @@ mod environment;
 mod parser;
 mod reduction;
 
+pub mod church_encoded;
 pub mod combinator;
 
 pub use self::environment::{bind, Binding, Environment};
@@ -160,3 +161,15 @@ pub use self::reduction::{
     NormalOrder, Prime,
 };
 pub use self::term::{app, con, lam, var, ConstName, Term, VarName};
+
+impl Default for Environment {
+    /// Creates an `Environment` containing predefined bindings to all the
+    /// standard terms, combinators and data encoding terms that are provided
+    /// by this crate.
+    fn default() -> Self {
+        let mut env = Environment::new();
+        env.extend(combinator::default_bindings());
+        env.extend(church_encoded::default_bindings());
+        env
+    }
+}

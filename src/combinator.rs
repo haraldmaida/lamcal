@@ -13,9 +13,9 @@
 //! * the divergent combinator Ω
 //! * the reverse application (thrush) combinator
 //!
-//! The standard terms and combinators defined in this module are also builtin
-//! named constants in the default environment which can be created by calling
-//! `Environment::default()`.
+//! The standard terms and combinators defined in this module are also
+//! predefined named constants in the default environment which can be created
+//! by calling `Environment::default()`.
 //!
 //! [standard term]: https://en.wikipedia.org/w/index.php?title=Lambda_calculus#Standard_terms
 //! [combinator]: https://en.wikipedia.org/wiki/Combinatory_logic#Combinatory_calculi
@@ -32,7 +32,7 @@ use environment::Binding;
 use term::{app, lam, var, Term};
 
 /// Creates a set of bindings for all combinators implemented in this module.
-pub fn complete_set() -> HashSet<Binding> {
+pub fn default_bindings() -> HashSet<Binding> {
     binds! {
         I => I(),
         K => K(),

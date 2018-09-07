@@ -109,6 +109,144 @@ mod term {
             prop_assert_eq!(display, name);
         }
     }
+
+    #[test]
+    fn free_vars_in_variable() {
+        let expr = var("a");
+
+        let free_vars = expr.free_vars();
+
+        assert!(free_vars.contains(&VarName("a".into())));
+        assert_eq!(free_vars.len(), 1);
+    }
+
+    #[test]
+    fn free_vars_in_lambda_abstraction_contains_none() {
+        let expr = lam("a", app(var("a"), var("a")));
+
+        let free_vars = expr.free_vars();
+
+        assert_eq!(free_vars.len(), 0);
+    }
+
+    #[test]
+    fn free_vars_in_lambda_abstraction_contains_one() {
+        let expr = lam("a", app(var("a"), var("b")));
+
+        let free_vars = expr.free_vars();
+
+        assert!(free_vars.contains(&VarName("b".into())));
+        assert_eq!(free_vars.len(), 1);
+    }
+
+    #[test]
+    fn free_vars_in_lambda_abstraction_contains_two() {
+        let expr = lam("a", app![var("c"), var("b"), var("a")]);
+
+        let free_vars = expr.free_vars();
+
+        assert!(free_vars.contains(&VarName("b".into())));
+        assert!(free_vars.contains(&VarName("c".into())));
+        assert_eq!(free_vars.len(), 2);
+    }
+
+    #[test]
+    fn free_vars_in_lambda_abstraction_within_lambda_abstraction_contains_one() {
+        let expr = lam("a", lam("b", app![var("b"), var("a"), var("c")]));
+
+        let free_vars = expr.free_vars();
+
+        assert!(free_vars.contains(&VarName("c".into())));
+        assert_eq!(free_vars.len(), 1);
+    }
+
+    #[test]
+    fn free_vars_in_lambda_abstraction_on_third_level_contains_one() {
+        let expr = lam(
+            "a",
+            lam("b", app![var("a"), lam("c", var("c")), var("d"), var("b")]),
+        );
+
+        let free_vars = expr.free_vars();
+
+        assert!(free_vars.contains(&VarName("d".into())));
+        assert_eq!(free_vars.len(), 1);
+    }
+
+    #[test]
+    fn free_vars_in_function_application_contains_one_from_rhs() {
+        let expr = app(lam("a", var("a")), var("b"));
+
+        let free_vars = expr.free_vars();
+
+        assert!(free_vars.contains(&VarName("b".into())));
+        assert_eq!(free_vars.len(), 1);
+    }
+
+    #[test]
+    fn free_vars_in_function_application_contains_one_from_lhs() {
+        let expr = app(var("b"), lam("a", var("a")));
+
+        let free_vars = expr.free_vars();
+
+        assert!(free_vars.contains(&VarName("b".into())));
+        assert_eq!(free_vars.len(), 1);
+    }
+
+    #[test]
+    fn free_vars_in_function_application_of_vars_contains_two() {
+        let expr = app(var("a"), var("b"));
+
+        let free_vars = expr.free_vars();
+
+        assert!(free_vars.contains(&VarName("a".into())));
+        assert!(free_vars.contains(&VarName("b".into())));
+        assert_eq!(free_vars.len(), 2);
+    }
+
+    #[test]
+    fn free_vars_in_function_application_of_lambda_and_var_contains_two() {
+        let expr = app(lam("a", app(var("c"), var("a"))), var("b"));
+
+        let free_vars = expr.free_vars();
+
+        assert!(free_vars.contains(&VarName("b".into())));
+        assert!(free_vars.contains(&VarName("c".into())));
+        assert_eq!(free_vars.len(), 2);
+    }
+
+    #[test]
+    fn free_vars_in_function_application_of_two_closed_lambdas_contains_none() {
+        let expr = app(lam("a", app(var("a"), var("a"))), lam("b", var("b")));
+
+        let free_vars = expr.free_vars();
+
+        assert_eq!(free_vars.len(), 0);
+    }
+
+    #[test]
+    fn free_vars_in_function_application_of_two_lambdas_contains_three() {
+        let expr = app(
+            lam("a", app(var("b"), var("a"))),
+            lam("b", app![var("c"), var("b"), var("a")]),
+        );
+
+        let free_vars = expr.free_vars();
+
+        assert!(free_vars.contains(&VarName("a".into())));
+        assert!(free_vars.contains(&VarName("b".into())));
+        assert!(free_vars.contains(&VarName("c".into())));
+        assert_eq!(free_vars.len(), 3);
+    }
+
+    #[test]
+    fn free_vars_in_named_constant() {
+        let expr = con("a");
+
+        let free_vars = expr.free_vars();
+
+        assert_eq!(free_vars.len(), 0);
+    }
 }
 
 mod app_macro {

@@ -7,11 +7,12 @@
 mod tests;
 
 use std::collections::HashSet;
+use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::mem;
 
 use environment::Environment;
-use term::{app, Term, Term::*, VarName};
+use term::{Term, Term::*, VarName};
 
 fn dummy_term() -> Term {
     Var(VarName(String::new()))
@@ -50,11 +51,18 @@ impl Term {
     /// Performs an [α-conversion] on this `Term`.
     ///
     /// [α-conversion]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B1-conversion
-    pub fn alpha<A>(&mut self)
+    pub fn alpha<A>(&mut self, names: &HashSet<&VarName>)
     where
         A: AlphaRename,
     {
-        alpha_rec::<A>(self, Context::new())
+        let names = HashSet::from_iter(
+            names
+                .into_iter()
+                .cloned()
+                .cloned()
+                .chain(self.free_vars().into_iter().cloned()),
+        );
+        alpha_rec::<A>(self, &names, HashSet::new())
     }
 
     /// [Substitutes] all occurrences of `var` as free variables with the
@@ -76,7 +84,7 @@ impl Term {
     /// appropriate. Therefore a strategy for α-conversion must be given as the
     /// type parameter `A`.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # extern crate lamcal;
@@ -99,7 +107,7 @@ impl Term {
     /// The reduction strategy to be used must be given as the type parameter
     /// `B`, like in the example below.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # #[macro_use]
@@ -140,7 +148,7 @@ impl Term {
     /// `Term` unchanged use the standalone function [`expand`](fn.expand.html)
     /// instead.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # #[macro_use]
@@ -191,7 +199,7 @@ impl Term {
     /// β-reduction step performed by this the function is equivalent to calling
     /// the [`Term::reduce`](enum.Term.html#method.reduce) method.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```
     /// # #[macro_use]
@@ -241,7 +249,7 @@ impl Term {
 /// β-reduction step performed by this the function is equivalent to calling
 /// the [`reduce`](fn.reduce.html) function.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # #[macro_use]
@@ -280,7 +288,7 @@ where
 /// you want to expand named constants in a term in place use the associated
 /// function [`Term::expand`](enum.Term.html#method.expand) instead.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # #[macro_use]
@@ -351,50 +359,57 @@ fn expand_rec(expr: &mut Term, env: &Environment) {
 /// associated function [`Term::alpha`](enum.Term.html#method.alpha) instead.
 ///
 /// [α-conversion]: https://en.wikipedia.org/wiki/Lambda_calculus#%CE%B1-conversion
-pub fn alpha<A>(expr: &Term) -> Term
+pub fn alpha<A>(expr: &Term, names: &HashSet<&VarName>) -> Term
 where
     A: AlphaRename,
 {
+    let free_vars = HashSet::from_iter(
+        names
+            .into_iter()
+            .cloned()
+            .cloned()
+            .chain(expr.free_vars().into_iter().cloned()),
+    );
     let mut expr2 = expr.clone();
-    alpha_rec::<A>(&mut expr2, Context::new());
+    alpha_rec::<A>(&mut expr2, &free_vars, HashSet::new());
     expr2
 }
 
-fn alpha_rec<A>(expr: &mut Term, mut ctx: Context)
+fn alpha_rec<A>(expr: &mut Term, free_vars: &HashSet<VarName>, mut bound_vars: HashSet<VarName>)
 where
     A: AlphaRename,
 {
     match *expr {
-        Var(ref mut name) => if ctx.free.contains(name) && !ctx.bound.contains(name) {
-            <A as AlphaRename>::rename(&mut **name);
+        Var(ref mut name) => if bound_vars.contains(name) {
+            while free_vars.contains(name) {
+                <A as AlphaRename>::rename(&mut **name);
+            }
         },
         Lam(ref mut name, ref mut body) => {
-            if ctx.free.contains(name) {
+            bound_vars.insert(name.to_owned());
+            while free_vars.contains(name) {
                 <A as AlphaRename>::rename(&mut **name);
-            };
-            ctx.bound.insert(name.to_owned());
-            alpha_rec::<A>(body, ctx);
+            }
+            alpha_rec::<A>(body, free_vars, bound_vars);
         },
         App(ref mut lhs, ref mut rhs) => {
-            let traverse1 = if let Var(ref name1) = **lhs {
-                !ctx.free.insert(name1.to_owned())
-            } else {
-                true
-            };
-            let traverse2 = if let Var(ref name2) = **rhs {
-                !ctx.free.insert(name2.to_owned())
-            } else {
-                true
-            };
-            if traverse1 {
-                alpha_rec::<A>(lhs, ctx.clone());
-            }
-            if traverse2 {
-                alpha_rec::<A>(rhs, ctx);
-            }
+            alpha_rec::<A>(lhs, free_vars, bound_vars.clone());
+            alpha_rec::<A>(rhs, free_vars, bound_vars);
         },
         Const(_) => {},
     }
+}
+
+#[derive(Debug, Clone)]
+struct Scope {
+    bound: VarName,
+    parent: Box<Scope>,
+}
+
+#[derive(Debug, Clone)]
+struct Context {
+    free: HashSet<VarName>,
+    bound: HashSet<VarName>,
 }
 
 /// Defines a strategy for renaming variables during [α-conversion] of terms.
@@ -453,21 +468,6 @@ impl AlphaRename for Prime {
     }
 }
 
-#[derive(Debug, Clone)]
-struct Context {
-    free: HashSet<VarName>,
-    bound: HashSet<VarName>,
-}
-
-impl Context {
-    fn new() -> Self {
-        Context {
-            free: HashSet::new(),
-            bound: HashSet::new(),
-        }
-    }
-}
-
 /// Replaces all free occurrences of the variable `var` in the expression
 /// `expr` with the expression `subst` and returns the resulting expression.
 ///
@@ -491,14 +491,17 @@ pub fn substitute<A>(expr: &Term, var: &VarName, subst: &Term) -> Term
 where
     A: AlphaRename,
 {
-    let mut t_expr = app(expr.clone(), subst.clone());
-    alpha_rec::<A>(&mut t_expr, Context::new());
-    if let App(mut a_expr, _) = t_expr {
-        substitute_rec(&mut a_expr, var, subst);
-        *a_expr
-    } else {
-        unreachable!("didn't we just create a Term::App before?")
-    }
+    let free_vars = HashSet::from_iter(
+        subst
+            .free_vars()
+            .into_iter()
+            .cloned()
+            .chain(expr.free_vars().into_iter().cloned()),
+    );
+    let mut expr2 = expr.clone();
+    alpha_rec::<A>(&mut expr2, &free_vars, HashSet::new());
+    substitute_rec(&mut expr2, var, subst);
+    expr2
 }
 
 fn substitute_rec(expr: &mut Term, var: &VarName, subst: &Term) {
@@ -542,7 +545,9 @@ fn substitute_rec(expr: &mut Term, var: &VarName, subst: &Term) {
 /// term in place use the associated function
 /// [`Term::apply`](enum.Term.html#method.apply) instead.
 ///
-/// # Example 1
+/// # Examples
+///
+/// In the first example a lambda abstraction is applied to a variable z:
 ///
 /// ```
 /// # extern crate lamcal;
@@ -554,7 +559,9 @@ fn substitute_rec(expr: &mut Term, var: &VarName, subst: &Term) {
 /// assert_eq!(expr2, app(var("z"), var("y")));
 /// ```
 ///
-/// # Example 2
+/// In this example a function application is applied to the variable z. Due
+/// to an application can not be applied to a variable, the returned expression
+/// is the same as the input expression:
 ///
 /// ```
 /// # extern crate lamcal;
@@ -569,17 +576,20 @@ pub fn apply<A>(expr: &Term, subst: &Term) -> Term
 where
     A: AlphaRename,
 {
-    let mut t_expr = app(expr.clone(), subst.clone());
-    alpha_rec::<A>(&mut t_expr, Context::new());
-    let (a_expr, _) = t_expr
-        .unwrap_app()
-        .expect("didn't we just create a Term::App before?");
-
-    if let Lam(param, mut body) = a_expr {
+    let free_vars = HashSet::from_iter(
+        subst
+            .free_vars()
+            .into_iter()
+            .cloned()
+            .chain(expr.free_vars().into_iter().cloned()),
+    );
+    let expr2 = expr.clone();
+    if let Lam(param, mut body) = expr2 {
+        alpha_rec::<A>(&mut body, &free_vars, HashSet::new());
         substitute_rec(&mut body, &param, subst);
         *body
     } else {
-        a_expr
+        expr2
     }
 }
 
@@ -587,8 +597,15 @@ fn apply_mut<A>(expr: &mut Term, subst: &Term)
 where
     A: AlphaRename,
 {
-    alpha_rec::<A>(expr, Context::new());
+    let free_vars = HashSet::from_iter(
+        subst
+            .free_vars()
+            .into_iter()
+            .cloned()
+            .chain(expr.free_vars().into_iter().cloned()),
+    );
     if let Some(replace) = if let Some((param, body)) = expr.unwrap_lam_mut() {
+        alpha_rec::<A>(body, &free_vars, HashSet::new());
         substitute_rec(body, param, subst);
         Some(mem::replace(body, dummy_term()))
     } else {
@@ -609,7 +626,7 @@ where
 /// use the associated function [`Term::reduce`](enum.Term.html#method.reduce)
 /// instead.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// # #[macro_use]
