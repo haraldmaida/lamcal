@@ -405,18 +405,6 @@ where
     }
 }
 
-#[derive(Debug, Clone)]
-struct Scope {
-    bound: VarName,
-    parent: Box<Scope>,
-}
-
-#[derive(Debug, Clone)]
-struct Context {
-    free: HashSet<VarName>,
-    bound: HashSet<VarName>,
-}
-
 /// Defines a strategy for renaming variables during [α-conversion] of terms.
 ///
 /// A possible implementations may choose the next letter in the alphabet for
