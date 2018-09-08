@@ -25,10 +25,10 @@
 //! `char` items. To parse a term from a `str` slice we can use the function
 //! [`parse_str`](fn.parse_str.html).
 //!
-//! * Variables can be single unicode letter or names with multiple characters
-//!   where the first character must be a unicode letter. The characters
-//!   following the first character can be unicode letters, digits, the
-//!   underscore `_` or the tick `'` character.
+//! * Variables can be single unicode alphanumeric characters or names with
+//!   multiple characters where the first character must be a unicode
+//!   alphanumeric character. The characters following the first character can
+//!   be unicode letters, digits, the underscore `_` or the tick `'` character.
 //! * Lambda abstractions start with the greek lowercase letter lambda `λ` or
 //!   alternatively with a backslash `\` for easier typing on traditional
 //!   keyboards. Then follows a variable name as the parameter and a dot `.`

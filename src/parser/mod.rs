@@ -88,7 +88,7 @@ pub fn tokenize(
                     InvalidCharacter,
                     position,
                     format!("{}", chr),
-                    "any unicode letter or 'λ', '.', '(', ')'",
+                    "any unicode alphanumeric character or one of 'λ', `\\`, '.', '(', ')'",
                     None,
                 ));
             } else {
@@ -98,31 +98,30 @@ pub fn tokenize(
                 tokens.push((Identifier(name), name_pos));
                 name = String::new();
             },
-            chr if chr.is_alphabetic() => {
+            chr if chr.is_alphanumeric() => {
                 if name.is_empty() {
                     name_pos = position;
                 }
                 name.push(chr);
             },
-            chr if chr.is_ascii_digit() => if name.is_empty() {
-                return Err(ParseError::new(
-                    InvalidCharacter,
-                    position,
-                    format!("{}", chr),
-                    "any unicode letter or 'λ', '.', '(', ')'",
-                    None,
-                ));
-            } else {
-                name.push(chr);
-            },
             _ => {
-                return Err(ParseError::new(
-                    InvalidCharacter,
-                    position,
-                    format!("{}", chr),
-                    "any unicode letter, digit or 'λ', '.', '(', ')', '_', '\''",
-                    None,
-                ))
+                if name.is_empty() {
+                    return Err(ParseError::new(
+                        InvalidCharacter,
+                        position,
+                        format!("{}", chr),
+                        "any unicode alphanumeric character or one of 'λ', `\\`, '.', '(', ')'",
+                        None,
+                    ));
+                } else {
+                    return Err(ParseError::new(
+                        InvalidCharacter,
+                        position,
+                        format!("{}", chr),
+                        "any unicode alphanumeric character or one of '_', '\\''",
+                        None,
+                    ));
+                }
             },
         };
     }
