@@ -2,13 +2,11 @@
 //!
 //! Church encoding of natural numbers and arithmetic operations.
 //!
-//! * `Zero`
-//! * `One`
-//! * `Succ`
+//! * `zero`
+//! * `one`
+//! * `succ`
 //!
 //! [Church numerals]: https://en.wikipedia.org/wiki/Church_encoding#Church_numerals
-
-#![allow(non_snake_case)]
 
 use std::collections::HashSet;
 
@@ -19,23 +17,23 @@ use term::{app, lam, var, Term};
 /// implemented in this module.
 pub fn default_bindings() -> HashSet<Binding> {
     binds! {
-        Zero => Zero(),
-        One => One(),
-        Succ => Succ(),
+        zero => zero(),
+        one => one(),
+        succ => succ(),
     }
 }
 
-/// Zero : 0 : apply f no times to a
+/// Number : 0 : apply f no times to a
 ///
-/// Zero ≡ λfa.a
-pub fn Zero() -> Term {
+/// ZERO ≡ λfa.a
+pub fn zero() -> Term {
     lam("f", lam("a", var("a")))
 }
 
 /// Number : 1 : apply f once to a
 ///
-/// One ≡ λfa.fa
-pub fn One() -> Term {
+/// ONE ≡ λfa.fa
+pub fn one() -> Term {
     lam("f", lam("a", app(var("f"), var("a"))))
 }
 
@@ -55,8 +53,8 @@ church_num!(u8, u16, u32, u64, u128, usize);
 
 /// Successor : n + 1
 ///
-/// Succ ≡ λnfa.f(nfa)
-pub fn Succ() -> Term {
+/// SUCC ≡ λnfa.f(nfa)
+pub fn succ() -> Term {
     lam(
         "n",
         lam(

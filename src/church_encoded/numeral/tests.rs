@@ -4,21 +4,21 @@ mod from_unsigned_integer {
     use super::*;
 
     #[test]
-    fn zero() {
+    fn into_zero() {
         let num: Term = 0usize.into();
 
-        assert_eq!(num, Zero());
+        assert_eq!(num, zero());
     }
 
     #[test]
-    fn one() {
+    fn into_one() {
         let num: Term = 1usize.into();
 
-        assert_eq!(num, One());
+        assert_eq!(num, one());
     }
 
     #[test]
-    fn two() {
+    fn into_two() {
         let num: Term = 2usize.into();
 
         assert_eq!(
@@ -28,7 +28,7 @@ mod from_unsigned_integer {
     }
 
     #[test]
-    fn three() {
+    fn into_three() {
         let num: Term = 3usize.into();
 
         assert_eq!(
