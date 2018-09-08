@@ -224,6 +224,9 @@ enum LciCommand<'a> {
     BetaReduceLambdaExpression(BetaReduceLambdaExpression<'a>),
     EvaluateLambdaExpression(EvaluateLambdaExpression<'a>),
     LetStatement(LetStatement),
+    ClearEnvironment(ClearEnvironment),
+    PrintEnvironment(PrintEnvironment),
+    LoadBindings(LoadBindings),
 }
 
 impl<'a> LciCommand<'a> {
@@ -241,6 +244,9 @@ impl<'a> LciCommand<'a> {
             LciCommand::BetaReduceLambdaExpression(cmd) => handle_continuation(cmd.execute(ctx)),
             LciCommand::EvaluateLambdaExpression(cmd) => handle_continuation(cmd.execute(ctx)),
             LciCommand::LetStatement(cmd) => handle_continuation(cmd.execute(ctx)),
+            LciCommand::ClearEnvironment(cmd) => handle_continuation(cmd.execute(ctx)),
+            LciCommand::PrintEnvironment(cmd) => handle_continuation(cmd.execute(ctx)),
+            LciCommand::LoadBindings(cmd) => handle_continuation(cmd.execute(ctx)),
         }
     }
 }
@@ -317,6 +323,24 @@ impl<'a> From<LetStatement> for LciCommand<'a> {
     }
 }
 
+impl<'a> From<ClearEnvironment> for LciCommand<'a> {
+    fn from(cmd: ClearEnvironment) -> Self {
+        LciCommand::ClearEnvironment(cmd)
+    }
+}
+
+impl<'a> From<PrintEnvironment> for LciCommand<'a> {
+    fn from(cmd: PrintEnvironment) -> Self {
+        LciCommand::PrintEnvironment(cmd)
+    }
+}
+
+impl<'a> From<LoadBindings> for LciCommand<'a> {
+    fn from(cmd: LoadBindings) -> Self {
+        LciCommand::LoadBindings(cmd)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Quit;
 
@@ -384,9 +408,11 @@ fn parse_command(line: &str) -> Result<LciCommand, Error> {
         ":v" | ":version" => Ok(Version.into()),
         ":as" | ":alpha-strategy" => Ok(PrintAlphaRenamingStrategy.into()),
         ":bs" | ":beta-strategy" => Ok(PrintBetaReductionStrategy.into()),
+        ":clr-env" => Ok(ClearEnvironment.into()),
+        ":ls-env" => Ok(PrintEnvironment::with_input("".into()).into()),
         cmd if cmd.starts_with(":as ") || cmd.starts_with(":alpha-strategy ") => {
             if let Some(index) = cmd.find(char::is_whitespace) {
-                parse_alpha_renaming_strategy(&line[index + 1..])
+                parse_alpha_renaming_strategy(&cmd[index + 1..])
                     .map(SetAlphaRenamingStrategy::with_input)
                     .map(Into::into)
             } else {
@@ -395,7 +421,7 @@ fn parse_command(line: &str) -> Result<LciCommand, Error> {
         },
         cmd if cmd.starts_with(":bs ") || cmd.starts_with(":beta-strategy ") => {
             if let Some(index) = cmd.find(char::is_whitespace) {
-                parse_beta_reduction_strategy(&line[index + 1..])
+                parse_beta_reduction_strategy(&cmd[index + 1..])
                     .map(SetBetaReductionStrategy::with_input)
                     .map(Into::into)
             } else {
@@ -404,33 +430,39 @@ fn parse_command(line: &str) -> Result<LciCommand, Error> {
         },
         cmd if cmd.starts_with(":e ") || cmd.starts_with(":eval ") => {
             if let Some(index) = cmd.find(char::is_whitespace) {
-                Ok(EvaluateLambdaExpression::with_input(&line[index + 1..]).into())
+                Ok(EvaluateLambdaExpression::with_input(&cmd[index + 1..]).into())
             } else {
                 Err(err_msg(format!("unknown command `{}`", cmd)))
             }
         },
         cmd if cmd.starts_with(":b ") || cmd.starts_with(":beta ") => {
             if let Some(index) = cmd.find(char::is_whitespace) {
-                Ok(BetaReduceLambdaExpression::with_input(&line[index + 1..]).into())
+                Ok(BetaReduceLambdaExpression::with_input(&cmd[index + 1..]).into())
             } else {
                 Err(err_msg(format!("unknown command `{}`", cmd)))
             }
         },
         cmd if cmd.starts_with(":x ") || cmd.starts_with(":expand ") => {
             if let Some(index) = cmd.find(char::is_whitespace) {
-                Ok(ExpandLambdaExpression::with_input(&line[index + 1..]).into())
+                Ok(ExpandLambdaExpression::with_input(&cmd[index + 1..]).into())
             } else {
                 Err(err_msg(format!("unknown command `{}`", cmd)))
             }
         },
         cmd if cmd.starts_with(":p ") || cmd.starts_with(":parse ") => {
             if let Some(index) = cmd.find(char::is_whitespace) {
-                Ok(ParseLambdaExpression::with_input(&line[index + 1..]).into())
+                Ok(ParseLambdaExpression::with_input(&cmd[index + 1..]).into())
             } else {
                 Err(err_msg(format!("unknown command `{}`", cmd)))
             }
         },
-        cmd if cmd.starts_with("let ") => parse_let_statement(cmd).map(Into::into),
+        cmd if cmd.starts_with(":let ") => parse_let_statement(cmd).map(Into::into),
+        cmd if cmd.starts_with(":ls-env ") => {
+            Ok(PrintEnvironment::with_input(cmd[8..].trim().to_owned()).into())
+        },
+        cmd if cmd.starts_with(":ld-env ") => {
+            Ok(LoadBindings::with_input(cmd[8..].trim().to_owned()).into())
+        },
         cmd if cmd.starts_with(':') => Err(err_msg(format!("unknown command `{}`", cmd))),
         cmd => Ok(EvaluateLambdaExpression::with_input(cmd).into()),
     }
@@ -472,6 +504,12 @@ Commands:
                       parses the lambda expression <expr> and prints out the
                       abstract syntax tree (AST) of the lambda expression.
 
+    :let <name> = <expr>
+                      defines a new binding of <expr> to <name> and adds it to
+                      the environment. If a binding with the same name
+                      previously existed in the environment it is replaced by
+                      the new binding.
+
     :bs or :beta-strategy
                       prints the current set beta-reduction strategy.
 
@@ -494,6 +532,19 @@ Commands:
                       <strategy> can be one of:
                       enumerate : appending increasing digits (the default)
                       prime     : appending tick symbols
+
+    :clr-env          clears the environment, all bindings are removed
+
+    :ld-env default   loads the default set of predefined bindings into the
+                      environment. Existing bindings with the same name as a
+                      binding in the default set will be replaced. Existing
+                      bindings with no name clash will not be changed.
+
+    :ls-env           lists all bindings defined in the environment
+
+    :ls-env <pattern> lists all bindings filtered by <pattern>. It lists all
+                      bindings with a name that contains the given pattern as a
+                      substring (ignoring case).
 
     the [arrow-up] and [arrow-down] keys lets you navigate through the
     history of typed commands and expressions and recall them.

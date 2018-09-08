@@ -54,12 +54,12 @@ impl Command for LetStatement {
 pub fn parse_let_statement(line: &str) -> Result<LetStatement, Error> {
     let mut identifier = String::new();
     let mut expression = String::new();
-    let mut part = if line.starts_with("let ") {
+    let mut part = if line.starts_with(":let ") {
         LetStatementPart::Identifier
     } else {
         LetStatementPart::Undefined
     };
-    let mut chr_iter = line.chars().skip(4);
+    let mut chr_iter = line.chars().skip(5);
     while let Some(chr) = chr_iter.next() {
         match chr {
             '=' => {

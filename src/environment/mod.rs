@@ -55,6 +55,23 @@ impl Environment {
         self.bindings.remove(name)
     }
 
+    /// Removes all bindings from this environment.
+    pub fn clear_bindings(&mut self) {
+        self.bindings.clear();
+    }
+
+    /// Returns an iterator over all bindings defined in this environment.
+    ///
+    /// The iterator issues the items in an arbitrary order.
+    pub fn bindings(&self) -> impl Iterator<Item = (&VarName, &Term)> {
+        self.bindings.iter()
+    }
+
+    /// Returns an iterator over all bindings defined in this environment.
+    pub fn into_bindings(self) -> impl Iterator<Item = Binding> {
+        self.bindings.into_iter().map(Binding::from)
+    }
+
     /// Looks up the binding for a name and returns a reference to the bound
     /// term if a binding exists for the given name.
     pub fn lookup_term(&self, name: &VarName) -> Option<&Term> {
@@ -143,6 +160,15 @@ impl Binding {
     /// Returns a reference to the term that is bound by this binding's name.
     pub fn term(&self) -> &Term {
         &self.term
+    }
+}
+
+impl From<(VarName, Term)> for Binding {
+    fn from(bound: (VarName, Term)) -> Self {
+        Binding {
+            name: bound.0,
+            term: bound.1,
+        }
     }
 }
 

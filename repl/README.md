@@ -91,7 +91,78 @@ colon. Most important commands are:
 * `:h` or `:help` to print out help information
 * `:q` or `:quit` to quit the application
 
-A list of all implemented commands is given in the help information (command `:h`).  
+A list of all implemented commands is given in the help information (command `:h`).
+
+### Commands
+
+The following commands are available:
+
+    :h or :help       displays this help information
+
+    :q or :quit       quits the repl session
+
+    :v or :version    prints out the version of lamcali
+
+    :e <expr> or :eval <expr>
+                      evaluates the lambda expression <expr>. This command is
+                      equivalent to just typing a lambda expression and
+                      pressing [enter].
+
+    :b <expr> or :beta <expr>
+                      performs a beta-reduction on the lambda expression <expr>
+                      using the current set strategy.
+
+    :x <expr> or :expand <expr>
+                      replaces free variables in the lambda expression <expr>
+                      with the expression bound to the variable's name in the
+                      current environment.
+
+    :p <expr> or :parse <expr>
+                      parses the lambda expression <expr> and prints out the
+                      abstract syntax tree (AST) of the lambda expression.
+
+    :let <name> = <expr>
+                      defines a new binding of <expr> to <name> and adds it to
+                      the environment. If a binding with the same name
+                      previously existed in the environment it is replaced by
+                      the new binding.
+
+    :bs or :beta-strategy
+                      prints the current set beta-reduction strategy.
+
+    :bs <strategy> or :beta_strategy <strategy>
+                      set the beta-reduction strategy to <strategy>.
+                      <strategy> can be one of:
+                      app : applicative-order reducing to normal form
+                      cbn : call-by-name reducing to weak head normal form
+                      cbv : call-by-value reducing to weak normal form
+                      hap : hybrid-applicative-order reducing to normal form
+                      hno : hybrid-normal-order reducing to normal form
+                      hsp : head-spine reducing to head normal form
+                      nor : normal-order reducing to normal form (the default)
+
+    :as or :alpha-strategy
+                      prints the current set alpha-conversion strategy.
+
+    :as <strategy> or :alpha-strategy <strategy>
+                      set the alpha-conversion strategy to <strategy>.
+                      <strategy> can be one of:
+                      enumerate : appending increasing digits (the default)
+                      prime     : appending tick symbols
+
+    :clr-env          clears the environment, all bindings are removed
+
+    :ld-env default   loads the default set of predefined bindings into the
+                      environment. Existing bindings with the same name as a
+                      binding in the default set will be replaced. Existing
+                      bindings with no name clash will not be changed.
+
+    :ls-env           lists all bindings defined in the environment
+
+    :ls-env <pattern> lists all bindings filtered by <pattern>. It lists all
+                      bindings with a name that contains the given pattern as a
+                      substring (ignoring case).
+  
 
 ## License
 

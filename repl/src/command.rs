@@ -1,8 +1,8 @@
 use std::fmt::Display;
 
 use lamcal::{
-    parse, ApplicativeOrder, CallByName, CallByValue, Enumerate, HeadSpine, HybridApplicativeOrder,
-    HybridNormalOrder, NormalOrder, Prime, Term,
+    parse, ApplicativeOrder, CallByName, CallByValue, Enumerate, Environment, HeadSpine,
+    HybridApplicativeOrder, HybridNormalOrder, NormalOrder, Prime, Term,
 };
 
 use context::Context;
@@ -85,6 +85,79 @@ pub fn cont_err<T>(error: impl Display, prompt: impl Display) -> Continuation<T>
         warning: None,
         error: Some(error.to_string()),
         prompt: prompt.to_string(),
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ClearEnvironment;
+
+impl Command for ClearEnvironment {
+    type Input = ();
+    type Output = String;
+
+    fn with_input(_input: <Self as Command>::Input) -> Self {
+        ClearEnvironment
+    }
+
+    fn execute(self, ctx: &mut Context) -> Continuation<<Self as Command>::Output> {
+        ctx.env_mut().clear_bindings();
+        cont_output(format!("Environment cleared"), "")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PrintEnvironment {
+    filter: String,
+}
+
+impl Command for PrintEnvironment {
+    type Input = String;
+    type Output = String;
+
+    fn with_input(input: <Self as Command>::Input) -> Self {
+        PrintEnvironment { filter: input }
+    }
+
+    fn execute(self, ctx: &mut Context) -> Continuation<<Self as Command>::Output> {
+        let mut items_filtered: Vec<_> = ctx
+            .env()
+            .bindings()
+            .filter(|(name, _)| name.to_lowercase().contains(&self.filter.to_lowercase()))
+            .collect();
+        items_filtered.sort_by_key(|e| e.0);
+        let listing = items_filtered
+            .into_iter()
+            .fold(String::new(), |text, (name, term)| {
+                text + &format!("{} => {}\n", name, term)
+            });
+        cont_output(listing, "")
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LoadBindings {
+    name: String,
+}
+
+impl Command for LoadBindings {
+    type Input = String;
+    type Output = String;
+
+    fn with_input(input: <Self as Command>::Input) -> Self {
+        LoadBindings { name: input }
+    }
+
+    fn execute(self, ctx: &mut Context) -> Continuation<<Self as Command>::Output> {
+        match &self.name[..] {
+            "default" => {
+                ctx.env_mut().extend(Environment::default().into_bindings());
+                cont_output(format!("Loaded default bindings into environment"), "")
+            },
+            _ => cont_err(
+                format!("No predefined binding set with name `{}` found", &self.name),
+                "",
+            ),
+        }
     }
 }
 
