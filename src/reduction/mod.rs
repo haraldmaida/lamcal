@@ -319,6 +319,23 @@ where
 /// );
 /// # }
 /// ```
+///
+/// Bound variables are not replaced even though there is a bound term for the
+/// identifier `K` defined in the environment:
+///
+/// ```
+/// # extern crate lamcal;
+/// # use lamcal::{app, expand, lam, var, Environment};
+/// # fn main() {
+/// let env = Environment::default();
+///
+/// let expr = lam("K", app(var("K"), var("I")));
+///
+/// let result = expand(&expr, &env);
+///
+/// assert_eq!(result, lam("K", app(var("K"), lam("a", var("a")))));
+/// # }
+/// ```
 pub fn expand(expr: &Term, env: &Environment) -> Term {
     let mut expr2 = expr.clone();
     expand_rec(&mut expr2, HashSet::new(), env);
