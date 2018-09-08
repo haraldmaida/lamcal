@@ -93,6 +93,54 @@ colon. Most important commands are:
 
 A list of all implemented commands is given in the help information (command `:h`).
 
+### let bindings and the environment
+
+When playing around with more complex expressions typing them can be tedious. Therefore the `lamcal`
+crate provides the possibility to evaluate terms in an environment with predefined terms bound to
+names. During evaluation free variables with a name that is bound to a term in the environment is
+replaced by the bound term. On startup of the REPL it instantiates a default environment as the 
+global environment. The global environment is used when evaluating expression by default.
+
+To add new bindings to the environment or replace existing ones we use the `:let` command. For 
+example the following command binds the name `rev` to the term `λf.λa.λb.f b a`
+
+```
+λ> :let rev = λf.λa.λb.f b a
+```
+
+Now when we use `rev` as a free variable in any expression it will be replaced by the whole 
+expression to the right side of the equal sign.
+
+```
+λ> rev
+λf.λa.λb.f b a
+
+λ> rev f x y
+f y x
+```
+
+The last evaluation is equal to typing:
+
+```
+λ> (λf.λa.λb.f b a) f x y
+f y x
+```
+
+If we want to perform a beta-reduction without expanding bound names we can use the `:b` command
+like so:
+
+```
+λ> :b (λa.rev a) f x y
+rev f x y
+```
+
+To expand bound names without reducing the term we can use the `:x` command:
+
+```
+λ> :x (λa.rev a) f x y
+(λa.(λf.λa.λb.f b a) a) f x y
+``` 
+
 ### Commands
 
 The following commands are available:
