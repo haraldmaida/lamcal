@@ -38,6 +38,7 @@ use rustyline::Editor;
 
 use lamcal_repl::command::*;
 use lamcal_repl::context::Context;
+use lamcal_repl::let_stmt::{parse_let_statement, LetStatement};
 use lamcal_repl::model::{AlphaRenamingStrategy, BetaReductionStrategy};
 use lamcal_repl::settings::Settings;
 
@@ -222,6 +223,7 @@ enum LciCommand<'a> {
     ExpandLambdaExpression(ExpandLambdaExpression<'a>),
     BetaReduceLambdaExpression(BetaReduceLambdaExpression<'a>),
     EvaluateLambdaExpression(EvaluateLambdaExpression<'a>),
+    LetStatement(LetStatement),
 }
 
 impl<'a> LciCommand<'a> {
@@ -238,6 +240,7 @@ impl<'a> LciCommand<'a> {
             LciCommand::ExpandLambdaExpression(cmd) => handle_continuation(cmd.execute(ctx)),
             LciCommand::BetaReduceLambdaExpression(cmd) => handle_continuation(cmd.execute(ctx)),
             LciCommand::EvaluateLambdaExpression(cmd) => handle_continuation(cmd.execute(ctx)),
+            LciCommand::LetStatement(cmd) => handle_continuation(cmd.execute(ctx)),
         }
     }
 }
@@ -305,6 +308,12 @@ impl<'a> From<BetaReduceLambdaExpression<'a>> for LciCommand<'a> {
 impl<'a> From<EvaluateLambdaExpression<'a>> for LciCommand<'a> {
     fn from(cmd: EvaluateLambdaExpression<'a>) -> Self {
         LciCommand::EvaluateLambdaExpression(cmd)
+    }
+}
+
+impl<'a> From<LetStatement> for LciCommand<'a> {
+    fn from(cmd: LetStatement) -> Self {
+        LciCommand::LetStatement(cmd)
     }
 }
 
@@ -421,6 +430,7 @@ fn parse_command(line: &str) -> Result<LciCommand, Error> {
                 Err(err_msg(format!("unknown command `{}`", cmd)))
             }
         },
+        cmd if cmd.starts_with("let ") => parse_let_statement(cmd).map(Into::into),
         cmd if cmd.starts_with(':') => Err(err_msg(format!("unknown command `{}`", cmd))),
         cmd => Ok(EvaluateLambdaExpression::with_input(cmd).into()),
     }

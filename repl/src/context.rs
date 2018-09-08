@@ -16,6 +16,10 @@ impl Context {
         &self.env
     }
 
+    pub fn env_mut(&mut self) -> &mut Environment {
+        &mut self.env
+    }
+
     pub fn alpha_renaming_strategy(&self) -> AlphaRenamingStrategy {
         self.alpha_renaming_strategy
     }

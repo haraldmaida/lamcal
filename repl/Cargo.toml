@@ -27,7 +27,7 @@ default = ["config", "rustyline"]
 no-color = ["colored/no-color"]
 
 [dependencies]
-lamcal = { version = "0.2", path = "../" }
+lamcal = { version = "0.2", path = "../", features = ["failure"] }
 colored = "1.6"
 config = { version = "0.9", default-features = false, features = ["toml"], optional = true }
 dirs = "1.0"
