@@ -24,11 +24,17 @@ pub fn default_bindings() -> HashSet<Binding> {
     binds! {
         True => True(),
         False => False(),
+        NOT => not(),
         not => not(),
+        AND => and(),
         and => and(),
+        OR => or(),
         or => or(),
+        XOR => xor(),
         xor => xor(),
+        BEQ => beq(),
         beq => beq(),
+        IfElse => if_else(),
         if_else => if_else(),
     }
 }

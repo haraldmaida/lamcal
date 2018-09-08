@@ -5,11 +5,14 @@
 //! * `zero`
 //! * `one`
 //! * `succ`
+//! * `pred`
+//! * `is_zero`
 //!
 //! [Church numerals]: https://en.wikipedia.org/wiki/Church_encoding#Church_numerals
 
 use std::collections::HashSet;
 
+use church_encoded::boolean::{False, True};
 use environment::Binding;
 use term::{app, lam, var, Term};
 
@@ -17,9 +20,16 @@ use term::{app, lam, var, Term};
 /// implemented in this module.
 pub fn default_bindings() -> HashSet<Binding> {
     binds! {
+        Zero => zero(),
         zero => zero(),
+        One => one(),
         one => one(),
+        SUCC => succ(),
         succ => succ(),
+        PRED => pred(),
+        pred => pred(),
+        IsZero => is_zero(),
+        is_zero => is_zero(),
     }
 }
 
@@ -62,6 +72,34 @@ pub fn succ() -> Term {
             lam("a", app(var("f"), app![var("n"), var("f"), var("a")])),
         ),
     )
+}
+
+/// Predecessor : n - 1
+///
+/// PRED ≡ λnfa.n (λgh.h (g f)) (λu.a) (λu.u)
+pub fn pred() -> Term {
+    lam(
+        "n",
+        lam(
+            "f",
+            lam(
+                "a",
+                app![
+                    var("n"),
+                    lam("g", lam("h", app(var("h"), app(var("g"), var("f"))))),
+                    lam("u", var("a")),
+                    lam("u", var("u"))
+                ],
+            ),
+        ),
+    )
+}
+
+/// IsZero : Predicate for numeral zero
+///
+/// IsZero ≡ λn.n (λa.False) True
+pub fn is_zero() -> Term {
+    lam("n", app![var("n"), lam("a", False()), True()])
 }
 
 #[cfg(test)]
