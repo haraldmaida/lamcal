@@ -106,6 +106,56 @@
 //!   hybrid-normal-order reduction to normal form
 //!
 //! [lambda calculus]: https://en.wikipedia.org/wiki/Lambda_calculus
+//!
+//! ## the environment and bindings
+//!
+//! The lambda calculus in this crate can evaluate terms in a given environment.
+//! The environment holds bindings of lambda terms to a name. During evaluation
+//! in an environment all free variables that have a name bound to a term
+//! defined in the environment are substituted with the bound term.
+//!
+//! With the addon of an environment to the lambda calculus we can prepare a
+//! set of often used terms and bind them to meaningful names. Then we are able
+//! to write complex expression by using just the bound names instead of the
+//! whole terms. For example lets assume we have defined the following bindings
+//! in an environment:
+//!
+//! ```text
+//! I => λa.a
+//! K => λa.λb.a
+//! AND => λp.λq.p q p
+//! ```
+//!
+//! then we could write expressions like:
+//!
+//! ```text
+//! AND K (K I)
+//! ```
+//!
+//! which during evaluation will be expanded to:
+//!
+//! ```text
+//! ((λp.λq.p q p) λ.a.λb.a) ((λa.λb.a) λa.a)
+//! ```
+//!
+//! We see the first expression is much shorter. And this is just a very simple
+//! example. With more complex expressions the advantage can be huge.
+//!
+//! ## predefined terms and the default environment
+//!
+//! This crate provides predefined terms like combinators and encodings of
+//! data types, data structures and operators. Those predefined terms are bound
+//! to common names and added to the default environment.
+//!
+//! The predefined terms are organized in the following modules:
+//!
+//! * module [`combinator`](combinator/index.html)
+//!   : defines combinators, like those of the SKI and the BCKW system
+//! * module [`church_encoded`](church_encoded/index.html)
+//!   : defines Church encodings of data types, data structures and operators.
+//!
+//! The default environment instantiated by calling `Environment::default()`
+//! contains bindings for all predefined terms provided by this crate.
 
 #![doc(html_root_url = "https://docs.rs/lamcal/0.2.0")]
 #![warn(
