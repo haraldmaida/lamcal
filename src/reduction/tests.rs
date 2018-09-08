@@ -202,7 +202,7 @@ mod apply {
 
 mod beta {
 
-    use term::{app, con, lam, var};
+    use term::{app, lam, var};
 
     #[test]
     fn test_for_beta_redex_on_variable() {
@@ -254,13 +254,6 @@ mod beta {
     }
 
     #[test]
-    fn test_for_beta_redex_on_constant() {
-        let expr = con("K");
-
-        assert!(!expr.is_beta_redex());
-    }
-
-    #[test]
     fn test_for_beta_normal_on_variable() {
         let expr = var("x");
 
@@ -307,13 +300,6 @@ mod beta {
         let expr = app(var("b"), app(lam("x", var("x")), var("a")));
 
         assert!(!expr.is_beta_normal());
-    }
-
-    #[test]
-    fn test_for_beta_normal_on_constant() {
-        let expr = con("x");
-
-        assert!(expr.is_beta_normal());
     }
 }
 

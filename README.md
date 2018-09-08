@@ -26,7 +26,7 @@
 [lamcal-repl]: repl
 
 [lamcal] is a [Lambda Calculus] parser and evaluator written in [Rust]. It implements a pure
-untyped lambda calculus with the addition of named constants.
+untyped lambda calculus.
  
 The library can be used to
     
@@ -35,7 +35,9 @@ The library can be used to
 * construct terms programmatically using functions, e.g. `lam("x", app(var("x"), var("y")))`
 * construct a sequence of function applications using the macro `app!`, e.g.
   `app![var("a"), var("b"), var("c")]` which is equivalent to 
-  `app(app(var("a"), var("b")), var("c))` 
+  `app(app(var("a"), var("b")), var("c))`
+* evaluate lambda terms to replace variables with predefined terms bound to the variable's name in
+  the environment  
 * apply α-conversion to terms using different strategies, such as enumeration or appending the tick
   symbol
 * apply β-reduction to terms using different strategies, such as call-by-name, normal-order or 

@@ -4,11 +4,11 @@ use std::collections::HashMap;
 use std::fmt::{self, Display};
 use std::iter::FromIterator;
 
-use term::{ConstName, Term};
+use term::{Term, VarName};
 
 /// Constructs a new `Binding` with the given term bound to the given name.
 pub fn bind(name: impl Into<String>, term: impl Into<Term>) -> Binding {
-    Binding::new(ConstName(name.into()), term.into())
+    Binding::new(VarName(name.into()), term.into())
 }
 
 /// The environment in which lambda terms get evaluated.
@@ -21,7 +21,7 @@ pub fn bind(name: impl Into<String>, term: impl Into<Term>) -> Binding {
 ///   terms.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Environment {
-    bindings: HashMap<ConstName, Term>,
+    bindings: HashMap<VarName, Term>,
 }
 
 impl Environment {
@@ -45,27 +45,27 @@ impl Environment {
 
     /// Adds a new binding of the given term to the given name to this
     /// environment.
-    pub fn bind(&mut self, name: ConstName, term: Term) -> Option<Term> {
+    pub fn bind(&mut self, name: VarName, term: Term) -> Option<Term> {
         self.bindings.insert(name, term)
     }
 
     /// Removes the binding to the given name from this environment and returns
     /// the bound term if such a binding previously existed.
-    pub fn unbind(&mut self, name: &ConstName) -> Option<Term> {
+    pub fn unbind(&mut self, name: &VarName) -> Option<Term> {
         self.bindings.remove(name)
     }
 
     /// Looks up the binding for a name and returns a reference to the bound
     /// term if a binding exists for the given name.
-    pub fn lookup_term(&self, name: &ConstName) -> Option<&Term> {
+    pub fn lookup_term(&self, name: &VarName) -> Option<&Term> {
         self.bindings.get(name)
     }
 }
 
-impl FromIterator<(ConstName, Term)> for Environment {
+impl FromIterator<(VarName, Term)> for Environment {
     fn from_iter<I>(set: I) -> Self
     where
-        I: IntoIterator<Item = (ConstName, Term)>,
+        I: IntoIterator<Item = (VarName, Term)>,
     {
         Environment {
             bindings: HashMap::from_iter(set.into_iter()),
@@ -84,8 +84,8 @@ impl FromIterator<Binding> for Environment {
     }
 }
 
-impl Extend<(ConstName, Term)> for Environment {
-    fn extend<I: IntoIterator<Item = (ConstName, Term)>>(&mut self, iter: I) {
+impl Extend<(VarName, Term)> for Environment {
+    fn extend<I: IntoIterator<Item = (VarName, Term)>>(&mut self, iter: I) {
         self.bindings.extend(iter)
     }
 }
@@ -113,7 +113,7 @@ impl Extend<Binding> for Environment {
 /// [the parser chapter](index.html#the-parser) in the crate documentation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Binding {
-    name: ConstName,
+    name: VarName,
     term: Term,
 }
 
@@ -125,18 +125,18 @@ impl Display for Binding {
 
 impl Binding {
     /// Constructs a new `Binding` of given term to the given name.
-    pub fn new(name: ConstName, term: Term) -> Self {
+    pub fn new(name: VarName, term: Term) -> Self {
         Binding { name, term }
     }
 
     /// Deconstruct this binding into its name and the bound term and returns
     /// both as a tuple.
-    pub fn unwrap(self) -> (ConstName, Term) {
+    pub fn unwrap(self) -> (VarName, Term) {
         (self.name, self.term)
     }
 
     /// Returns a reference to the name of this binding.
-    pub fn name(&self) -> &ConstName {
+    pub fn name(&self) -> &VarName {
         &self.name
     }
 
@@ -196,10 +196,10 @@ impl Binding {
 #[macro_export]
 macro_rules! bind {
     ($name:ident => $term:expr) => {
-        $crate::Binding::new($crate::ConstName(String::from(stringify!($name))), $term)
+        $crate::Binding::new($crate::VarName(String::from(stringify!($name))), $term)
     };
     ($name:expr => $term:expr) => {
-        $crate::Binding::new($crate::ConstName(String::from($name)), $term)
+        $crate::Binding::new($crate::VarName(String::from($name)), $term)
     };
 }
 
@@ -246,7 +246,7 @@ macro_rules! binds {
         {
             let mut binds = HashSet::new();
             $(
-                binds.insert($crate::Binding::new($crate::ConstName(String::from(stringify!($name))), $term));
+                binds.insert($crate::Binding::new($crate::VarName(String::from(stringify!($name))), $term));
             )*
             binds
         }
@@ -255,7 +255,7 @@ macro_rules! binds {
         {
             let mut binds = HashSet::new();
             $(
-                binds.insert($crate::Binding::new($crate::ConstName(String::from($name)), $term));
+                binds.insert($crate::Binding::new($crate::VarName(String::from($name)), $term));
             )*
             binds
         }

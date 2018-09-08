@@ -12,11 +12,10 @@
 //! * `Term::Var` for variables
 //! * `Term::Lam` for lambda abstractions
 //! * `Term::App` for function applications
-//! * `Term::Const` for named constants
 //!
 //! We can construct lambda terms programmatically by using the convenient
-//! functions [`var`](fn.var.html), [`lam`](fn.lam.html), [`app`](fn.app.html),
-//! [`const`](fn.con.html) and the macro [`app!`](macro.app.html).
+//! functions [`var`](fn.var.html), [`lam`](fn.lam.html), [`app`](fn.app.html)
+//! and the macro [`app!`](macro.app.html).
 //!
 //! ## the parser
 //!
@@ -26,10 +25,10 @@
 //! `char` items. To parse a term from a `str` slice we can use the function
 //! [`parse_str`](fn.parse_str.html).
 //!
-//! * Variables can be single lowercase letter or names with multiple
-//!   characters where the first character must be a lowercase letter. The
-//!   characters following the first character can be lowercase letters,
-//!   digits, the underscore `_` or the tick `'` character.
+//! * Variables can be single unicode letter or names with multiple characters
+//!   where the first character must be a unicode letter. The characters
+//!   following the first character can be unicode letters, digits, the
+//!   underscore `_` or the tick `'` character.
 //! * Lambda abstractions start with the greek lowercase letter lambda `λ` or
 //!   alternatively with a backslash `\` for easier typing on traditional
 //!   keyboards. Then follows a variable name as the parameter and a dot `.`
@@ -44,12 +43,6 @@
 //!   means the expression `λx.x y z` is equivalent to the expression
 //!   `λx.(x y z)`. To apply this abstraction to a variable `a` we have to use
 //!   parenthesis like so `(λx.x y z) a`.
-//! * Named constants can be single uppercase letter or names with multiple
-//!   characters where the first character must be an uppercase letter. The
-//!   characters following the first character can be uppercase letters,
-//!   lowercase letters, digits, the underscore `_` or the tick `'` character.
-//!
-//! The parser fully supports unicode characters.
 //!
 //! ## the reduction system
 //!
@@ -160,7 +153,7 @@ pub use self::reduction::{
     CallByName, CallByValue, Enumerate, HeadSpine, HybridApplicativeOrder, HybridNormalOrder,
     NormalOrder, Prime,
 };
-pub use self::term::{app, con, lam, var, ConstName, Term, VarName};
+pub use self::term::{app, lam, var, Term, VarName};
 
 impl Default for Environment {
     /// Creates an `Environment` containing predefined bindings to all the

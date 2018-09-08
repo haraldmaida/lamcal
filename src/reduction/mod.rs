@@ -29,7 +29,7 @@ impl Term {
     /// [beta redex]: https://en.wikipedia.org/wiki/Beta_normal_form#Beta_reduction
     pub fn is_beta_redex(&self) -> bool {
         match *self {
-            Var(_) | Const(_) => false,
+            Var(_) => false,
             Lam(_, ref body) => body.is_beta_redex(),
             App(ref lhs, ref rhs) => match **lhs {
                 Lam(_, _) => true,
@@ -136,12 +136,12 @@ impl Term {
         *self = <B as BetaReduce>::reduce(expr);
     }
 
-    /// Substitutes named constants in this term with the term that is bound to
-    /// a constant's name in the given environment.
+    /// Replaces free variables with the term bound to the variable's name in
+    /// the given environment.
     ///
-    /// This method walks through this whole term and replaces any named
-    /// constant with the term bound to the constant's name in the given
-    /// environment.
+    /// This method walks through this whole term and replaces any variable
+    /// with the term bound to the variable's name in the given environment.
+    /// Bound variables are not replaced.
     ///
     /// This method modifies this `Term` in place. If you want to expand named
     /// constants and get the result as a new `Term` while keeping the original
@@ -153,13 +153,13 @@ impl Term {
     /// ```
     /// # #[macro_use]
     /// # extern crate lamcal;
-    /// # use lamcal::{app, con, expand, lam, var, Environment};
+    /// # use lamcal::{app, expand, lam, var, Environment};
     /// # fn main() {
     /// let env = Environment::default();
     ///
     /// let mut expr = app![
-    ///     con("C"),
-    ///     lam("a", app(con("K"), con("I"))),
+    ///     var("C"),
+    ///     lam("a", app(var("K"), var("I"))),
     ///     var("e"),
     ///     var("f")
     /// ];
@@ -178,7 +178,7 @@ impl Term {
     /// # }
     /// ```
     pub fn expand(&mut self, env: &Environment) {
-        expand_rec(self, env)
+        expand_rec(self, HashSet::new(), env)
     }
 
     /// Evaluates this lambda expression in the given environment.
@@ -204,12 +204,12 @@ impl Term {
     /// ```
     /// # #[macro_use]
     /// # extern crate lamcal;
-    /// # use lamcal::{app, con, evaluate, lam, var, Enumerate, Environment, NormalOrder};
+    /// # use lamcal::{app, evaluate, lam, var, Enumerate, Environment, NormalOrder};
     /// # fn main() {
     /// let env = Environment::default();
     ///
     /// let mut expr = app![
-    ///     con("C"),
+    ///     var("C"),
     ///     lam("x", lam("y", app(var("x"), var("y")))),
     ///     var("e"),
     ///     var("f")
@@ -254,12 +254,12 @@ impl Term {
 /// ```
 /// # #[macro_use]
 /// # extern crate lamcal;
-/// # use lamcal::{app, con, evaluate, lam, var, Enumerate, Environment, NormalOrder};
+/// # use lamcal::{app, evaluate, lam, var, Enumerate, Environment, NormalOrder};
 /// # fn main() {
 /// let env = Environment::default();
 ///
 /// let expr = app![
-///     con("C"),
+///     var("C"),
 ///     lam("x", lam("y", app(var("x"), var("y")))),
 ///     var("e"),
 ///     var("f")
@@ -279,12 +279,14 @@ where
     expr2
 }
 
-/// Substitutes named constants in a term with the term that is bound to a
-/// constant's name in the given environment.
+/// Replaces free variables in a term with the term that is bound to the
+/// variable's name in the given environment.
 ///
-/// This function walks through the whole term and replaces any named constant
-/// with the term bound to the constant's name in the given environment. The
-/// result is returned as a new `Term`. The given term remains unchanged. If
+/// This function walks through the whole term and replaces any free variable
+/// with the term bound to the variable's name in the given environment. Bound
+/// variables are not replaced.
+///
+/// The result is returned as a new `Term`. The given term remains unchanged. If
 /// you want to expand named constants in a term in place use the associated
 /// function [`Term::expand`](enum.Term.html#method.expand) instead.
 ///
@@ -293,13 +295,13 @@ where
 /// ```
 /// # #[macro_use]
 /// # extern crate lamcal;
-/// # use lamcal::{app, con, expand, lam, var, Environment};
+/// # use lamcal::{app, expand, lam, var, Environment};
 /// # fn main() {
 /// let env = Environment::default();
 ///
 /// let expr = app![
-///     con("C"),
-///     lam("a", app(con("K"), con("I"))),
+///     var("C"),
+///     lam("a", app(var("K"), var("I"))),
 ///     var("e"),
 ///     var("f")
 /// ];
@@ -319,28 +321,32 @@ where
 /// ```
 pub fn expand(expr: &Term, env: &Environment) -> Term {
     let mut expr2 = expr.clone();
-    expand_rec(&mut expr2, env);
+    expand_rec(&mut expr2, HashSet::new(), env);
     expr2
 }
 
-fn expand_rec(expr: &mut Term, env: &Environment) {
+fn expand_rec(expr: &mut Term, mut bound_vars: HashSet<VarName>, env: &Environment) {
     let maybe_expand_with = match *expr {
-        Var(_) => None,
-        Lam(_, ref mut body) => {
-            expand_rec(body, env);
+        Var(ref name) => if !bound_vars.contains(name) {
+            match env.lookup_term(name).cloned() {
+                Some(mut expansion) => {
+                    expand_rec(&mut expansion, bound_vars, env);
+                    Some(expansion)
+                },
+                None => None,
+            }
+        } else {
+            None
+        },
+        Lam(ref param, ref mut body) => {
+            bound_vars.insert(param.to_owned());
+            expand_rec(body, bound_vars, env);
             None
         },
         App(ref mut lhs, ref mut rhs) => {
-            expand_rec(lhs, env);
-            expand_rec(rhs, env);
+            expand_rec(lhs, bound_vars.clone(), env);
+            expand_rec(rhs, bound_vars, env);
             None
-        },
-        Const(ref name) => match env.lookup_term(name).cloned() {
-            Some(mut expansion) => {
-                expand_rec(&mut expansion, env);
-                Some(expansion)
-            },
-            None => None,
         },
     };
     if let Some(expand_with) = maybe_expand_with {
@@ -396,7 +402,6 @@ where
             alpha_rec::<A>(lhs, free_vars, bound_vars.clone());
             alpha_rec::<A>(rhs, free_vars, bound_vars);
         },
-        Const(_) => {},
     }
 }
 
@@ -518,7 +523,6 @@ fn substitute_rec(expr: &mut Term, var: &VarName, subst: &Term) {
             substitute_rec(rhs, var, subst);
             false
         },
-        Const(_) => false,
     };
     if do_subst {
         *expr = subst.clone();

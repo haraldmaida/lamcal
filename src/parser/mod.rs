@@ -6,7 +6,7 @@ mod tests;
 use std::fmt::{self, Display};
 use std::iter::IntoIterator;
 
-use term::{app, con, lam, var, Term};
+use term::{app, lam, var, Term};
 
 use self::ParseErrorKind::*;
 use self::Token::*;
@@ -172,27 +172,11 @@ where
     let mut term_seq = Vec::with_capacity(8);
     while let Some((token, position)) = token_iter.next() {
         match token {
-            Identifier(name) => if name.first_char_matches(|c| c.is_lowercase()) {
-                term_seq.push(var(name))
-            } else {
-                term_seq.push(con(name))
-            },
+            Identifier(name) => term_seq.push(var(name)),
             Lambda => {
                 let token_opt = token_iter.next();
-                let name = match token_opt {
-                    Some((Identifier(name), position)) => {
-                        if name.first_char_matches(|c| c.is_lowercase()) {
-                            name
-                        } else {
-                            return Err(ParseError::new(
-                                NamedConstantNotAllowedInLambdaHead,
-                                position,
-                                name,
-                                "a variable name",
-                                hint("the first character in variable names must be a lowercase unicode letter"),
-                            ));
-                        }
-                    },
+                let param = match token_opt {
+                    Some((Identifier(name), _)) => name,
                     Some((token, position)) => {
                         return Err(ParseError::new(
                             LambdaHeadExpected,
@@ -237,7 +221,7 @@ where
                 let num_lparens_before = ctx.lparens.len();
                 let (body, rest) = parse_tokens_rec(token_iter, ctx)?;
                 token_iter = rest;
-                term_seq.push(lam(name, body));
+                term_seq.push(lam(param, body));
                 if num_lparens_before > ctx.lparens.len() {
                     break;
                 }
@@ -520,8 +504,6 @@ pub enum ParseErrorKind {
     MissingOpeningParen,
     /// Missing a closing parenthesis for a found opening one.
     MissingClosingParen,
-    /// Named constants are not allowed in lambda head.
-    NamedConstantNotAllowedInLambdaHead,
     /// End of input before a term is complete.
     UnexpectedEndOfInput,
     /// Unexpected token at this position.
@@ -549,7 +531,6 @@ impl ParseErrorKind {
             },
             MissingClosingParen => "opening parenthesis without a matching closing one",
             MissingOpeningParen => "closing parenthesis without a matching opening one",
-            NamedConstantNotAllowedInLambdaHead => "named constants not allowed in lambda head",
             UnexpectedEndOfInput => "unexpected end of input",
             UnexpectedToken => "unexpected token found",
         }

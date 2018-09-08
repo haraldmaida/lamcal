@@ -321,7 +321,7 @@ mod parse {
 
         #[test]
         fn result_of_to_string_is_parsable_as_variable(
-            name in "[a-z][a-z0-9_']*",
+            name in "[A-Za-z][A-Za-z0-9_']*",
         ) {
             let expr = var(name);
 
@@ -332,8 +332,8 @@ mod parse {
 
         #[test]
         fn result_of_to_string_is_parsable_as_abstraction(
-            name1 in "[a-z][a-z0-9_']*",
-            name2 in "[a-z][a-z0-9_']*",
+            name1 in "[A-Za-z][A-Za-z0-9_']*",
+            name2 in "[A-Za-z][A-Za-z0-9_']*",
         ) {
             let expr = lam(name1, var(name2));
 
@@ -344,9 +344,9 @@ mod parse {
 
         #[test]
         fn result_of_to_string_is_parsable_as_application_of_var_to_lambda(
-            name1 in "[a-z][a-z0-9_']*",
-            name2 in "[a-z][a-z0-9_']*",
-            name3 in "[a-z][a-z0-9_']*",
+            name1 in "[A-Za-z][A-Za-z0-9_']*",
+            name2 in "[A-Za-z][A-Za-z0-9_']*",
+            name3 in "[A-Za-z][A-Za-z0-9_']*",
         ) {
             let expr = app(lam(name1, var(name2)), var(name3));
 
@@ -357,10 +357,10 @@ mod parse {
 
         #[test]
         fn result_of_to_string_is_parsable_as_application_of_lambda_to_lambda(
-            name1 in "[a-z][a-z0-9_']*",
-            name2 in "[a-z][a-z0-9_']*",
-            name3 in "[a-z][a-z0-9_']*",
-            name4 in "[a-z][a-z0-9_']*",
+            name1 in "[A-Za-z][A-Za-z0-9_']*",
+            name2 in "[A-Za-z][A-Za-z0-9_']*",
+            name3 in "[A-Za-z][A-Za-z0-9_']*",
+            name4 in "[A-Za-z][A-Za-z0-9_']*",
         ) {
             let expr = app(lam(name1, var(name2)), lam(name3, var(name4)));
 
@@ -371,8 +371,8 @@ mod parse {
 
         #[test]
         fn result_of_to_string_is_parsable_as_application_of_var_to_var(
-            name1 in "[a-z][a-z0-9_']*",
-            name2 in "[a-z][a-z0-9_']*",
+            name1 in "[A-Za-z][A-Za-z0-9_']*",
+            name2 in "[A-Za-z][A-Za-z0-9_']*",
         ) {
             let expr = app(var(name1), var(name2));
 
@@ -383,9 +383,9 @@ mod parse {
 
         #[test]
         fn result_of_to_string_is_parsable_as_application_of_var_to_application(
-            name1 in "[a-z][a-z0-9_']*",
-            name2 in "[a-z][a-z0-9_']*",
-            name3 in "[a-z][a-z0-9_']*",
+            name1 in "[A-Za-z][A-Za-z0-9_']*",
+            name2 in "[A-Za-z][A-Za-z0-9_']*",
+            name3 in "[A-Za-z][A-Za-z0-9_']*",
         ) {
             let expr = app(app(var(name1), var(name2)), var(name3));
 
@@ -395,21 +395,10 @@ mod parse {
         }
 
         #[test]
-        fn result_of_to_string_is_parsable_as_constant(
-            name in "[A-Z][A-Za-z0-9_']*",
-        ) {
-            let expr = con(name);
-
-            let result = parse(expr.to_string().chars());
-
-            prop_assert_eq!(result, Ok(expr));
-        }
-
-        #[test]
         fn ignores_whitespace_between_lambda_and_bound_variable(
             whitespace in "[\\s]+",
-            param in "[a-z][a-z0-9_']*",
-            body in "[a-z][a-z0-9_']*",
+            param in "[A-Za-z][A-Za-z0-9_']*",
+            body in "[A-Za-z][A-Za-z0-9_']*",
         ) {
             let input = format!("λ{}{}.{}", whitespace, param, body);
 
@@ -421,8 +410,8 @@ mod parse {
         #[test]
         fn ignores_whitespace_between_bound_variable_and_dot(
             whitespace in "[\\s]+",
-            param in "[a-z][a-z0-9_']*",
-            body in "[a-z][a-z0-9_']*",
+            param in "[A-Za-z][A-Za-z0-9_']*",
+            body in "[A-Za-z][A-Za-z0-9_']*",
         ) {
             let input = format!("λ{}{}.{}", param, whitespace, body);
 
@@ -434,8 +423,8 @@ mod parse {
         #[test]
         fn ignores_whitespace_between_dot_and_abstraction_body(
             whitespace in "[\\s]+",
-            param in "[a-z][a-z0-9_']*",
-            body in "[a-z][a-z0-9_']*",
+            param in "[A-Za-z][A-Za-z0-9_']*",
+            body in "[A-Za-z][A-Za-z0-9_']*",
         ) {
             let input = format!("λ{}.{}{}", param, whitespace, body);
 
@@ -447,9 +436,9 @@ mod parse {
         #[test]
         fn ignores_whitespace_between_opening_paren_and_expression(
             whitespace in "[\\s]+",
-            param in "[a-z][a-z0-9_']*",
-            body in "[a-z][a-z0-9_']*",
-            name in "[a-z][a-z0-9_']*",
+            param in "[A-Za-z][A-Za-z0-9_']*",
+            body in "[A-Za-z][A-Za-z0-9_']*",
+            name in "[A-Za-z][A-Za-z0-9_']*",
         ) {
             let input = format!("({}λ{}.{}){}", whitespace, param, body, name);
 
@@ -461,9 +450,9 @@ mod parse {
         #[test]
         fn ignores_whitespace_between_expression_and_closing_paren(
             whitespace in "[\\s]+",
-            param in "[a-z][a-z0-9_']*",
-            body in "[a-z][a-z0-9_']*",
-            name in "[a-z][a-z0-9_']*",
+            param in "[A-Za-z][A-Za-z0-9_']*",
+            body in "[A-Za-z][A-Za-z0-9_']*",
+            name in "[A-Za-z][A-Za-z0-9_']*",
         ) {
             let input = format!("(λ{}.{}{}){}", param, body, whitespace, name);
 
@@ -475,9 +464,9 @@ mod parse {
         #[test]
         fn ignores_whitespace_between_closing_paren_and_expr2(
             whitespace in "[\\s]+",
-            param in "[a-z][a-z0-9_']*",
-            body in "[a-z][a-z0-9_']*",
-            name in "[a-z][a-z0-9_']*",
+            param in "[A-Za-z][A-Za-z0-9_']*",
+            body in "[A-Za-z][A-Za-z0-9_']*",
+            name in "[A-Za-z][A-Za-z0-9_']*",
         ) {
             let input = format!("(λ{}.{}){}{}", param, body, whitespace, name);
 
@@ -488,7 +477,7 @@ mod parse {
 
         #[test]
         fn parse_variable(
-            name in "[a-z][a-z0-9_']*",
+            name in "[A-Za-z][A-Za-z0-9_']*",
         ) {
             let input = format!("{}", name);
 
@@ -499,7 +488,7 @@ mod parse {
 
         #[test]
         fn parse_variable_surrounded_by_whitespace(
-            name in "[a-z][a-z0-9_']*",
+            name in "[A-Za-z][A-Za-z0-9_']*",
             whitespace1 in "[\\s]*",
             whitespace2 in "[\\s]*",
         ) {
@@ -512,8 +501,8 @@ mod parse {
 
         #[test]
         fn parse_sequence_of_two_variables(
-            name1 in "[a-z][a-z0-9_']*",
-            name2 in "[a-z][a-z0-9_']*",
+            name1 in "[A-Za-z][A-Za-z0-9_']*",
+            name2 in "[A-Za-z][A-Za-z0-9_']*",
             separator in "[\\s]+",
         ) {
             let input = format!("{}{}{}", name1, separator, name2);
@@ -525,9 +514,9 @@ mod parse {
 
         #[test]
         fn parse_sequence_of_three_variables(
-            name1 in "[a-z][a-z0-9_']*",
-            name2 in "[a-z][a-z0-9_']*",
-            name3 in "[a-z][a-z0-9_']*",
+            name1 in "[A-Za-z][A-Za-z0-9_']*",
+            name2 in "[A-Za-z][A-Za-z0-9_']*",
+            name3 in "[A-Za-z][A-Za-z0-9_']*",
             separator1 in "[\\s]+",
             separator2 in "[\\s]+",
         ) {
@@ -540,8 +529,8 @@ mod parse {
 
         #[test]
         fn parse_application_ignoring_leading_whitespace(
-            name1 in "[a-z][a-z0-9_']*",
-            name2 in "[a-z][a-z0-9_']*",
+            name1 in "[A-Za-z][A-Za-z0-9_']*",
+            name2 in "[A-Za-z][A-Za-z0-9_']*",
             whitespace in "[\\s]+",
         ) {
             let name1 = &name1[..]; let name2 = &name2[..];
@@ -554,8 +543,8 @@ mod parse {
 
         #[test]
         fn parse_application_ignoring_trailing_whitespace(
-            name1 in "[a-z][a-z0-9_']*",
-            name2 in "[a-z][a-z0-9_']*",
+            name1 in "[A-Za-z][A-Za-z0-9_']*",
+            name2 in "[A-Za-z][A-Za-z0-9_']*",
             whitespace in "[\\s]+",
         ) {
             let name1 = &name1[..]; let name2 = &name2[..];
@@ -567,61 +556,8 @@ mod parse {
         }
 
         #[test]
-        fn parse_named_constant(
-            name in "[A-Z][A-Za-z0-9_']*",
-        ) {
-            let name = &name[..];
-            let input = format!("{}", name);
-
-            let parsed = parse(input.chars());
-
-            prop_assert_eq!(parsed, Ok(con(name)));
-        }
-
-        #[test]
-        fn parse_named_constant_surrounded_by_whitespace(
-            name in "[A-Z][A-Za-z0-9_']*",
-            whitespace1 in "[\\s]*",
-            whitespace2 in "[\\s]*",
-        ) {
-            let input = format!("{}{}{}", whitespace1, name, whitespace2);
-
-            let parsed = parse(input.chars());
-
-            prop_assert_eq!(parsed, Ok(con(name)));
-        }
-
-        #[test]
-        fn parse_sequence_of_two_named_constants(
-            name1 in "[A-Z][A-Za-z0-9_']*",
-            name2 in "[A-Z][A-Za-z0-9_']*",
-            separator in "[\\s]+",
-        ) {
-            let input = format!("{}{}{}", name1, separator, name2);
-
-            let parsed = parse(input.chars());
-
-            prop_assert_eq!(parsed, Ok(app(con(name1), con(name2))));
-        }
-
-        #[test]
-        fn parse_sequence_of_three_named_constants(
-            name1 in "[A-Z][A-Za-z0-9_']*",
-            name2 in "[A-Z][A-Za-z0-9_']*",
-            name3 in "[A-Z][A-Za-z0-9_']*",
-            separator1 in "[\\s]+",
-            separator2 in "[\\s]+",
-        ) {
-            let input = format!("{}{}{}{}{}", name1, separator1, name2, separator2, name3);
-
-            let parsed = parse(input.chars());
-
-            prop_assert_eq!(parsed, Ok(app(app(con(name1), con(name2)), con(name3))));
-        }
-
-        #[test]
         fn parse_identity_combinator(
-            name in "[a-z][a-z0-9_']*",
+            name in "[A-Za-z][A-Za-z0-9_']*",
         ) {
             let name = &name[..];
             let input = format!("λ{}.{}", name, name);
@@ -633,8 +569,8 @@ mod parse {
 
         #[test]
         fn parse_abstraction_of_abstraction_with_application_in_body(
-            name1 in "[a-z][a-z0-9_']*",
-            name2 in "[a-z][a-z0-9_']*",
+            name1 in "[A-Za-z][A-Za-z0-9_']*",
+            name2 in "[A-Za-z][A-Za-z0-9_']*",
         ) {
             let name1 = &name1[..]; let name2 = &name2[..];
             let input = format!("λ{}.λ{}.{} {}", name2, name1, name2, name1);
@@ -642,29 +578,6 @@ mod parse {
             let parsed = parse(input.chars());
 
             prop_assert_eq!(parsed, Ok(lam(name2, lam(name1, app(var(name2), var(name1))))));
-        }
-
-        #[test]
-        fn parse_abstraction_with_named_constant_in_head(
-            lambda in "[λ\\\\]",
-            const_name1 in "[A-Z][A-Za-z0-9_']*",
-            const_name2 in "[A-Z][A-Za-z0-9_']*",
-            var_name1 in "[a-z][a-z0-9_']*",
-        ) {
-            let const_name1 = &const_name1[..];
-            let const_name2 = &const_name2[..];
-            let var_name1 = &var_name1[..];
-            let input = format!("{}{}.{} {}", lambda, const_name1, const_name2, var_name1);
-
-            let parsed = parse(input.chars());
-
-            prop_assert_eq!(parsed, Err(ParseError::new(
-                NamedConstantNotAllowedInLambdaHead,
-                pos(1, 2),
-                const_name1,
-                "a variable name",
-                hint("the first character in variable names must be a lowercase unicode letter"),
-            )));
         }
     }
 

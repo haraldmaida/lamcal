@@ -16,22 +16,6 @@ mod var_name {
     }
 }
 
-mod const_name {
-
-    use super::*;
-
-    proptest! {
-        #[test]
-        fn display_string_is_the_constant_name(
-            name in "[A-Z][A-Za-z0-9_']*"
-        ) {
-            let display = ConstName(name.to_string()).to_string();
-
-            prop_assert_eq!(display, name);
-        }
-    }
-}
-
 mod term {
 
     use super::*;
@@ -96,17 +80,6 @@ mod term {
             let display = app(lam(name1, app(var(name1), var(name2))), var(name3)).to_string();
 
             prop_assert_eq!(display, format!("(λ{}.{} {}) {}", name1, name1, name2, name3));
-        }
-
-        #[test]
-        fn display_string_of_a_constant(
-            name in "[A-Z][A-Za-z0-9_']*"
-        ) {
-            let name = &name[..];
-
-            let display = con(name).to_string();
-
-            prop_assert_eq!(display, name);
         }
     }
 
@@ -237,15 +210,6 @@ mod term {
         assert!(free_vars.contains(&VarName("b".into())));
         assert!(free_vars.contains(&VarName("c".into())));
         assert_eq!(free_vars.len(), 3);
-    }
-
-    #[test]
-    fn free_vars_in_named_constant() {
-        let expr = con("a");
-
-        let free_vars = expr.free_vars();
-
-        assert_eq!(free_vars.len(), 0);
     }
 }
 

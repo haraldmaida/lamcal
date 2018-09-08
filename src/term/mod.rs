@@ -16,9 +16,9 @@ use self::Term::*;
 /// any value that can be converted into a `String` and returns
 /// `Term::Var(VarName(name))`.
 ///
-/// This function combined with the functions [`lam`](fn.lam.html),
-/// [`app`](fn.app.html) and [`con`](fn.con.html) let us construct any
-/// [`Term`](enum.Term.html) in the untyped lambda calculus.
+/// This function combined with the functions [`lam`](fn.lam.html) and
+/// [`app`](fn.app.html) let us construct any [`Term`](enum.Term.html) in the
+/// untyped lambda calculus.
 ///
 /// # Examples
 ///
@@ -41,9 +41,9 @@ pub fn var(name: impl Into<String>) -> Term {
 /// (the parameter of the abstraction) and a `Term` for the body of the
 /// abstraction.
 ///
-/// This function combined with the functions [`var`](fn.var.html),
-/// [`app`](fn.app.html) and [`con`](fn.con.html) let us construct any
-/// [`Term`](enum.Term.html) in the untyped lambda calculus.
+/// This function combined with the functions [`var`](fn.var.html) and
+/// [`app`](fn.app.html) let us construct any [`Term`](enum.Term.html) in the
+/// untyped lambda calculus.
 ///
 /// # Examples
 ///
@@ -72,9 +72,9 @@ pub fn lam(param: impl Into<String>, body: Term) -> Term {
 /// two `Term`s as its input and returns a `Term::App` with the first `Term` to
 /// be applied to the second `Term`.
 ///
-/// This function combined with the functions [`var`](fn.var.html),
-/// [`lam`](fn.lam.html) and [`con`](fn.con.html) let us construct any
-/// [`Term`](enum.Term.html) in the untyped lambda calculus.
+/// This function combined with the functions [`var`](fn.var.html) and
+/// [`lam`](fn.lam.html) let us construct any [`Term`](enum.Term.html) in the
+/// untyped lambda calculus.
 ///
 /// # Examples
 ///
@@ -98,36 +98,6 @@ pub fn app(lhs: Term, rhs: Term) -> Term {
     App(Box::new(lhs), Box::new(rhs))
 }
 
-/// Constructs a named constant of the given name.
-///
-/// This is a convenience function for constructing a [`Term`](enum.Term.html)
-/// of variant `Term::Const` in a readable form with minimal keystrokes. It
-/// takes any value that can be converted into a `String` and returns
-/// `Term::Const(ConstName(name))`.
-///
-/// This function combined with the functions [`var`](fn.var.html),
-/// [`lam`](fn.lam.html) and [`app`](fn.app.html) let us construct any
-/// [`Term`](enum.Term.html) in the untyped lambda calculus.
-///
-/// # Examples
-///
-/// ```
-/// # extern crate lamcal;
-/// # use lamcal::{app, con, ConstName, Term};
-/// let application = app(con("S"), con("K"));
-///
-/// assert_eq!(
-///     application,
-///     Term::App(
-///         Box::new(Term::Const(ConstName("S".to_string()))),
-///         Box::new(Term::Const(ConstName("K".to_string()))),
-///     )
-/// );
-/// ```
-pub fn con(name: impl Into<String>) -> Term {
-    Const(ConstName(name.into()))
-}
-
 /// A term in the lambda calculus.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Term {
@@ -145,10 +115,6 @@ pub enum Term {
     ///
     /// Applying a function to an argument. M and N are lambda terms.
     App(Box<Term>, Box<Term>),
-    /// A named constant (K)
-    ///
-    /// A predefined lambda term that is referenced by the name K.
-    Const(ConstName),
 }
 
 impl Display for Term {
@@ -161,7 +127,6 @@ impl Display for Term {
                 Lam(_, _) => write!(f, "({}) {}", lhs, rhs),
                 _ => write!(f, "{} {}", lhs, rhs),
             },
-            Const(name) => write!(f, "{}", name),
         }
     }
 }
@@ -175,12 +140,6 @@ impl<'a> From<&'a Term> for Term {
 impl From<VarName> for Term {
     fn from(var: VarName) -> Self {
         Var(var)
-    }
-}
-
-impl From<ConstName> for Term {
-    fn from(con: ConstName) -> Self {
-        Const(con)
     }
 }
 
@@ -210,16 +169,6 @@ impl Term {
     pub fn unwrap_app(self) -> Option<(Term, Term)> {
         if let App(left, right) = self {
             Some((*left, *right))
-        } else {
-            None
-        }
-    }
-
-    /// Returns a named constant's underlying name if this term is of variant
-    /// `Term::Const`.
-    pub fn unwrap_const(self) -> Option<ConstName> {
-        if let Const(name) = self {
-            Some(name)
         } else {
             None
         }
@@ -255,16 +204,6 @@ impl Term {
         }
     }
 
-    /// Returns a reference to a named constant's underlying name if this term
-    /// is of variant `Term::Const`.
-    pub fn unwrap_const_ref(&self) -> Option<&ConstName> {
-        if let Const(name) = self {
-            Some(name)
-        } else {
-            None
-        }
-    }
-
     /// Returns a mutable reference to a variable's underlying name if this
     /// term is of variant `Term::Var`.
     pub fn unwrap_var_mut(&mut self) -> Option<&mut VarName> {
@@ -295,16 +234,6 @@ impl Term {
         }
     }
 
-    /// Returns a mutable reference to a named constant's underlying name if
-    /// this term is of variant `Term::Const`.
-    pub fn unwrap_const_mut(&mut self) -> Option<&mut ConstName> {
-        if let Const(name) = self {
-            Some(name)
-        } else {
-            None
-        }
-    }
-
     /// Returns a set of references to all free variables in this term.
     pub fn free_vars(&self) -> HashSet<&VarName> {
         let mut free_vars = HashSet::new();
@@ -325,7 +254,6 @@ impl Term {
                     terms.push((&*lhs, bound_vars.clone()));
                     terms.push((&*rhs, bound_vars));
                 },
-                Const(_) => {},
             }
         }
         free_vars
@@ -369,48 +297,6 @@ impl VarName {
     }
 
     /// Unwraps the `String` out of this variable name.
-    pub fn unwrap(self) -> String {
-        self.0
-    }
-}
-
-/// A name of a constant.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ConstName(pub String);
-
-impl Display for ConstName {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl Deref for ConstName {
-    type Target = String;
-
-    fn deref(&self) -> &<Self as Deref>::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for ConstName {
-    fn deref_mut(&mut self) -> &mut <Self as Deref>::Target {
-        &mut self.0
-    }
-}
-
-impl AsRef<str> for ConstName {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl ConstName {
-    /// Constructs a new constant name.
-    pub fn new(name: impl Into<String>) -> Self {
-        ConstName(name.into())
-    }
-
-    /// Unwraps the `String` out of this constant name.
     pub fn unwrap(self) -> String {
         self.0
     }
