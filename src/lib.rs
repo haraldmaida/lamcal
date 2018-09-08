@@ -157,7 +157,7 @@
 //! The default environment instantiated by calling `Environment::default()`
 //! contains bindings for all predefined terms provided by this crate.
 
-#![doc(html_root_url = "https://docs.rs/lamcal/0.2.0")]
+#![doc(html_root_url = "https://docs.rs/lamcal/0.3.0")]
 #![warn(
     bare_trait_objects,
     missing_copy_implementations,
