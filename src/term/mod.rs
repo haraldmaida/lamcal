@@ -123,9 +123,11 @@ impl Display for Term {
         match self {
             Var(name) => write!(f, "{}", name),
             Lam(param, body) => write!(f, "λ{}.{}", param, body),
-            App(lhs, rhs) => match **lhs {
-                Lam(_, _) => write!(f, "({}) {}", lhs, rhs),
-                _ => write!(f, "{} {}", lhs, rhs),
+            App(lhs, rhs) => match (&**lhs, &**rhs) {
+                (App(_, _), App(_, _)) => write!(f, "({}) ({})", lhs, rhs),
+                (Lam(_, _), _) => write!(f, "({}) {}", lhs, rhs),
+                (_, App(_, _)) => write!(f, "{} ({})", lhs, rhs),
+                (_, _) => write!(f, "{} {}", lhs, rhs),
             },
         }
     }

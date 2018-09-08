@@ -81,6 +81,19 @@ mod term {
 
             prop_assert_eq!(display, format!("(λ{}.{} {}) {}", name1, name1, name2, name3));
         }
+
+        #[test]
+        fn display_string_of_an_application_of_an_application_must_not_omit_parens(
+            name1 in "[a-z][a-z0-9_']*",
+            name2 in "[a-z][a-z0-9_']*",
+            name3 in "[a-z][a-z0-9_']*",
+        ) {
+            let name1 = &name1[..]; let name2 = &name2[..]; let name3 = &name3[..];
+
+            let display = app(var(name1), app(var(name2), var(name3))).to_string();
+
+            prop_assert_eq!(display, format!("{} ({} {})", name1, name2, name3));
+        }
     }
 
     #[test]
