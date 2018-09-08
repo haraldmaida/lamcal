@@ -12,7 +12,7 @@ for Rust libraries in [RFC #1105](https://github.com/rust-lang/rfcs/blob/master/
 * Add command to expand terms only (no beta-reduction)
 * Add command to apply beta-reduction (no expansion of predefined terms)
 * Add `:let` command to add new bindings to the environment or replace existing ones
-* Add commands to maintain bindings in the environment (`:ls-env`, `clr-env`, `ld-env`)
+* Add commands for maintaining bindings in the environment (`:ls-env`, `clr-env`, `ld-env`)
 * Improve help text
 * Upgrade `rustyline` to version 2.0
 
