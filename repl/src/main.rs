@@ -36,11 +36,7 @@ use colored::*;
 use failure::{err_msg, Error};
 use rustyline::Editor;
 
-use lamcal_repl::command::{
-    cont_output, Command, Continuation, EvaluateLambdaExpression, ParseLambdaExpression,
-    PrintAlphaRenamingStrategy, PrintBetaReductionStrategy, Processing, SetAlphaRenamingStrategy,
-    SetBetaReductionStrategy,
-};
+use lamcal_repl::command::*;
 use lamcal_repl::context::Context;
 use lamcal_repl::model::{AlphaRenamingStrategy, BetaReductionStrategy};
 use lamcal_repl::settings::Settings;
@@ -132,7 +128,7 @@ fn history_file() -> Result<PathBuf, Error> {
 }
 
 fn print(text: impl Display) {
-    println!("{}", text)
+    println!("{}\n", text)
 }
 
 fn print_error(error: impl Display) {
@@ -223,6 +219,8 @@ enum LciCommand<'a> {
     SetAlphaRenamingStrategy(SetAlphaRenamingStrategy),
     SetBetaReductionStrategy(SetBetaReductionStrategy),
     PrintLambdaExpression(ParseLambdaExpression<'a>),
+    ExpandLambdaExpression(ExpandLambdaExpression<'a>),
+    BetaReduceLambdaExpression(BetaReduceLambdaExpression<'a>),
     EvaluateLambdaExpression(EvaluateLambdaExpression<'a>),
 }
 
@@ -237,6 +235,8 @@ impl<'a> LciCommand<'a> {
             LciCommand::SetAlphaRenamingStrategy(cmd) => handle_continuation(cmd.execute(ctx)),
             LciCommand::SetBetaReductionStrategy(cmd) => handle_continuation(cmd.execute(ctx)),
             LciCommand::PrintLambdaExpression(cmd) => handle_continuation(cmd.execute(ctx)),
+            LciCommand::ExpandLambdaExpression(cmd) => handle_continuation(cmd.execute(ctx)),
+            LciCommand::BetaReduceLambdaExpression(cmd) => handle_continuation(cmd.execute(ctx)),
             LciCommand::EvaluateLambdaExpression(cmd) => handle_continuation(cmd.execute(ctx)),
         }
     }
@@ -290,46 +290,21 @@ impl<'a> From<ParseLambdaExpression<'a>> for LciCommand<'a> {
     }
 }
 
-impl<'a> From<EvaluateLambdaExpression<'a>> for LciCommand<'a> {
-    fn from(cmd: EvaluateLambdaExpression<'a>) -> Self {
-        LciCommand::EvaluateLambdaExpression(cmd)
+impl<'a> From<ExpandLambdaExpression<'a>> for LciCommand<'a> {
+    fn from(cmd: ExpandLambdaExpression<'a>) -> Self {
+        LciCommand::ExpandLambdaExpression(cmd)
     }
 }
 
-fn parse_command(line: &str) -> Result<LciCommand, Error> {
-    match line.trim() {
-        ":h" | ":help" => Ok(Help.into()),
-        ":q" | ":quit" => Ok(Quit.into()),
-        ":v" | ":version" => Ok(Version.into()),
-        ":a" | ":alpha" => Ok(PrintAlphaRenamingStrategy.into()),
-        ":b" | ":beta" => Ok(PrintBetaReductionStrategy.into()),
-        cmd if cmd.starts_with(":a") || cmd.starts_with(":alpha") => {
-            if let Some(index) = cmd.find(char::is_whitespace) {
-                parse_alpha_renaming_strategy(&line[index + 1..])
-                    .map(SetAlphaRenamingStrategy::with_input)
-                    .map(Into::into)
-            } else {
-                Err(err_msg(format!("unknown command `{}`", cmd)))
-            }
-        },
-        cmd if cmd.starts_with(":b") || cmd.starts_with(":beta") => {
-            if let Some(index) = cmd.find(char::is_whitespace) {
-                parse_beta_reduction_strategy(&line[index + 1..])
-                    .map(SetBetaReductionStrategy::with_input)
-                    .map(Into::into)
-            } else {
-                Err(err_msg(format!("unknown command `{}`", cmd)))
-            }
-        },
-        cmd if cmd.starts_with(":p") || cmd.starts_with(":parse") => {
-            if let Some(index) = cmd.find(char::is_whitespace) {
-                Ok(ParseLambdaExpression::with_input(&line[index + 1..]).into())
-            } else {
-                Err(err_msg(format!("unknown command `{}`", cmd)))
-            }
-        },
-        cmd if cmd.starts_with(':') => Err(err_msg(format!("unknown command `{}`", cmd))),
-        cmd => Ok(EvaluateLambdaExpression::with_input(cmd).into()),
+impl<'a> From<BetaReduceLambdaExpression<'a>> for LciCommand<'a> {
+    fn from(cmd: BetaReduceLambdaExpression<'a>) -> Self {
+        LciCommand::BetaReduceLambdaExpression(cmd)
+    }
+}
+
+impl<'a> From<EvaluateLambdaExpression<'a>> for LciCommand<'a> {
+    fn from(cmd: EvaluateLambdaExpression<'a>) -> Self {
+        LciCommand::EvaluateLambdaExpression(cmd)
     }
 }
 
@@ -393,6 +368,64 @@ fn version_message() -> String {
     format!("{} version {}", build::NAME, build::VERSION)
 }
 
+fn parse_command(line: &str) -> Result<LciCommand, Error> {
+    match line.trim() {
+        ":h" | ":help" => Ok(Help.into()),
+        ":q" | ":quit" => Ok(Quit.into()),
+        ":v" | ":version" => Ok(Version.into()),
+        ":as" | ":alpha-strategy" => Ok(PrintAlphaRenamingStrategy.into()),
+        ":bs" | ":beta-strategy" => Ok(PrintBetaReductionStrategy.into()),
+        cmd if cmd.starts_with(":as ") || cmd.starts_with(":alpha-strategy ") => {
+            if let Some(index) = cmd.find(char::is_whitespace) {
+                parse_alpha_renaming_strategy(&line[index + 1..])
+                    .map(SetAlphaRenamingStrategy::with_input)
+                    .map(Into::into)
+            } else {
+                Err(err_msg(format!("unknown command `{}`", cmd)))
+            }
+        },
+        cmd if cmd.starts_with(":bs ") || cmd.starts_with(":beta-strategy ") => {
+            if let Some(index) = cmd.find(char::is_whitespace) {
+                parse_beta_reduction_strategy(&line[index + 1..])
+                    .map(SetBetaReductionStrategy::with_input)
+                    .map(Into::into)
+            } else {
+                Err(err_msg(format!("unknown command `{}`", cmd)))
+            }
+        },
+        cmd if cmd.starts_with(":e ") || cmd.starts_with(":eval ") => {
+            if let Some(index) = cmd.find(char::is_whitespace) {
+                Ok(EvaluateLambdaExpression::with_input(&line[index + 1..]).into())
+            } else {
+                Err(err_msg(format!("unknown command `{}`", cmd)))
+            }
+        },
+        cmd if cmd.starts_with(":b ") || cmd.starts_with(":beta ") => {
+            if let Some(index) = cmd.find(char::is_whitespace) {
+                Ok(BetaReduceLambdaExpression::with_input(&line[index + 1..]).into())
+            } else {
+                Err(err_msg(format!("unknown command `{}`", cmd)))
+            }
+        },
+        cmd if cmd.starts_with(":x ") || cmd.starts_with(":expand ") => {
+            if let Some(index) = cmd.find(char::is_whitespace) {
+                Ok(ExpandLambdaExpression::with_input(&line[index + 1..]).into())
+            } else {
+                Err(err_msg(format!("unknown command `{}`", cmd)))
+            }
+        },
+        cmd if cmd.starts_with(":p ") || cmd.starts_with(":parse ") => {
+            if let Some(index) = cmd.find(char::is_whitespace) {
+                Ok(ParseLambdaExpression::with_input(&line[index + 1..]).into())
+            } else {
+                Err(err_msg(format!("unknown command `{}`", cmd)))
+            }
+        },
+        cmd if cmd.starts_with(':') => Err(err_msg(format!("unknown command `{}`", cmd))),
+        cmd => Ok(EvaluateLambdaExpression::with_input(cmd).into()),
+    }
+}
+
 fn help_message() -> String {
     r###"Usage:
     Type a lambda expression in classic notation and press enter to evaluate it.
@@ -406,30 +439,51 @@ Example:
 
 Commands:
     :h or :help       displays this help information
+
     :q or :quit       quits the repl session
+
     :v or :version    prints out the version of lamcali
-    :p <expr>         parses the lambda expression <expr> and prints out the
-                      abstract syntax tree (AST) of the lambda expression
-    :b or :beta       print current set β-reduction strategy
-    :b app            set β-reduction strategy to applicative-order
-                      reducing to normal form
-    :b cbn            set β-reduction strategy to call-by-name
-                      reducing to weak head normal form
-    :b cbv            set β-reduction strategy to call-by-value
-                      reducing to weak normal form
-    :b hap            set β-reduction strategy to hybrid-applicative-order
-                      reducing to normal form
-    :b hno            set β-reduction strategy to hybrid-normal-order
-                      reducing to normal form
-    :b hsp            set β-reduction strategy to head-spine
-                      reducing to head normal form
-    :b nor            set β-reduction strategy to normal-order (the default)
-                      reducing to normal form
-    :a or :alpha      print current set α-conversion strategy
-    :a enumerate      set α-conversion strategy to enumerate (the default)
-                      (appending increasing digits)
-    :a prime          set α-conversion strategy to prime
-                      (appending tick symbols)
+
+    :e <expr> or :eval <expr>
+                      evaluates the lambda expression <expr>. This command is
+                      equivalent to just typing a lambda expression and
+                      pressing [enter].
+
+    :b <expr> or :beta <expr>
+                      performs a beta-reduction on the lambda expression <expr>
+                      using the current set strategy.
+
+    :x <expr> or :expand <expr>
+                      replaces free variables in the lambda expression <expr>
+                      with the expression bound to the variable's name in the
+                      current environment.
+
+    :p <expr> or :parse <expr>
+                      parses the lambda expression <expr> and prints out the
+                      abstract syntax tree (AST) of the lambda expression.
+
+    :bs or :beta-strategy
+                      prints the current set beta-reduction strategy.
+
+    :bs <strategy> or :beta_strategy <strategy>
+                      set the beta-reduction strategy to <strategy>.
+                      <strategy> can be one of:
+                      app : applicative-order reducing to normal form
+                      cbn : call-by-name reducing to weak head normal form
+                      cbv : call-by-value reducing to weak normal form
+                      hap : hybrid-applicative-order reducing to normal form
+                      hno : hybrid-normal-order reducing to normal form
+                      hsp : head-spine reducing to head normal form
+                      nor : normal-order reducing to normal form (the default)
+
+    :as or :alpha-strategy
+                      prints the current set alpha-conversion strategy.
+
+    :as <strategy> or :alpha-strategy <strategy>
+                      set the alpha-conversion strategy to <strategy>.
+                      <strategy> can be one of:
+                      enumerate : appending increasing digits (the default)
+                      prime     : appending tick symbols
 
     the [arrow-up] and [arrow-down] keys lets you navigate through the
     history of typed commands and expressions and recall them.

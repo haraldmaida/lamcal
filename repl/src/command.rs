@@ -198,6 +198,89 @@ impl<'a> Command for ParseLambdaExpression<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct ExpandLambdaExpression<'a> {
+    input: &'a str,
+}
+
+impl<'a> Command for ExpandLambdaExpression<'a> {
+    type Input = &'a str;
+    type Output = Term;
+
+    fn with_input(input: <Self as Command>::Input) -> Self {
+        ExpandLambdaExpression { input }
+    }
+
+    fn execute(self, ctx: &mut Context) -> Continuation<<Self as Command>::Output> {
+        match parse(self.input.chars()) {
+            Ok(mut expr) => {
+                expr.expand(ctx.env());
+                cont_output(expr, "")
+            },
+            Err(err) => cont_err(err, ""),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BetaReduceLambdaExpression<'a> {
+    input: &'a str,
+}
+
+impl<'a> Command for BetaReduceLambdaExpression<'a> {
+    type Input = &'a str;
+    type Output = Term;
+
+    fn with_input(input: <Self as Command>::Input) -> Self {
+        BetaReduceLambdaExpression { input }
+    }
+
+    fn execute(self, ctx: &mut Context) -> Continuation<<Self as Command>::Output> {
+        match parse(self.input.chars()) {
+            Ok(mut expr) => {
+                match ctx.alpha_renaming_strategy() {
+                    AlphaRenamingStrategy::Enumerate => match ctx.beta_reduction_strategy() {
+                        BetaReductionStrategy::ApplicativeOrder => {
+                            expr.reduce::<ApplicativeOrder<Enumerate>>()
+                        },
+                        BetaReductionStrategy::CallByName => expr.reduce::<CallByName<Enumerate>>(),
+                        BetaReductionStrategy::CallByValue => {
+                            expr.reduce::<CallByValue<Enumerate>>()
+                        },
+                        BetaReductionStrategy::HeadSpine => expr.reduce::<HeadSpine<Enumerate>>(),
+                        BetaReductionStrategy::HybridApplicativeOrder => {
+                            expr.reduce::<HybridApplicativeOrder<Enumerate>>()
+                        },
+                        BetaReductionStrategy::HybridNormalOrder => {
+                            expr.reduce::<HybridNormalOrder<Enumerate>>()
+                        },
+                        BetaReductionStrategy::NormalOrder => {
+                            expr.reduce::<NormalOrder<Enumerate>>()
+                        },
+                    },
+                    AlphaRenamingStrategy::Prime => match ctx.beta_reduction_strategy() {
+                        BetaReductionStrategy::ApplicativeOrder => {
+                            expr.reduce::<ApplicativeOrder<Prime>>()
+                        },
+                        BetaReductionStrategy::CallByName => expr.reduce::<CallByName<Prime>>(),
+                        BetaReductionStrategy::CallByValue => expr.reduce::<CallByValue<Prime>>(),
+                        BetaReductionStrategy::HeadSpine => expr.reduce::<HeadSpine<Prime>>(),
+                        BetaReductionStrategy::HybridApplicativeOrder => {
+                            expr.reduce::<HybridApplicativeOrder<Prime>>()
+                        },
+                        BetaReductionStrategy::HybridNormalOrder => {
+                            expr.reduce::<HybridNormalOrder<Prime>>()
+                        },
+                        BetaReductionStrategy::NormalOrder => expr.reduce::<NormalOrder<Prime>>(),
+                    },
+                }
+                cont_output(expr, "")
+            },
+            Err(err) => cont_err(err, ""),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct EvaluateLambdaExpression<'a> {
     input: &'a str,
 }
