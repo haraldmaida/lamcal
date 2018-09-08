@@ -4,6 +4,17 @@ All user visible changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/), as described
 for Rust libraries in [RFC #1105](https://github.com/rust-lang/rfcs/blob/master/text/1105-api-evolution.md)
 
+## 0.3.0 : <unreleased> : Beautiful environment
+
+* Upgrade to lamcal version 0.3
+* Rename commands for setting and printing alpha- und beta-strategy
+* Add support for evaluation of lambda terms in environment
+* Add command to expand terms only (no beta-reduction)
+* Add command to apply beta-reduction (no expansion of predefined terms)
+* Add `let` command to add new bindings to the environment or replace existing ones
+* Improve help text
+* Upgrade `rustyline` to version 2.0
+
 ## 0.2.1 : 2018-08-26 : Use different reduction strategies
 
 * Set and print beta-reduction strategy to be used
