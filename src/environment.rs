@@ -287,6 +287,3 @@ macro_rules! binds {
         }
     };
 }
-
-#[cfg(test)]
-mod tests;

@@ -1,5 +1,7 @@
 use super::*;
 
+use term::any_identifier;
+
 mod var_name {
 
     use super::*;
@@ -7,7 +9,7 @@ mod var_name {
     proptest! {
         #[test]
         fn display_string_is_the_variable_name(
-            name in "[a-z][a-z0-9_']*"
+            name in any_identifier()
         ) {
             let display = VarName(name.to_string()).to_string();
 
@@ -24,7 +26,7 @@ mod term {
 
         #[test]
         fn display_string_of_a_variable(
-            name in "[a-z][a-z0-9_']*"
+            name in any_identifier()
         ) {
             let name = &name[..];
 
@@ -35,8 +37,8 @@ mod term {
 
         #[test]
         fn display_string_of_an_abstraction_with_variable_in_body(
-            param in "[a-z][a-z0-9_']*",
-            body in "[a-z][a-z0-9_']*"
+            param in any_identifier(),
+            body in any_identifier()
         ) {
             let param = &param[..]; let body = &body[..];
 
@@ -47,8 +49,8 @@ mod term {
 
         #[test]
         fn display_string_of_an_application(
-            name1 in "[a-z][a-z0-9_']*",
-            name2 in "[a-z][a-z0-9_']*",
+            name1 in any_identifier(),
+            name2 in any_identifier(),
         ) {
             let name1 = &name1[..]; let name2 = &name2[..];
 
@@ -59,8 +61,8 @@ mod term {
 
         #[test]
         fn display_string_of_an_application_omitting_outermost_parens(
-            name1 in "[a-z][a-z0-9_']*",
-            name2 in "[a-z][a-z0-9_']*",
+            name1 in any_identifier(),
+            name2 in any_identifier(),
         ) {
             let name1 = &name1[..]; let name2 = &name2[..];
 
@@ -71,9 +73,9 @@ mod term {
 
         #[test]
         fn display_string_of_an_application_omitting_parens_in_abtraction_body(
-            name1 in "[a-z][a-z0-9_']*",
-            name2 in "[a-z][a-z0-9_']*",
-            name3 in "[a-z][a-z0-9_']*",
+            name1 in any_identifier(),
+            name2 in any_identifier(),
+            name3 in any_identifier(),
         ) {
             let name1 = &name1[..]; let name2 = &name2[..]; let name3 = &name3[..];
 
@@ -84,9 +86,9 @@ mod term {
 
         #[test]
         fn display_string_of_an_application_of_an_application_must_not_omit_parens(
-            name1 in "[a-z][a-z0-9_']*",
-            name2 in "[a-z][a-z0-9_']*",
-            name3 in "[a-z][a-z0-9_']*",
+            name1 in any_identifier(),
+            name2 in any_identifier(),
+            name3 in any_identifier(),
         ) {
             let name1 = &name1[..]; let name2 = &name2[..]; let name3 = &name3[..];
 

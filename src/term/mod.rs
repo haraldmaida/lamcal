@@ -3,6 +3,9 @@
 //! This implementation of the lambda calculus uses the classic notation.
 //! Currently the De Bruin index notation is not supported.
 
+#[cfg(test)]
+use proptest::strategy::Strategy;
+
 use std::collections::HashSet;
 use std::fmt::{self, Display};
 use std::ops::{Deref, DerefMut};
@@ -125,8 +128,11 @@ impl Display for Term {
             Lam(param, body) => write!(f, "λ{}.{}", param, body),
             App(lhs, rhs) => match (&**lhs, &**rhs) {
                 (App(_, _), App(_, _)) => write!(f, "({}) ({})", lhs, rhs),
-                (Lam(_, _), _) => write!(f, "({}) {}", lhs, rhs),
+                (Lam(_, _), App(_, _)) => write!(f, "({}) ({})", lhs, rhs),
+                (Lam(_, _), Lam(_, _)) => write!(f, "({}) ({})", lhs, rhs),
                 (_, App(_, _)) => write!(f, "{} ({})", lhs, rhs),
+                (_, Lam(_, _)) => write!(f, "{} ({})", lhs, rhs),
+                (Lam(_, _), _) => write!(f, "({}) {}", lhs, rhs),
                 (_, _) => write!(f, "{} {}", lhs, rhs),
             },
         }
@@ -262,6 +268,37 @@ impl Term {
     }
 }
 
+#[cfg(test)]
+pub fn any_application() -> impl Strategy<Value = Term> {
+    (any_term(), any_term()).prop_map(|(lhs, rhs)| App(lhs.into(), rhs.into()))
+}
+
+#[cfg(test)]
+pub fn any_abstraction() -> impl Strategy<Value = Term> {
+    (any_short_var_name(), any_term()).prop_map(|(param, body)| Lam(param, body.into()))
+}
+
+#[cfg(test)]
+pub fn any_term() -> impl Strategy<Value = Term> {
+    any_short_variable().prop_recursive(23, 500, 3, |inner| {
+        prop_oneof!{
+            inner.clone(),
+            (any_short_var_name(), inner.clone()).prop_map(|(param, body)| Lam(param, body.into())),
+            (inner.clone(), inner.clone()).prop_map(|(lhs, rhs)| App(lhs.into(), rhs.into())),
+        }
+    })
+}
+
+#[cfg(test)]
+pub fn any_variable() -> impl Strategy<Value = Term> {
+    any_var_name().prop_map(Var)
+}
+
+#[cfg(test)]
+pub fn any_short_variable() -> impl Strategy<Value = Term> {
+    any_short_var_name().prop_map(Var)
+}
+
 /// A name of a variable.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct VarName(pub String);
@@ -301,6 +338,39 @@ impl VarName {
     /// Unwraps the `String` out of this variable name.
     pub fn unwrap(self) -> String {
         self.0
+    }
+}
+
+#[cfg(test)]
+pub fn any_var_name() -> impl Strategy<Value = VarName> {
+    any_identifier_().prop_map(VarName)
+}
+
+#[cfg(test)]
+pub fn any_short_var_name() -> impl Strategy<Value = VarName> {
+    any_short_identifier_().prop_map(VarName)
+}
+
+#[cfg(test)]
+pub fn any_identifier() -> impl Strategy<Value = String> {
+    any_identifier_()
+}
+
+#[cfg(test)]
+prop_compose! {
+    fn any_identifier_()(
+        name in "[A-Za-z0-9][A-Za-z0-9_']*",
+    ) -> String {
+        name
+    }
+}
+
+#[cfg(test)]
+prop_compose! {
+    fn any_short_identifier_()(
+        name in "[A-Za-z0-9][A-Za-z0-9_']?",
+    ) -> String {
+        name
     }
 }
 
