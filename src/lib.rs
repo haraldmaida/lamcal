@@ -196,7 +196,7 @@ pub mod combinator;
 pub use self::environment::{bind, Binding, Environment};
 pub use self::parser::{
     hint, parse, parse_str, parse_tokens, pos, tokenize, tokenize_str, CharPosition, Hint,
-    ParseError, ParseErrorKind, Token,
+    ParseError, ParseErrorKind, Token, parse_tokens_recursive
 };
 pub use self::reduction::{
     alpha, apply, evaluate, expand, reduce, substitute, AlphaRename, ApplicativeOrder, BetaReduce,

@@ -5,6 +5,7 @@ mod tests;
 
 use std::fmt::{self, Display};
 use std::iter::IntoIterator;
+use std::mem;
 
 use term::{app, lam, var, Term};
 
@@ -147,7 +148,7 @@ impl StringExt for String {
 }
 
 /// Parses a list of `Token`s into a `Term`.
-pub fn parse_tokens(
+pub fn parse_tokens_recursive(
     tokens: impl IntoIterator<Item = (Token, CharPosition)>,
 ) -> Result<Term, ParseError> {
     let mut ctx = Context::new();
@@ -155,7 +156,9 @@ pub fn parse_tokens(
     if !ctx.lparens.is_empty() {
         return Err(ParseError::new(
             MissingClosingParen,
-            ctx.lparens.pop().expect("just checked for non empty"),
+            ctx.lparens
+                .pop()
+                .expect("didn't we just check for non empty"),
             "left paren",
             "matching right paren",
             None,
@@ -178,7 +181,7 @@ where
                     Some((Identifier(name), _)) => name,
                     Some((token, position)) => {
                         return Err(ParseError::new(
-                            LambdaHeadExpected,
+                            AbstractionHeadExpected,
                             position,
                             token,
                             "an identifier",
@@ -200,7 +203,7 @@ where
                     Some((BodySeparator, _)) => {},
                     Some((token, position)) => {
                         return Err(ParseError::new(
-                            LambdaBodyExpected,
+                            AbstractionBodyExpected,
                             position,
                             token,
                             "the '.' character as start of the lambda body",
@@ -270,6 +273,185 @@ where
         } else {
             let term = term_seq.into_iter().fold(first_term, app);
             Ok((term, token_iter))
+        }
+    }
+}
+
+/// Start of a new sub-term with `Vec<Term>` as the parent term sequence.
+enum SubTermIndicator {
+    FunctionArgument(String, Vec<Term>),
+    LeftParen(CharPosition, Vec<Term>),
+}
+
+/// Parses a list of `Token`s into a `Term`.
+pub fn parse_tokens(
+    tokens: impl IntoIterator<Item = (Token, CharPosition)>,
+) -> Result<Term, ParseError> {
+    use self::SubTermIndicator::*;
+    let mut last_position = CharPosition::default();
+    let mut subterm_indicators = Vec::with_capacity(16);
+    let mut term_seq = Vec::with_capacity(16);
+    let mut token_iter = tokens.into_iter();
+    while let Some((token, position)) = token_iter.next() {
+        last_position = position;
+        match token {
+            Identifier(name) => term_seq.push(var(name)),
+            Lambda => {
+                let token_opt = token_iter.next();
+                let param = match token_opt {
+                    Some((Identifier(name), _)) => name,
+                    Some((token, position)) => {
+                        return Err(ParseError::new(
+                            AbstractionHeadExpected,
+                            position,
+                            token,
+                            "an identifier",
+                            hint("a lambda abstraction must define a bound variable in its head"),
+                        ));
+                    },
+                    None => {
+                        return Err(ParseError::new(
+                            UnexpectedEndOfInput,
+                            position,
+                            "end of input",
+                            "an identifier",
+                            hint("a lambda abstraction must define a bound variable in its head"),
+                        ))
+                    },
+                };
+                let token_opt = token_iter.next();
+                match token_opt {
+                    Some((BodySeparator, _)) => {},
+                    Some((token, position)) => {
+                        return Err(ParseError::new(
+                            AbstractionBodyExpected,
+                            position,
+                            token,
+                            "the '.' character as start of the lambda body",
+                            hint("a lambda abstraction must contain a body, that is an expression following the '.' character"),
+                        ))
+                    },
+                    None => {
+                        return Err(ParseError::new(
+                            UnexpectedEndOfInput,
+                            position,
+                            "end of input",
+                            "the '.' character as start of the lambda body",
+                            hint("a lambda abstraction must contain a body, that is an expression following the '.' character"),
+                        ))
+                    }
+                }
+                subterm_indicators.push(FunctionArgument(
+                    param,
+                    mem::replace(&mut term_seq, Vec::with_capacity(8)),
+                ));
+            },
+            LParen => {
+                subterm_indicators.push(LeftParen(
+                    position,
+                    mem::replace(&mut term_seq, Vec::with_capacity(8)),
+                ));
+            },
+            RParen => loop {
+                if let Some(indicator) = subterm_indicators.pop() {
+                    let (subterm, lparen) =
+                        build_sub_term(position, &token, indicator, &mut term_seq)?;
+                    term_seq.push(subterm);
+                    if lparen {
+                        break;
+                    }
+                } else {
+                    return Err(ParseError::new(
+                        EmptyExpression,
+                        position,
+                        token,
+                        "a variable, a lambda abstraction or an application between parenthesis",
+                        None,
+                    ));
+                }
+            },
+            BodySeparator => {
+                return Err(ParseError::new(
+                    UnexpectedToken,
+                    position,
+                    token,
+                    "a variable, a lambda abstraction or an application",
+                    None,
+                ))
+            },
+        }
+    }
+    while let Some(indicator) = subterm_indicators.pop() {
+        let (subterm, lparen) = build_sub_term(
+            last_position,
+            "invalid lambda expression",
+            indicator,
+            &mut term_seq,
+        )?;
+        term_seq.push(subterm);
+        if lparen {
+            break;
+        }
+    }
+    if !subterm_indicators.is_empty() {
+        return Err(ParseError::new(
+            MissingClosingParen,
+            last_position,
+            "left paren",
+            "matching right paren",
+            None,
+        ));
+    }
+    build_term(term_seq).ok_or_else(|| ParseError::new(
+        EmptyExpression,
+        CharPosition::default(),
+        "invalid lambda expression",
+        "at least one variable, abstraction or application",
+        hint("a lambda expression must consist of at least one term, like a variable, an abstraction or an application"),
+    ))
+}
+
+fn build_sub_term(
+    position: CharPosition,
+    token: impl Display,
+    subterm_indicator: SubTermIndicator,
+    term_seq: &mut Vec<Term>,
+) -> Result<(Term, bool), ParseError> {
+    use self::SubTermIndicator::*;
+    match subterm_indicator {
+        FunctionArgument(param, parent_seq) => {
+            let body = build_term(mem::replace(term_seq, parent_seq)).ok_or_else(|| ParseError::new(
+                EmptyAbstractionBody,
+                position,
+                token,
+                "a variable, a lambda abstraction or an application as body of the lambda abstraction",
+                None,
+            ))?;
+            Ok((lam(param, body), false))
+        },
+        LeftParen(position, parent_seq) => build_term(mem::replace(term_seq, parent_seq))
+            .map(|term| (term, true))
+            .ok_or_else(|| {
+                ParseError::new(
+                    EmptyExpression,
+                    position,
+                    token,
+                    "a variable, a lambda abstraction or an application between parenthesis",
+                    None,
+                )
+            }),
+    }
+}
+
+fn build_term(mut term_seq: Vec<Term>) -> Option<Term> {
+    if term_seq.is_empty() {
+        None
+    } else {
+        let first_term = term_seq.remove(0);
+        if term_seq.is_empty() {
+            Some(first_term)
+        } else {
+            Some(term_seq.into_iter().fold(first_term, app))
         }
     }
 }
@@ -495,10 +677,12 @@ pub enum ParseErrorKind {
     IdentifierExpected,
     /// Found a character that is invalid at this position.
     InvalidCharacter,
-    /// Expected a lambda body separator at this position.
-    LambdaBodyExpected,
-    /// Expected a lambda head at this position.
-    LambdaHeadExpected,
+    /// Expected a lambda abstraction body separator at this position.
+    AbstractionBodyExpected,
+    /// Expected a lambda abstraction head at this position.
+    AbstractionHeadExpected,
+    /// The lambda abstraction body is empty.
+    EmptyAbstractionBody,
     /// Found a closing parenthesis without a matching opening one.
     MissingOpeningParen,
     /// Missing a closing parenthesis for a found opening one.
@@ -522,12 +706,13 @@ impl ParseErrorKind {
             EmptyExpression => "can not parse empty expression",
             IdentifierExpected => "expected a valid identifier",
             InvalidCharacter => "invalid character found",
-            LambdaBodyExpected => {
+            AbstractionBodyExpected => {
                 "expected a '.' character as start of the body of the lambda abstraction"
             },
-            LambdaHeadExpected => {
+            AbstractionHeadExpected => {
                 "expected an identifier as bound variable in the lambda abstraction"
             },
+            EmptyAbstractionBody => "the lambda abstraction body is empty",
             MissingClosingParen => "opening parenthesis without a matching closing one",
             MissingOpeningParen => "closing parenthesis without a matching opening one",
             UnexpectedEndOfInput => "unexpected end of input",
