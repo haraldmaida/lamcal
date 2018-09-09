@@ -4,6 +4,12 @@ All user visible changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/), as described
 for Rust libraries in [RFC #1105](https://github.com/rust-lang/rfcs/blob/master/text/1105-api-evolution.md)
 
+## 0.3.1 : <unreleased>
+
+### Bug Fixes
+
+* missing parenthesis in implementation of Display for Term 
+
 ## 0.3.0 : 2018-09-08 : Beautiful environment
 
 ### Breaking changes
