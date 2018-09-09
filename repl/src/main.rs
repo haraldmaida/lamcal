@@ -391,7 +391,7 @@ impl Command for Version {
 
 fn welcome_message() -> String {
     format!(
-        "Welcome to {}, the Lambda Calculus Repl, version {}",
+        "Welcome to {}, the Lambda Calculus REPL, version {}",
         build::NAME,
         build::VERSION
     )
