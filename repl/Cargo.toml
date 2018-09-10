@@ -32,7 +32,7 @@ colored = "1.6"
 config = { version = "0.9", default-features = false, features = ["toml"], optional = true }
 dirs = "1.0"
 failure = "0.1"
-rustyline = { version = "2.0", optional = true }
+rustyline = { version = "2.1", optional = true }
 
 [dev-dependencies]
 version-sync = "0.5"
