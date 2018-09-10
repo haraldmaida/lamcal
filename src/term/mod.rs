@@ -120,22 +120,89 @@ pub enum Term {
     App(Box<Term>, Box<Term>),
 }
 
+enum TermFormat<'a> {
+    LParen,
+    RParen,
+    Space,
+    ToFormat(&'a Term),
+}
+
 impl Display for Term {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::Term::*;
-        match self {
-            Var(name) => write!(f, "{}", name),
-            Lam(param, body) => write!(f, "λ{}.{}", param, body),
-            App(lhs, rhs) => match (&**lhs, &**rhs) {
-                (App(_, _), App(_, _)) => write!(f, "({}) ({})", lhs, rhs),
-                (Lam(_, _), App(_, _)) => write!(f, "({}) ({})", lhs, rhs),
-                (Lam(_, _), Lam(_, _)) => write!(f, "({}) ({})", lhs, rhs),
-                (_, App(_, _)) => write!(f, "{} ({})", lhs, rhs),
-                (_, Lam(_, _)) => write!(f, "{} ({})", lhs, rhs),
-                (Lam(_, _), _) => write!(f, "({}) {}", lhs, rhs),
-                (_, _) => write!(f, "{} {}", lhs, rhs),
-            },
+        use self::fmt::Write;
+        use self::TermFormat::*;
+        let mut to_format = Vec::with_capacity(16);
+        to_format.push(ToFormat(self));
+        while let Some(item) = to_format.pop() {
+            match item {
+                LParen => f.write_char('(')?,
+                RParen => f.write_char(')')?,
+                Space => f.write_char(' ')?,
+                ToFormat(term) => match term {
+                    Var(name) => f.write_str(&name)?,
+                    Lam(param, body) => {
+                        write!(f, "λ{}.", &param)?;
+                        to_format.push(ToFormat(&**body));
+                    },
+                    App(lhs, rhs) => match (&**lhs, &**rhs) {
+                        (App(_, _), App(_, _)) => {
+                            to_format.push(RParen);
+                            to_format.push(ToFormat(&**rhs));
+                            to_format.push(LParen);
+                            to_format.push(Space);
+                            to_format.push(RParen);
+                            to_format.push(ToFormat(&**lhs));
+                            to_format.push(LParen);
+                        },
+                        (Lam(_, _), App(_, _)) => {
+                            to_format.push(RParen);
+                            to_format.push(ToFormat(&**rhs));
+                            to_format.push(LParen);
+                            to_format.push(Space);
+                            to_format.push(RParen);
+                            to_format.push(ToFormat(&**lhs));
+                            to_format.push(LParen);
+                        },
+                        (Lam(_, _), Lam(_, _)) => {
+                            to_format.push(RParen);
+                            to_format.push(ToFormat(&**rhs));
+                            to_format.push(LParen);
+                            to_format.push(Space);
+                            to_format.push(RParen);
+                            to_format.push(ToFormat(&**lhs));
+                            to_format.push(LParen);
+                        },
+                        (_, App(_, _)) => {
+                            to_format.push(RParen);
+                            to_format.push(ToFormat(&**rhs));
+                            to_format.push(LParen);
+                            to_format.push(Space);
+                            to_format.push(ToFormat(&**lhs));
+                        },
+                        (_, Lam(_, _)) => {
+                            to_format.push(RParen);
+                            to_format.push(ToFormat(&**rhs));
+                            to_format.push(LParen);
+                            to_format.push(Space);
+                            to_format.push(ToFormat(&**lhs));
+                        },
+                        (Lam(_, _), _) => {
+                            to_format.push(ToFormat(&**rhs));
+                            to_format.push(Space);
+                            to_format.push(RParen);
+                            to_format.push(ToFormat(&**lhs));
+                            to_format.push(LParen);
+                        },
+                        (_, _) => {
+                            to_format.push(ToFormat(&**rhs));
+                            to_format.push(Space);
+                            to_format.push(ToFormat(&**lhs));
+                        },
+                    },
+                },
+            }
         }
+        Ok(())
     }
 }
 

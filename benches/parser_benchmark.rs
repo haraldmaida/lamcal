@@ -52,10 +52,10 @@ fn parse_numeral0_trampoline_bench(c: &mut Criterion) {
     });
 }
 
-fn parse_numeral1000_recursive_bench(c: &mut Criterion) {
-    let input = Term::from(1000usize).to_string();
+fn parse_numeral1100_recursive_bench(c: &mut Criterion) {
+    let input = Term::from(1100usize).to_string();
 
-    c.bench_function("parse numeral 1000 recursive", move |b| {
+    c.bench_function("parse numeral 1100 recursive", move |b| {
         b.iter(|| {
             parse_tokens_recursive(tokenize(input.chars()).expect("tokenizable lambda expression"))
                 .expect("parsable lambda expression")
@@ -63,10 +63,10 @@ fn parse_numeral1000_recursive_bench(c: &mut Criterion) {
     });
 }
 
-fn parse_numeral1000_trampoline_bench(c: &mut Criterion) {
-    let input = Term::from(1000usize).to_string();
+fn parse_numeral1100_trampoline_bench(c: &mut Criterion) {
+    let input = Term::from(1100usize).to_string();
 
-    c.bench_function("parse numeral 1000 trampoline", move |b| {
+    c.bench_function("parse numeral 1100 trampoline", move |b| {
         b.iter(|| {
             parse_tokens(tokenize(input.chars()).expect("tokenizable lambda expression"))
                 .expect("parsable lambda expression")
@@ -74,10 +74,10 @@ fn parse_numeral1000_trampoline_bench(c: &mut Criterion) {
     });
 }
 
-fn parse_numeral2100_trampoline_bench(c: &mut Criterion) {
-    let input = Term::from(2100usize).to_string();
+fn parse_numeral4400_trampoline_bench(c: &mut Criterion) {
+    let input = Term::from(2500usize).to_string();
 
-    c.bench_function("parse numeral 2100 trampoline", move |b| {
+    c.bench_function("parse numeral 4400 trampoline", move |b| {
         b.iter(|| {
             parse_tokens(tokenize(input.chars()).expect("tokenizable lambda expression"))
                 .expect("parsable lambda expression")
@@ -91,8 +91,8 @@ criterion_group!(
     parse_expression1_recursive_bench,
     parse_numeral0_trampoline_bench,
     parse_numeral0_recursive_bench,
-    parse_numeral1000_trampoline_bench,
-    parse_numeral1000_recursive_bench,
-    parse_numeral2100_trampoline_bench,
+    parse_numeral1100_trampoline_bench,
+    parse_numeral1100_recursive_bench,
+    parse_numeral4400_trampoline_bench,
 );
 criterion_main!(benches);
