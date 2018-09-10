@@ -26,16 +26,41 @@ impl Term {
     /// The term redex, short for reducible expression, refers to subterms that
     /// can be reduced by one of the reduction rules.
     ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use lamcal::{var, lam, app};
+    /// let expr1 = app(lam("a", var("a")), var("x"));
+    ///
+    /// assert!(expr1.is_beta_redex());
+    ///
+    /// let expr2 = app(var("x"), lam("a", var("a")));
+    ///
+    /// assert!(!expr2.is_beta_redex());
+    ///
+    /// let expr3 = app(var("x"), app(lam("a", var("a")), var("y")));
+    ///
+    /// assert!(expr3.is_beta_redex());
+    /// ```
+    ///
     /// [beta redex]: https://en.wikipedia.org/wiki/Beta_normal_form#Beta_reduction
     pub fn is_beta_redex(&self) -> bool {
-        match *self {
-            Var(_) => false,
-            Lam(_, ref body) => body.is_beta_redex(),
-            App(ref lhs, ref rhs) => match **lhs {
-                Lam(_, _) => true,
-                _ => lhs.is_beta_redex() || rhs.is_beta_redex(),
-            },
+        let mut to_check = Vec::with_capacity(16);
+        to_check.push(self);
+        while let Some(term) = to_check.pop() {
+            match *term {
+                Var(_) => {},
+                Lam(_, ref body) => to_check.push(body),
+                App(ref lhs, ref rhs) => match **lhs {
+                    Lam(_, _) => return true,
+                    _ => {
+                        to_check.push(rhs);
+                        to_check.push(lhs);
+                    },
+                },
+            }
         }
+        return false;
     }
 
     /// Returns whether this `Term` is a [beta normal form].
