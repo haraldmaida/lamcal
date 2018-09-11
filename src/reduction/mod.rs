@@ -80,14 +80,7 @@ impl Term {
     where
         A: AlphaRename,
     {
-        let names = HashSet::from_iter(
-            names
-                .into_iter()
-                .cloned()
-                .cloned()
-                .chain(self.free_vars().into_iter().cloned()),
-        );
-        alpha_rec::<A>(self, &names, HashSet::new())
+        alpha_tramp::<A>(self, names)
     }
 
     /// [Substitutes] all occurrences of `var` as free variables with the
@@ -367,6 +360,32 @@ pub fn expand(expr: &Term, env: &Environment) -> Term {
     expr2
 }
 
+fn expand_tramp(expr: &mut Term, bound_vars: HashSet<VarName>, env: &Environment) {
+    let mut todo: Vec<(&mut Term, HashSet<VarName>)> = Vec::with_capacity(16);
+    todo.push((expr.into(), bound_vars));
+    while let Some((term, mut bound_vars)) = todo.pop() {
+        match term {
+            Var(name) => {
+                let name = name.to_owned();
+                if !bound_vars.contains(&name) {
+                    if let Some(mut expand_with) = env.lookup_term(&name).cloned() {
+                        expand_tramp(&mut expand_with, bound_vars, env);
+                        //*term = expand_with;
+                    }
+                }
+            },
+            Lam(ref param, ref mut body) => {
+                bound_vars.insert(param.to_owned());
+                todo.push((&mut **body, bound_vars));
+            },
+            App(ref mut lhs, ref mut rhs) => {
+                todo.push((&mut **rhs, bound_vars.clone()));
+                todo.push((&mut **lhs, bound_vars));
+            },
+        }
+    }
+}
+
 fn expand_rec(expr: &mut Term, mut bound_vars: HashSet<VarName>, env: &Environment) {
     let maybe_expand_with = match *expr {
         Var(ref name) => if !bound_vars.contains(name) {
@@ -411,39 +430,43 @@ pub fn alpha<A>(expr: &Term, names: &HashSet<&VarName>) -> Term
 where
     A: AlphaRename,
 {
-    let free_vars = HashSet::from_iter(
+    let mut expr2 = expr.clone();
+    alpha_tramp::<A>(&mut expr2, names);
+    expr2
+}
+
+fn alpha_tramp<A>(expr: &mut Term, names: &HashSet<&VarName>)
+where
+    A: AlphaRename,
+{
+    let free_vars: HashSet<VarName> = HashSet::from_iter(
         names
             .into_iter()
             .cloned()
             .cloned()
             .chain(expr.free_vars().into_iter().cloned()),
     );
-    let mut expr2 = expr.clone();
-    alpha_rec::<A>(&mut expr2, &free_vars, HashSet::new());
-    expr2
-}
-
-fn alpha_rec<A>(expr: &mut Term, free_vars: &HashSet<VarName>, mut bound_vars: HashSet<VarName>)
-where
-    A: AlphaRename,
-{
-    match *expr {
-        Var(ref mut name) => if bound_vars.contains(name) {
-            while free_vars.contains(name) {
-                <A as AlphaRename>::rename(&mut **name);
-            }
-        },
-        Lam(ref mut name, ref mut body) => {
-            bound_vars.insert(name.to_owned());
-            while free_vars.contains(name) {
-                <A as AlphaRename>::rename(&mut **name);
-            }
-            alpha_rec::<A>(body, free_vars, bound_vars);
-        },
-        App(ref mut lhs, ref mut rhs) => {
-            alpha_rec::<A>(lhs, free_vars, bound_vars.clone());
-            alpha_rec::<A>(rhs, free_vars, bound_vars);
-        },
+    let mut todo = Vec::with_capacity(16);
+    todo.push((expr, HashSet::<VarName>::with_capacity(8)));
+    while let Some((term, mut bound_vars)) = todo.pop() {
+        match *term {
+            Var(ref mut name) => if bound_vars.contains(name) {
+                while free_vars.contains(name) {
+                    <A as AlphaRename>::rename(&mut **name);
+                }
+            },
+            Lam(ref mut name, ref mut body) => {
+                bound_vars.insert(name.to_owned());
+                while free_vars.contains(name) {
+                    <A as AlphaRename>::rename(&mut **name);
+                }
+                todo.push((body, bound_vars));
+            },
+            App(ref mut lhs, ref mut rhs) => {
+                todo.push((rhs, bound_vars.clone()));
+                todo.push((lhs, bound_vars));
+            },
+        }
     }
 }
 
@@ -526,15 +549,8 @@ pub fn substitute<A>(expr: &Term, var: &VarName, subst: &Term) -> Term
 where
     A: AlphaRename,
 {
-    let free_vars = HashSet::from_iter(
-        subst
-            .free_vars()
-            .into_iter()
-            .cloned()
-            .chain(expr.free_vars().into_iter().cloned()),
-    );
     let mut expr2 = expr.clone();
-    alpha_rec::<A>(&mut expr2, &free_vars, HashSet::new());
+    alpha_tramp::<A>(&mut expr2, &subst.free_vars());
     substitute_rec(&mut expr2, var, subst);
     expr2
 }
@@ -610,16 +626,9 @@ pub fn apply<A>(expr: &Term, subst: &Term) -> Term
 where
     A: AlphaRename,
 {
-    let free_vars = HashSet::from_iter(
-        subst
-            .free_vars()
-            .into_iter()
-            .cloned()
-            .chain(expr.free_vars().into_iter().cloned()),
-    );
     let expr2 = expr.clone();
     if let Lam(param, mut body) = expr2 {
-        alpha_rec::<A>(&mut body, &free_vars, HashSet::new());
+        alpha_tramp::<A>(&mut body, &subst.free_vars());
         substitute_rec(&mut body, &param, subst);
         *body
     } else {
@@ -631,15 +640,8 @@ fn apply_mut<A>(expr: &mut Term, subst: &Term)
 where
     A: AlphaRename,
 {
-    let free_vars = HashSet::from_iter(
-        subst
-            .free_vars()
-            .into_iter()
-            .cloned()
-            .chain(expr.free_vars().into_iter().cloned()),
-    );
     if let Some(replace) = if let Some((param, body)) = expr.unwrap_lam_mut() {
-        alpha_rec::<A>(body, &free_vars, HashSet::new());
+        alpha_tramp::<A>(body, &subst.free_vars());
         substitute_rec(body, param, subst);
         Some(mem::replace(body, dummy_term()))
     } else {
