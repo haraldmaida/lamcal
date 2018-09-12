@@ -196,7 +196,7 @@ impl Term {
     /// # }
     /// ```
     pub fn expand(&mut self, env: &Environment) {
-        expand_rec(self, HashSet::new(), env)
+        expand_tramp(self, HashSet::new(), env)
     }
 
     /// Evaluates this lambda expression in the given environment.
@@ -356,62 +356,40 @@ where
 /// ```
 pub fn expand(expr: &Term, env: &Environment) -> Term {
     let mut expr2 = expr.clone();
-    expand_rec(&mut expr2, HashSet::new(), env);
+    expand_tramp(&mut expr2, HashSet::new(), env);
     expr2
 }
 
 fn expand_tramp(expr: &mut Term, bound_vars: HashSet<VarName>, env: &Environment) {
     let mut todo: Vec<(&mut Term, HashSet<VarName>)> = Vec::with_capacity(16);
-    todo.push((expr.into(), bound_vars));
+    todo.push((expr, bound_vars));
     while let Some((term, mut bound_vars)) = todo.pop() {
-        match term {
-            Var(name) => {
-                let name = name.to_owned();
-                if !bound_vars.contains(&name) {
-                    if let Some(mut expand_with) = env.lookup_term(&name).cloned() {
-                        expand_tramp(&mut expand_with, bound_vars, env);
-                        //*term = expand_with;
-                    }
+        let maybe_expand_with = match term {
+            Var(ref name) => {
+                if !bound_vars.contains(name) {
+                    env.lookup_term(name).cloned()
+                } else {
+                    None
                 }
             },
-            Lam(ref param, ref mut body) => {
-                bound_vars.insert(param.to_owned());
-                todo.push((&mut **body, bound_vars));
-            },
-            App(ref mut lhs, ref mut rhs) => {
-                todo.push((&mut **rhs, bound_vars.clone()));
-                todo.push((&mut **lhs, bound_vars));
-            },
-        }
-    }
-}
-
-fn expand_rec(expr: &mut Term, mut bound_vars: HashSet<VarName>, env: &Environment) {
-    let maybe_expand_with = match *expr {
-        Var(ref name) => if !bound_vars.contains(name) {
-            match env.lookup_term(name).cloned() {
-                Some(mut expansion) => {
-                    expand_rec(&mut expansion, bound_vars, env);
-                    Some(expansion)
-                },
-                None => None,
-            }
+            _ => None,
+        };
+        if let Some(mut expand_with) = maybe_expand_with {
+            mem::swap(term, &mut expand_with);
+            todo.push((term, bound_vars));
         } else {
-            None
-        },
-        Lam(ref param, ref mut body) => {
-            bound_vars.insert(param.to_owned());
-            expand_rec(body, bound_vars, env);
-            None
-        },
-        App(ref mut lhs, ref mut rhs) => {
-            expand_rec(lhs, bound_vars.clone(), env);
-            expand_rec(rhs, bound_vars, env);
-            None
-        },
-    };
-    if let Some(expand_with) = maybe_expand_with {
-        *expr = expand_with;
+            match term {
+                Var(_) => {},
+                Lam(ref param, ref mut body) => {
+                    bound_vars.insert(param.to_owned());
+                    todo.push((&mut **body, bound_vars));
+                },
+                App(ref mut lhs, ref mut rhs) => {
+                    todo.push((&mut **rhs, bound_vars.clone()));
+                    todo.push((&mut **lhs, bound_vars));
+                },
+            }
+        }
     }
 }
 
@@ -640,14 +618,14 @@ fn apply_mut<A>(expr: &mut Term, subst: &Term)
 where
     A: AlphaRename,
 {
-    if let Some(replace) = if let Some((param, body)) = expr.unwrap_lam_mut() {
+    if let Some(replace_with) = if let Some((param, body)) = expr.unwrap_lam_mut() {
         alpha_tramp::<A>(body, &subst.free_vars());
         substitute_rec(body, param, subst);
         Some(mem::replace(body, dummy_term()))
     } else {
         None
     } {
-        *expr = replace;
+        *expr = replace_with;
     }
 }
 
@@ -736,7 +714,7 @@ where
     A: AlphaRename,
 {
     fn reduce_rec(expr: &mut Term) {
-        if let Some(subst) = match *expr {
+        if let Some(subst_with) = match *expr {
             App(ref mut lhs, ref rhs) => {
                 CallByName::<A>::reduce_rec(lhs);
                 match **lhs {
@@ -752,7 +730,7 @@ where
             },
             _ => None,
         } {
-            *expr = subst;
+            *expr = subst_with;
         }
     }
 }
@@ -792,7 +770,7 @@ where
     A: AlphaRename,
 {
     fn reduce_rec(expr: &mut Term) {
-        if let Some(subst) = match *expr {
+        if let Some(subst_with) = match *expr {
             Lam(_, ref mut body) => {
                 NormalOrder::<A>::reduce_rec(body);
                 None
@@ -816,7 +794,7 @@ where
             },
             _ => None,
         } {
-            *expr = subst;
+            *expr = subst_with;
         }
     }
 }
@@ -856,7 +834,7 @@ where
     A: AlphaRename,
 {
     fn reduce_rec(expr: &mut Term) {
-        if let Some(subst) = match *expr {
+        if let Some(subst_with) = match *expr {
             App(ref mut lhs, ref mut rhs) => {
                 CallByValue::<A>::reduce_rec(lhs);
                 CallByValue::<A>::reduce_rec(rhs);
@@ -873,7 +851,7 @@ where
             },
             _ => None,
         } {
-            *expr = subst;
+            *expr = subst_with;
         }
     }
 }
@@ -912,7 +890,7 @@ where
     A: AlphaRename,
 {
     fn reduce_rec(expr: &mut Term) {
-        if let Some(subst) = match *expr {
+        if let Some(subst_with) = match *expr {
             Lam(_, ref mut body) => {
                 ApplicativeOrder::<A>::reduce_rec(body);
                 None
@@ -933,7 +911,7 @@ where
             },
             _ => None,
         } {
-            *expr = subst;
+            *expr = subst_with;
         }
     }
 }
@@ -975,7 +953,7 @@ where
     A: AlphaRename,
 {
     fn reduce_rec(expr: &mut Term) {
-        if let Some(subst) = match *expr {
+        if let Some(subst_with) = match *expr {
             Lam(_, ref mut body) => {
                 HybridApplicativeOrder::<A>::reduce_rec(body);
                 None
@@ -999,7 +977,7 @@ where
             },
             _ => None,
         } {
-            *expr = subst;
+            *expr = subst_with;
         }
     }
 }
@@ -1035,7 +1013,7 @@ where
     A: AlphaRename,
 {
     fn reduce_rec(expr: &mut Term) {
-        if let Some(subst) = match *expr {
+        if let Some(subst_with) = match *expr {
             Lam(_, ref mut body) => {
                 HeadSpine::<A>::reduce_rec(body);
                 None
@@ -1055,7 +1033,7 @@ where
             },
             _ => None,
         } {
-            *expr = subst;
+            *expr = subst_with;
         }
     }
 }
@@ -1096,7 +1074,7 @@ where
     A: AlphaRename,
 {
     fn reduce_rec(expr: &mut Term) {
-        if let Some(subst) = match *expr {
+        if let Some(subst_with) = match *expr {
             Lam(_, ref mut body) => {
                 HybridNormalOrder::<A>::reduce_rec(body);
                 None
@@ -1120,7 +1098,7 @@ where
             },
             _ => None,
         } {
-            *expr = subst;
+            *expr = subst_with;
         }
     }
 }

@@ -336,16 +336,19 @@ impl Term {
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 pub fn any_application() -> impl Strategy<Value = Term> {
     (any_term(), any_term()).prop_map(|(lhs, rhs)| App(lhs.into(), rhs.into()))
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 pub fn any_abstraction() -> impl Strategy<Value = Term> {
     (any_short_var_name(), any_term()).prop_map(|(param, body)| Lam(param, body.into()))
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 pub fn any_term() -> impl Strategy<Value = Term> {
     any_short_variable().prop_recursive(23, 500, 3, |inner| {
         prop_oneof!{
@@ -357,6 +360,7 @@ pub fn any_term() -> impl Strategy<Value = Term> {
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 pub fn any_variable() -> impl Strategy<Value = Term> {
     any_var_name().prop_map(Var)
 }
