@@ -88,7 +88,7 @@ impl Term {
     ///
     /// [substitutes]: https://en.wikipedia.org/wiki/Lambda_calculus#Substitution
     pub fn substitute(&mut self, var: &VarName, rhs: &Term) {
-        substitute_rec(self, var, rhs)
+        substitute_tramp(self, var, rhs)
     }
 
     /// Applies the expression `rhs` to the param of this lambda abstraction if
@@ -375,7 +375,7 @@ fn expand_tramp(expr: &mut Term, bound_vars: HashSet<VarName>, env: &Environment
             _ => None,
         };
         if let Some(mut expand_with) = maybe_expand_with {
-            mem::swap(term, &mut expand_with);
+            *term = expand_with;
             todo.push((term, bound_vars));
         } else {
             match term {
@@ -529,27 +529,34 @@ where
 {
     let mut expr2 = expr.clone();
     alpha_tramp::<A>(&mut expr2, &subst.free_vars());
-    substitute_rec(&mut expr2, var, subst);
+    substitute_tramp(&mut expr2, var, subst);
     expr2
 }
 
-fn substitute_rec(expr: &mut Term, var: &VarName, subst: &Term) {
-    let do_subst = match *expr {
-        Var(ref name) => name == var,
-        Lam(ref mut param, ref mut body) => {
-            if param != var {
-                substitute_rec(body, var, subst);
+fn substitute_tramp(expr: &mut Term, var: &VarName, subst: &Term) {
+    let mut todo: Vec<&mut Term> = Vec::with_capacity(8);
+    todo.push(expr);
+    while let Some(term) = todo.pop() {
+        let do_subst = match term {
+            Var(ref name) => name == var,
+            _ => false,
+        };
+        if do_subst {
+            *term = subst.clone();
+        } else {
+            match term {
+                Var(_) => {},
+                Lam(ref mut param, ref mut body) => {
+                    if param != var {
+                        todo.push(body);
+                    }
+                },
+                App(ref mut lhs, ref mut rhs) => {
+                    todo.push(rhs);
+                    todo.push(lhs);
+                },
             }
-            false
-        },
-        App(ref mut lhs, ref mut rhs) => {
-            substitute_rec(lhs, var, subst);
-            substitute_rec(rhs, var, subst);
-            false
-        },
-    };
-    if do_subst {
-        *expr = subst.clone();
+        }
     }
 }
 
@@ -607,7 +614,7 @@ where
     let expr2 = expr.clone();
     if let Lam(param, mut body) = expr2 {
         alpha_tramp::<A>(&mut body, &subst.free_vars());
-        substitute_rec(&mut body, &param, subst);
+        substitute_tramp(&mut body, &param, subst);
         *body
     } else {
         expr2
@@ -620,7 +627,7 @@ where
 {
     if let Some(replace_with) = if let Some((param, body)) = expr.unwrap_lam_mut() {
         alpha_tramp::<A>(body, &subst.free_vars());
-        substitute_rec(body, param, subst);
+        substitute_tramp(body, param, subst);
         Some(mem::replace(body, dummy_term()))
     } else {
         None
