@@ -222,9 +222,9 @@ impl Term {
     /// Returns a set of references to all free variables in this term.
     pub fn free_vars(&self) -> HashSet<&VarName> {
         let mut free_vars = HashSet::new();
-        let mut terms = vec![(self, HashSet::new())];
-        while !terms.is_empty() {
-            let (term, mut bound_vars) = terms.remove(0);
+        let mut to_check: Vec<(&Term, HashSet<&VarName>)> = Vec::with_capacity(16);
+        to_check.push((self, HashSet::with_capacity(4)));
+        while let Some((term, mut bound_vars)) = to_check.pop() {
             match *term {
                 Var(ref name) => {
                     if !bound_vars.contains(name) {
@@ -233,11 +233,11 @@ impl Term {
                 },
                 Lam(ref param, ref body) => {
                     bound_vars.insert(param);
-                    terms.push((&*body, bound_vars));
+                    to_check.push((&*body, bound_vars));
                 },
                 App(ref lhs, ref rhs) => {
-                    terms.push((&*lhs, bound_vars.clone()));
-                    terms.push((&*rhs, bound_vars));
+                    to_check.push((&*rhs, bound_vars.clone()));
+                    to_check.push((&*lhs, bound_vars));
                 },
             }
         }

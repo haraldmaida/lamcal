@@ -4,7 +4,15 @@ All user visible changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/), as described
 for Rust libraries in [RFC #1105](https://github.com/rust-lang/rfcs/blob/master/text/1105-api-evolution.md)
 
-## 0.3.1 : <unreleased>
+## 0.4.0 : <unreleased>
+
+### Breaking changes
+
+* remove unwrap_XXX methods from `Term`
+
+### Features
+
+* refactor all methods to use trampolining instead of recursion to support handling of huge terms
 
 ### Bug Fixes
 
