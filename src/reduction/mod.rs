@@ -625,12 +625,13 @@ fn apply_mut<A>(expr: &mut Term, subst: &Term)
 where
     A: AlphaRename,
 {
-    if let Some(replace_with) = if let Some((param, body)) = expr.unwrap_lam_mut() {
-        alpha_tramp::<A>(body, &subst.free_vars());
-        substitute_tramp(body, param, subst);
-        Some(mem::replace(body, dummy_term()))
-    } else {
-        None
+    if let Some(replace_with) = match *expr {
+        Lam(ref param, ref mut body) => {
+            alpha_tramp::<A>(body, &subst.free_vars());
+            substitute_tramp(body, param, subst);
+            Some(mem::replace(&mut **body, dummy_term()))
+        },
+        _ => None,
     } {
         *expr = replace_with;
     }
