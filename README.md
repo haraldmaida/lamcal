@@ -23,10 +23,17 @@
 [Apache-2.0]: https://www.apache.org/licenses/LICENSE-2.0
 [license]: LICENSE
 [lamcal]: https://github.com/haraldmaida/lamcal
-[lamcal-repl]: repl
+[lamcal-repl]: https://github.com/haraldmaida/lamcal/tree/master/repl
 
-[lamcal] is a [Lambda Calculus] parser and evaluator written in [Rust]. It implements a pure
-untyped lambda calculus.
+[lamcal] is a [Lambda Calculus] parser and evaluator written in [Rust] and a separate command line
+REPL application to play around with lambda expressions interactively.
+ 
+Highlights:
+
+* Implementation of the pure untyped lambda calculus
+* Support for arbitrary huge terms by using trampolining instead of recursion in all functions
+* Feature rich [command line REPL application]((https://github.com/haraldmaida/lamcal/tree/master/repl))
+  ([separate crate](https://crates.io/crates/lamcal-repl))
  
 The library can be used to
     
@@ -44,8 +51,12 @@ The library can be used to
   call-by-value
 * be extended by implementing user specific strategies for α-conversion and β-reduction.
 
-The separate crate [lamcal-repl] provides a command line REPL (read-evaluate-print-loop) application
-to play around with lambda calculus terms and applying α-conversion and β-reduction interactively.
+The separate crate [lamcal-repl] 
+([crate](https://crates.io/crates/lamcal-repl), 
+ [github-repository](https://github.com/haraldmaida/lamcal/tree/master/repl)
+)
+provides the command line REPL (read-evaluate-print-loop) application to play around with lambda 
+calculus terms and applying α-conversion and β-reduction interactively.
 
 Features:
 
@@ -54,6 +65,9 @@ Features:
   term unchanged and returns the result as a new term.
 * Strategies for α-conversion and β-reduction are defined as traits to easily implement custom
   strategies and use it with the functionality of this library.
+* No recursion in any of the functions dealing with the recursive data structure of `Term` to avoid
+  stack overflow errors when applied on huge terms. Instead all functions follow the trampolining
+  pattern.
 * The parser gives detailed information about parse errors, like the position of the error in the 
   source stream and what would have been expected instead in a valid expression.
 * Optional support for [`failure`] crate compatible error types.  
