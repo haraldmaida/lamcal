@@ -307,7 +307,22 @@ mod beta_call_by_name {
 
     use super::*;
 
-    use term::{app, lam, var};
+    use term::{any_term, app, lam, var};
+
+    proptest! {
+        #[test]
+        fn reduce_any_expr_compared_to_recursive_impl(
+            expr in any_term()
+        ) {
+            let mut expr = expr.clone();
+            let mut expr_clone = expr.clone();
+
+            prop_assert_eq!(
+                CallByName::<Enumerate>::reduce_tramp(&mut expr),
+                CallByName::<Enumerate>::reduce_rec(&mut expr_clone)
+            );
+        }
+    }
 
     #[test]
     fn identity_x() {
@@ -407,7 +422,22 @@ mod beta_normal_order {
 
     use super::*;
 
-    use term::{app, lam, var};
+    use term::{any_term, app, lam, var};
+
+    proptest! {
+        #[test]
+        fn reduce_any_expr_compared_to_recursive_impl(
+            expr in any_term()
+        ) {
+            let mut expr = expr.clone();
+            let mut expr_clone = expr.clone();
+
+            prop_assert_eq!(
+                NormalOrder::<Enumerate>::reduce_tramp(&mut expr),
+                NormalOrder::<Enumerate>::reduce_rec(&mut expr_clone)
+            );
+        }
+    }
 
     #[test]
     fn identity_x() {
@@ -494,7 +524,22 @@ mod beta_call_by_value {
 
     use super::*;
 
-    use term::{app, lam, var};
+    use term::{any_term, app, lam, var};
+
+    proptest! {
+        #[test]
+        fn reduce_any_expr_compared_to_recursive_impl(
+            expr in any_term()
+        ) {
+            let mut expr = expr.clone();
+            let mut expr_clone = expr.clone();
+
+            prop_assert_eq!(
+                CallByValue::<Enumerate>::reduce_tramp(&mut expr),
+                CallByValue::<Enumerate>::reduce_rec(&mut expr_clone)
+            );
+        }
+    }
 
     #[test]
     fn identity_x() {
@@ -577,7 +622,7 @@ mod beta_call_by_value {
             reduced,
             lam(
                 "y",
-                app![lam("b", var("b")), app(lam("z", var("z")), var("y"))]
+                app(lam("b", var("b")), app(lam("z", var("z")), var("y")))
             )
         );
     }
@@ -587,7 +632,22 @@ mod beta_applicative_order {
 
     use super::*;
 
-    use term::{app, lam, var};
+    use term::{any_term, app, lam, var};
+
+    proptest! {
+        #[test]
+        fn reduce_any_expr_compared_to_recursive_impl(
+            expr in any_term()
+        ) {
+            let mut expr = expr.clone();
+            let mut expr_clone = expr.clone();
+
+            prop_assert_eq!(
+                ApplicativeOrder::<Enumerate>::reduce_tramp(&mut expr),
+                ApplicativeOrder::<Enumerate>::reduce_rec(&mut expr_clone)
+            );
+        }
+    }
 
     #[test]
     fn identity_x() {
@@ -674,7 +734,22 @@ mod beta_hybrid_applicative_order {
 
     use super::*;
 
-    use term::{app, lam, var};
+    use term::{any_term, app, lam, var};
+
+    proptest! {
+        #[test]
+        fn reduce_any_expr_compared_to_recursive_impl(
+            expr in any_term()
+        ) {
+            let mut expr = expr.clone();
+            let mut expr_clone = expr.clone();
+
+            prop_assert_eq!(
+                HybridApplicativeOrder::<Enumerate>::reduce_tramp(&mut expr),
+                HybridApplicativeOrder::<Enumerate>::reduce_rec(&mut expr_clone)
+            );
+        }
+    }
 
     #[test]
     fn identity_x() {
@@ -761,7 +836,22 @@ mod beta_head_spine_order {
 
     use super::*;
 
-    use term::{app, lam, var};
+    use term::{any_term, app, lam, var};
+
+    proptest! {
+        #[test]
+        fn reduce_any_expr_compared_to_recursive_impl(
+            expr in any_term()
+        ) {
+            let mut expr = expr.clone();
+            let mut expr_clone = expr.clone();
+
+            prop_assert_eq!(
+                HeadSpine::<Enumerate>::reduce_tramp(&mut expr),
+                HeadSpine::<Enumerate>::reduce_rec(&mut expr_clone)
+            );
+        }
+    }
 
     #[test]
     fn identity_x() {
@@ -851,7 +941,22 @@ mod beta_hybrid_normal_order {
 
     use super::*;
 
-    use term::{app, lam, var};
+    use term::{any_term, app, lam, var};
+
+    proptest! {
+        #[test]
+        fn reduce_any_expr_compared_to_recursive_impl(
+            expr in any_term()
+        ) {
+            let mut expr = expr.clone();
+            let mut expr_clone = expr.clone();
+
+            prop_assert_eq!(
+                HybridNormalOrder::<Enumerate>::reduce_tramp(&mut expr),
+                HybridNormalOrder::<Enumerate>::reduce_rec(&mut expr_clone)
+            );
+        }
+    }
 
     #[test]
     fn identity_x() {

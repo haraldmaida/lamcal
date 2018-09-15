@@ -712,7 +712,7 @@ where
     /// Performs β-reduction on a given lambda expression applying a
     /// call-by-name strategy.
     fn reduce(mut expr: Term) -> Term {
-        CallByName::<A>::reduce_rec(&mut expr);
+        CallByName::<A>::reduce_tramp(&mut expr);
         expr
     }
 }
@@ -721,6 +721,34 @@ impl<A> CallByName<A>
 where
     A: AlphaRename,
 {
+    fn reduce_tramp(expr: &mut Term) {
+        let mut parents: Vec<*mut Term> = Vec::with_capacity(8);
+        let mut todo: Vec<*mut Term> = Vec::with_capacity(16);
+        todo.push(expr);
+        unsafe {
+            while let Some(term) = todo.pop() {
+                match *term {
+                    App(ref mut lhs, ref rhs) => match **lhs {
+                        App(_, _) => {
+                            todo.push(&mut **lhs);
+                            parents.push(term);
+                        },
+                        Lam(_, _) => {
+                            apply_mut::<A>(&mut **lhs, rhs);
+                            mem::swap(&mut *term, &mut **lhs);
+                            todo.extend(parents.iter().cloned());
+                            todo.push(term);
+                            parents.pop();
+                        },
+                        _ => {},
+                    },
+                    _ => {},
+                }
+            }
+        }
+    }
+
+    #[cfg(test)]
     fn reduce_rec(expr: &mut Term) {
         if let Some(subst_with) = match *expr {
             App(ref mut lhs, ref rhs) => {
@@ -768,7 +796,7 @@ where
     /// Performs β-reduction on a given lambda expression applying a
     /// normal-order strategy.
     fn reduce(mut expr: Term) -> Term {
-        NormalOrder::<A>::reduce_rec(&mut expr);
+        NormalOrder::<A>::reduce_tramp(&mut expr);
         expr
     }
 }
@@ -777,6 +805,44 @@ impl<A> NormalOrder<A>
 where
     A: AlphaRename,
 {
+    fn reduce_tramp(expr: &mut Term) {
+        let mut temp_term = dummy_term();
+        let mut todo: Vec<&mut Term> = Vec::with_capacity(16);
+        todo.push(expr);
+        while let Some(term) = todo.pop() {
+            let do_swap = match *term {
+                App(ref mut lhs, ref mut rhs) => {
+                    CallByName::<A>::reduce_tramp(lhs);
+                    match **lhs {
+                        Lam(_, _) => {
+                            apply_mut::<A>(lhs, rhs);
+                            mem::swap(&mut temp_term, &mut **lhs);
+                            true
+                        },
+                        _ => false,
+                    }
+                },
+                _ => false,
+            };
+            if do_swap {
+                mem::swap(term, &mut temp_term);
+                todo.push(term);
+            } else {
+                match *term {
+                    Var(_) => {},
+                    Lam(_, ref mut body) => {
+                        todo.push(body);
+                    },
+                    App(ref mut lhs, ref mut rhs) => {
+                        todo.push(rhs);
+                        todo.push(lhs);
+                    },
+                }
+            }
+        }
+    }
+
+    #[cfg(test)]
     fn reduce_rec(expr: &mut Term) {
         if let Some(subst_with) = match *expr {
             Lam(_, ref mut body) => {
@@ -832,7 +898,7 @@ where
     /// Performs β-reduction on a given lambda expression applying a
     /// call-by-value strategy.
     fn reduce(mut expr: Term) -> Term {
-        CallByValue::<A>::reduce_rec(&mut expr);
+        CallByValue::<A>::reduce_tramp(&mut expr);
         expr
     }
 }
@@ -841,6 +907,40 @@ impl<A> CallByValue<A>
 where
     A: AlphaRename,
 {
+    fn reduce_tramp(expr: &mut Term) {
+        let mut parents: Vec<*mut Term> = Vec::with_capacity(8);
+        let mut todo: Vec<*mut Term> = Vec::with_capacity(16);
+        todo.push(expr);
+        unsafe {
+            while let Some(term) = todo.pop() {
+                match *term {
+                    App(ref mut lhs, ref mut rhs) => match **rhs {
+                        App(_, _) => {
+                            todo.push(&mut **rhs);
+                            parents.push(term);
+                        },
+                        _ => match **lhs {
+                            App(_, _) => {
+                                todo.push(&mut **lhs);
+                                parents.push(term);
+                            },
+                            Lam(_, _) => {
+                                apply_mut::<A>(&mut **lhs, rhs);
+                                mem::swap(&mut *term, &mut **lhs);
+                                todo.extend(parents.iter().cloned());
+                                parents.pop();
+                                todo.push(term);
+                            },
+                            _ => {},
+                        },
+                    },
+                    _ => {},
+                }
+            }
+        }
+    }
+
+    #[cfg(test)]
     fn reduce_rec(expr: &mut Term) {
         if let Some(subst_with) = match *expr {
             App(ref mut lhs, ref mut rhs) => {
@@ -888,7 +988,7 @@ where
     /// Performs β-reduction on a given lambda expression applying a
     /// applicative-order strategy.
     fn reduce(mut expr: Term) -> Term {
-        ApplicativeOrder::<A>::reduce_rec(&mut expr);
+        ApplicativeOrder::<A>::reduce_tramp(&mut expr);
         expr
     }
 }
@@ -897,6 +997,43 @@ impl<A> ApplicativeOrder<A>
 where
     A: AlphaRename,
 {
+    fn reduce_tramp(expr: &mut Term) {
+        let mut parents: Vec<*mut Term> = Vec::with_capacity(8);
+        let mut todo: Vec<*mut Term> = Vec::with_capacity(16);
+        todo.push(expr);
+        unsafe {
+            while let Some(term) = todo.pop() {
+                match *term {
+                    Lam(_, ref mut body) => {
+                        todo.push(&mut **body);
+                    },
+                    App(ref mut lhs, ref mut rhs) => match **rhs {
+                        App(_, _) => {
+                            todo.push(&mut **rhs);
+                            parents.push(term);
+                        },
+                        _ => match **lhs {
+                            App(_, _) => {
+                                todo.push(&mut **lhs);
+                                parents.push(term);
+                            },
+                            Lam(_, _) => {
+                                apply_mut::<A>(&mut **lhs, rhs);
+                                mem::swap(&mut *term, &mut **lhs);
+                                todo.extend(parents.iter().cloned());
+                                parents.pop();
+                                todo.push(term);
+                            },
+                            _ => {},
+                        },
+                    },
+                    _ => {},
+                }
+            }
+        }
+    }
+
+    #[cfg(test)]
     fn reduce_rec(expr: &mut Term) {
         if let Some(subst_with) = match *expr {
             Lam(_, ref mut body) => {
@@ -951,7 +1088,7 @@ where
     /// Performs β-reduction on a given lambda expression applying a
     /// applicative-order strategy.
     fn reduce(mut expr: Term) -> Term {
-        HybridApplicativeOrder::<A>::reduce_rec(&mut expr);
+        HybridApplicativeOrder::<A>::reduce_tramp(&mut expr);
         expr
     }
 }
@@ -960,6 +1097,46 @@ impl<A> HybridApplicativeOrder<A>
 where
     A: AlphaRename,
 {
+    fn reduce_tramp(expr: &mut Term) {
+        let mut parents: Vec<*mut Term> = Vec::with_capacity(8);
+        let mut todo: Vec<*mut Term> = Vec::with_capacity(16);
+        todo.push(expr);
+        unsafe {
+            while let Some(term) = todo.pop() {
+                match *term {
+                    Lam(_, ref mut body) => {
+                        todo.push(&mut **body);
+                    },
+                    App(ref mut lhs, ref mut rhs) => match **rhs {
+                        App(_, _) => {
+                            todo.push(&mut **rhs);
+                            parents.push(term);
+                        },
+                        _ => {
+                            CallByValue::<A>::reduce_tramp(&mut **lhs);
+                            match **lhs {
+                                App(_, _) => {
+                                    todo.push(&mut **lhs);
+                                    parents.push(term);
+                                },
+                                Lam(_, _) => {
+                                    apply_mut::<A>(&mut **lhs, rhs);
+                                    mem::swap(&mut *term, &mut **lhs);
+                                    todo.extend(parents.iter().cloned());
+                                    parents.pop();
+                                    todo.push(term);
+                                },
+                                _ => {},
+                            }
+                        },
+                    },
+                    _ => {},
+                }
+            }
+        }
+    }
+
+    #[cfg(test)]
     fn reduce_rec(expr: &mut Term) {
         if let Some(subst_with) = match *expr {
             Lam(_, ref mut body) => {
@@ -967,7 +1144,7 @@ where
                 None
             },
             App(ref mut lhs, ref mut rhs) => {
-                CallByValue::<A>::reduce_rec(lhs);
+                CallByValue::<A>::reduce_tramp(lhs);
                 HybridApplicativeOrder::<A>::reduce_rec(rhs);
                 match **lhs {
                     Lam(_, _) => {
@@ -1011,7 +1188,7 @@ where
     /// Performs β-reduction on a given lambda expression applying a
     /// applicative-order strategy.
     fn reduce(mut expr: Term) -> Term {
-        HeadSpine::<A>::reduce_rec(&mut expr);
+        HeadSpine::<A>::reduce_tramp(&mut expr);
         expr
     }
 }
@@ -1020,6 +1197,37 @@ impl<A> HeadSpine<A>
 where
     A: AlphaRename,
 {
+    fn reduce_tramp(expr: &mut Term) {
+        let mut parents: Vec<*mut Term> = Vec::with_capacity(8);
+        let mut todo: Vec<*mut Term> = Vec::with_capacity(16);
+        todo.push(expr);
+        unsafe {
+            while let Some(term) = todo.pop() {
+                match *term {
+                    Lam(_, ref mut body) => {
+                        todo.push(&mut **body);
+                    },
+                    App(ref mut lhs, ref mut rhs) => match **lhs {
+                        App(_, _) => {
+                            todo.push(&mut **lhs);
+                            parents.push(term);
+                        },
+                        Lam(_, _) => {
+                            apply_mut::<A>(&mut **lhs, rhs);
+                            mem::swap(&mut *term, &mut **lhs);
+                            todo.extend(parents.iter().cloned());
+                            parents.pop();
+                            todo.push(term);
+                        },
+                        _ => {},
+                    },
+                    _ => {},
+                }
+            }
+        }
+    }
+
+    #[cfg(test)]
     fn reduce_rec(expr: &mut Term) {
         if let Some(subst_with) = match *expr {
             Lam(_, ref mut body) => {
@@ -1072,7 +1280,7 @@ where
     /// Performs β-reduction on a given lambda expression applying a
     /// applicative-order strategy.
     fn reduce(mut expr: Term) -> Term {
-        HybridNormalOrder::<A>::reduce_rec(&mut expr);
+        HybridNormalOrder::<A>::reduce_tramp(&mut expr);
         expr
     }
 }
@@ -1081,6 +1289,48 @@ impl<A> HybridNormalOrder<A>
 where
     A: AlphaRename,
 {
+    fn reduce_tramp(expr: &mut Term) {
+        let mut parents: Vec<*mut Term> = Vec::with_capacity(8);
+        let mut todo: Vec<*mut Term> = Vec::with_capacity(16);
+        todo.push(expr);
+        unsafe {
+            while let Some(term) = todo.pop() {
+                match *term {
+                    Lam(_, ref mut body) => {
+                        todo.push(&mut **body);
+                    },
+                    App(ref mut lhs, ref mut rhs) => match **lhs {
+                        Lam(_, _) => {
+                            apply_mut::<A>(&mut **lhs, rhs);
+                            mem::swap(&mut *term, &mut **lhs);
+                            todo.extend(parents.iter().cloned());
+                            parents.pop();
+                            todo.push(term);
+                        },
+                        _ => {
+                            match **rhs {
+                                App(_, _) => {
+                                    todo.push(&mut **rhs);
+                                    parents.push(term);
+                                },
+                                _ => {},
+                            }
+                            match **lhs {
+                                App(_, _) => {
+                                    todo.push(&mut **lhs);
+                                    parents.push(term);
+                                },
+                                _ => {},
+                            }
+                        },
+                    },
+                    _ => {},
+                }
+            }
+        }
+    }
+
+    #[cfg(test)]
     fn reduce_rec(expr: &mut Term) {
         if let Some(subst_with) = match *expr {
             Lam(_, ref mut body) => {
@@ -1088,7 +1338,7 @@ where
                 None
             },
             App(ref mut lhs, ref mut rhs) => {
-                HeadSpine::<A>::reduce_rec(lhs);
+                HeadSpine::<A>::reduce_tramp(lhs);
                 match **lhs {
                     Lam(_, _) => {
                         apply_mut::<A>(lhs, rhs);
