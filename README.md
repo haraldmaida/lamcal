@@ -25,8 +25,8 @@
 [lamcal]: https://github.com/haraldmaida/lamcal
 [lamcal-repl]: https://github.com/haraldmaida/lamcal/tree/master/repl
 
-[lamcal] is a [Lambda Calculus] parser and evaluator written in [Rust] and a separate command line
-REPL application to play around with lambda expressions interactively.
+[lamcal] is a [Lambda Calculus] parser and evaluator and a separate command line REPL application 
+to play around with lambda expressions interactively. All code is written in [Rust].
  
 Highlights:
 
