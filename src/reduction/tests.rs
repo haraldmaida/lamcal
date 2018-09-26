@@ -1,5 +1,3 @@
-use galvanic_assert::matchers::*;
-
 use super::*;
 
 mod alpha {
@@ -616,12 +614,12 @@ mod beta_call_by_value {
 
         let reduced = CallByValue::<Enumerate>::reduce(expr);
 
-        assert_that!(
-            &reduced,
-            eq(lam(
+        assert_eq!(
+            reduced,
+            lam(
                 "y",
                 app(lam("b", var("b")), app(lam("z", var("z")), var("y")))
-            ))
+            )
         );
     }
 
