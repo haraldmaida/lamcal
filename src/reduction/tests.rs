@@ -1,3 +1,5 @@
+use galvanic_assert::matchers::*;
+
 use super::*;
 
 mod alpha {
@@ -200,7 +202,7 @@ mod apply {
     }
 }
 
-mod beta {
+mod beta_reduction_properties {
 
     use term::{app, lam, var};
 
@@ -314,13 +316,12 @@ mod beta_call_by_name {
         fn reduce_any_expr_compared_to_recursive_impl(
             expr in any_term()
         ) {
-            let mut expr = expr.clone();
-            let mut expr_clone = expr.clone();
+            let mut expected = expr.clone();
+            CallByName::<Enumerate>::reduce_rec(&mut expected);
 
-            prop_assert_eq!(
-                CallByName::<Enumerate>::reduce_tramp(&mut expr),
-                CallByName::<Enumerate>::reduce_rec(&mut expr_clone)
-            );
+            let result = CallByName::<Enumerate>::reduce(expr.clone());
+
+            prop_assert_eq!(result, expected);
         }
     }
 
@@ -429,13 +430,11 @@ mod beta_normal_order {
         fn reduce_any_expr_compared_to_recursive_impl(
             expr in any_term()
         ) {
-            let mut expr = expr.clone();
-            let mut expr_clone = expr.clone();
+            let mut expected = expr.clone();
+            NormalOrder::<Enumerate>::reduce_rec(&mut expected);
 
-            prop_assert_eq!(
-                NormalOrder::<Enumerate>::reduce_tramp(&mut expr),
-                NormalOrder::<Enumerate>::reduce_rec(&mut expr_clone)
-            );
+            let result = NormalOrder::<Enumerate>::reduce(expr.clone());
+            prop_assert_eq!(result, expected);
         }
     }
 
@@ -531,13 +530,12 @@ mod beta_call_by_value {
         fn reduce_any_expr_compared_to_recursive_impl(
             expr in any_term()
         ) {
-            let mut expr = expr.clone();
-            let mut expr_clone = expr.clone();
+            let mut expected = expr.clone();
+            CallByValue::<Enumerate>::reduce_rec(&mut expected);
 
-            prop_assert_eq!(
-                CallByValue::<Enumerate>::reduce_tramp(&mut expr),
-                CallByValue::<Enumerate>::reduce_rec(&mut expr_clone)
-            );
+            let result = CallByValue::<Enumerate>::reduce(expr.clone());
+
+            prop_assert_eq!(result, expected);
         }
     }
 
@@ -618,13 +616,33 @@ mod beta_call_by_value {
 
         let reduced = CallByValue::<Enumerate>::reduce(expr);
 
-        assert_eq!(
-            reduced,
-            lam(
+        assert_that!(
+            &reduced,
+            eq(lam(
                 "y",
                 app(lam("b", var("b")), app(lam("z", var("z")), var("y")))
-            )
+            ))
         );
+    }
+
+    #[test]
+    fn complex_expr4() {
+        // (\a.a) (A 0)
+        let expr = app(lam("a", var("a")), app(var("A"), var("0")));
+
+        let reduced = CallByValue::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, app(var("A"), var("0")));
+    }
+
+    #[test]
+    fn complex_expr5() {
+        //
+        let expr = app(app(var("0"), app(lam("A", var("a")), var("A"))), var("0"));
+
+        let reduced = CallByValue::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, app(app(var("0"), var("a")), var("0")));
     }
 }
 
@@ -639,13 +657,12 @@ mod beta_applicative_order {
         fn reduce_any_expr_compared_to_recursive_impl(
             expr in any_term()
         ) {
-            let mut expr = expr.clone();
-            let mut expr_clone = expr.clone();
+            let mut expected = expr.clone();
+            ApplicativeOrder::<Enumerate>::reduce_rec(&mut expected);
 
-            prop_assert_eq!(
-                ApplicativeOrder::<Enumerate>::reduce_tramp(&mut expr),
-                ApplicativeOrder::<Enumerate>::reduce_rec(&mut expr_clone)
-            );
+            let result = ApplicativeOrder::<Enumerate>::reduce(expr.clone());
+
+            prop_assert_eq!(result, expected);
         }
     }
 
@@ -728,6 +745,19 @@ mod beta_applicative_order {
 
         assert_eq!(reduced, lam("y", var("y")));
     }
+
+    #[test]
+    fn complex_expr4() {
+        // ( \x.\y.z ) ( z ((\x.u) y) )
+        let expr = app(
+            lam("x", lam("y", var("z"))),
+            app(var("z"), app(lam("x", var("u")), var("y"))),
+        );
+
+        let reduced = ApplicativeOrder::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, lam("y", var("z")));
+    }
 }
 
 mod beta_hybrid_applicative_order {
@@ -741,13 +771,12 @@ mod beta_hybrid_applicative_order {
         fn reduce_any_expr_compared_to_recursive_impl(
             expr in any_term()
         ) {
-            let mut expr = expr.clone();
-            let mut expr_clone = expr.clone();
+            let mut expected = expr.clone();
+            HybridApplicativeOrder::<Enumerate>::reduce_rec(&mut expected);
 
-            prop_assert_eq!(
-                HybridApplicativeOrder::<Enumerate>::reduce_tramp(&mut expr),
-                HybridApplicativeOrder::<Enumerate>::reduce_rec(&mut expr_clone)
-            );
+            let result = HybridApplicativeOrder::<Enumerate>::reduce(expr.clone());
+
+            prop_assert_eq!(result, expected);
         }
     }
 
@@ -843,13 +872,12 @@ mod beta_head_spine_order {
         fn reduce_any_expr_compared_to_recursive_impl(
             expr in any_term()
         ) {
-            let mut expr = expr.clone();
-            let mut expr_clone = expr.clone();
+            let mut expected = expr.clone();
+            HeadSpine::<Enumerate>::reduce_rec(&mut expected);
 
-            prop_assert_eq!(
-                HeadSpine::<Enumerate>::reduce_tramp(&mut expr),
-                HeadSpine::<Enumerate>::reduce_rec(&mut expr_clone)
-            );
+            let result = HeadSpine::<Enumerate>::reduce(expr.clone());
+
+            prop_assert_eq!(result, expected);
         }
     }
 
@@ -948,13 +976,12 @@ mod beta_hybrid_normal_order {
         fn reduce_any_expr_compared_to_recursive_impl(
             expr in any_term()
         ) {
-            let mut expr = expr.clone();
-            let mut expr_clone = expr.clone();
+            let mut expected = expr.clone();
+            HybridNormalOrder::<Enumerate>::reduce_rec(&mut expected);
 
-            prop_assert_eq!(
-                HybridNormalOrder::<Enumerate>::reduce_tramp(&mut expr),
-                HybridNormalOrder::<Enumerate>::reduce_rec(&mut expr_clone)
-            );
+            let result = HybridNormalOrder::<Enumerate>::reduce(expr.clone());
+
+            prop_assert_eq!(result, expected);
         }
     }
 
@@ -1036,5 +1063,28 @@ mod beta_hybrid_normal_order {
         let reduced = HybridNormalOrder::<Enumerate>::reduce(expr);
 
         assert_eq!(reduced, lam("y", var("y")));
+    }
+
+    #[test]
+    fn complex_expr4() {
+        // ( \x.\y.z ) ( z ((\x.u) y) )
+        let expr = app(
+            lam("x", lam("y", var("z"))),
+            app(var("z"), app(lam("x", var("u")), var("y"))),
+        );
+
+        let reduced = HybridNormalOrder::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, lam("y1", var("z")));
+    }
+
+    #[test]
+    fn complex_expr5() {
+        // \x.((\x.a) x)
+        let expr = lam("x", app(lam("x", var("a")), var("x")));
+
+        let reduced = HybridNormalOrder::<Enumerate>::reduce(expr);
+
+        assert_eq!(reduced, lam("x", var("a")));
     }
 }

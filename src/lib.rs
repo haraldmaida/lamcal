@@ -174,7 +174,7 @@
 
 #[cfg(test)]
 #[macro_use]
-extern crate pretty_assertions;
+extern crate galvanic_assert;
 #[cfg(test)]
 #[macro_use]
 extern crate proptest;

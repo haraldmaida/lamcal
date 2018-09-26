@@ -6,10 +6,12 @@
 #[cfg(test)]
 mod tests;
 
+use std::cell::RefCell;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::mem;
+use std::rc::Rc;
 
 use environment::Environment;
 use term::{Term, Term::*, VarName};
@@ -124,6 +126,12 @@ impl Term {
     ///
     /// The reduction strategy to be used must be given as the type parameter
     /// `B`, like in the example below.
+    ///
+    /// If the reduction of the term diverges it can go through an infinite
+    /// sequence of evaluation steps. To avoid endless loops, a default limit
+    /// of `u32::MAX` reduction steps is applied. Thus this method returns
+    /// when either no more reduction is possible or the limit of `u32::MAX`
+    /// iterations has been reached.
     ///
     /// # Examples
     ///
@@ -685,7 +693,22 @@ where
 /// [reduction strategy]: https://en.wikipedia.org/wiki/Reduction_strategy_(lambda_calculus)
 pub trait BetaReduce {
     /// Performs β-reduction on the given `Term` and returns the result.
-    fn reduce(expr: Term) -> Term;
+    ///
+    /// The default implementation limits the reduction to `u32::MAX` reduction
+    /// steps to prevent endless loops on diverging expressions.
+    fn reduce(expr: Term) -> Term {
+        Self::reduce_n(expr, ::std::u32::MAX)
+    }
+
+    /// Performs one step of β-reduction on the given `Term` and returns the
+    /// result.
+    fn reduce_once(expr: Term) -> Term {
+        Self::reduce_n(expr, 1)
+    }
+
+    /// Performs β-reduction on the given `Term` until the given limit of
+    /// reduction steps is reached and returns the result.
+    fn reduce_n(expr: Term, limit: u32) -> Term;
 }
 
 /// Call-By-Name [β-reduction] to weak head normal form.
@@ -709,10 +732,9 @@ impl<A> BetaReduce for CallByName<A>
 where
     A: AlphaRename,
 {
-    /// Performs β-reduction on a given lambda expression applying a
-    /// call-by-name strategy.
-    fn reduce(mut expr: Term) -> Term {
-        CallByName::<A>::reduce_tramp(&mut expr);
+    fn reduce_n(mut expr: Term, limit: u32) -> Term {
+        let mut count = 0;
+        Self::reduce_n_mut(&mut expr, &mut count, limit);
         expr
     }
 }
@@ -721,44 +743,18 @@ impl<A> CallByName<A>
 where
     A: AlphaRename,
 {
-    fn reduce_tramp(expr: &mut Term) {
-        let mut parents: Vec<*mut Term> = Vec::with_capacity(8);
-        let mut todo: Vec<*mut Term> = Vec::with_capacity(16);
-        todo.push(expr);
-        unsafe {
-            while let Some(term) = todo.pop() {
-                match *term {
-                    App(ref mut lhs, ref rhs) => match **lhs {
-                        App(_, _) => {
-                            todo.push(&mut **lhs);
-                            parents.push(term);
-                        },
-                        Lam(_, _) => {
-                            apply_mut::<A>(&mut **lhs, rhs);
-                            mem::swap(&mut *term, &mut **lhs);
-                            todo.extend(parents.iter().cloned());
-                            todo.push(term);
-                            parents.pop();
-                        },
-                        _ => {},
-                    },
-                    _ => {},
-                }
-            }
-        }
-    }
-
     #[cfg(test)]
     fn reduce_rec(expr: &mut Term) {
         if let Some(subst_with) = match *expr {
             App(ref mut lhs, ref rhs) => {
-                CallByName::<A>::reduce_rec(lhs);
+                Self::reduce_rec(lhs);
                 match **lhs {
                     Lam(_, _) => {
                         apply_mut::<A>(lhs, rhs);
-                        CallByName::<A>::reduce_rec(lhs);
+                        Self::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
+                        //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => None,
@@ -767,6 +763,60 @@ where
             _ => None,
         } {
             *expr = subst_with;
+        }
+    }
+
+    fn reduce_n_mut(expr: &mut Term, count: &mut u32, limit: u32) {
+        let mut temp_term = dummy_term();
+        let mut parents: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(8);
+        let base_term: Rc<RefCell<*mut Term>> = Rc::new(RefCell::new(expr));
+        unsafe {
+            descend_left(base_term, &mut parents);
+            while *count < limit {
+                if let Some(term) = parents.pop() {
+                    let do_swap = match **term.borrow_mut() {
+                        App(ref mut lhs, ref rhs) => match **lhs {
+                            Lam(_, _) => {
+                                apply_mut::<A>(lhs, rhs);
+                                // defer actual substitution outside match expression
+                                // because of the borrow checker
+                                //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                                mem::swap(&mut temp_term, &mut **lhs);
+                                true
+                            },
+                            _ => false,
+                        },
+                        _ => false,
+                    };
+                    if do_swap {
+                        *count += 1;
+                        term.borrow_mut().swap(&mut temp_term);
+                        parents.push(term.clone());
+                        descend_left(term, &mut parents);
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+}
+
+unsafe fn descend_left(term: Rc<RefCell<*mut Term>>, parents: &mut Vec<Rc<RefCell<*mut Term>>>) {
+    let mut to_check: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(1);
+    to_check.push(term);
+    while let Some(term) = to_check.pop() {
+        match **term.borrow_mut() {
+            App(ref mut lhs, _) => {
+                parents.push(term.clone());
+                match **lhs {
+                    App(_, _) => {
+                        to_check.push(Rc::new(RefCell::new(&mut **lhs)));
+                    },
+                    _ => {},
+                }
+            },
+            _ => {},
         }
     }
 }
@@ -793,10 +843,9 @@ impl<A> BetaReduce for NormalOrder<A>
 where
     A: AlphaRename,
 {
-    /// Performs β-reduction on a given lambda expression applying a
-    /// normal-order strategy.
-    fn reduce(mut expr: Term) -> Term {
-        NormalOrder::<A>::reduce_tramp(&mut expr);
+    fn reduce_n(mut expr: Term, limit: u32) -> Term {
+        let mut count = 0;
+        Self::reduce_n_mut(&mut expr, &mut count, limit);
         expr
     }
 }
@@ -805,48 +854,11 @@ impl<A> NormalOrder<A>
 where
     A: AlphaRename,
 {
-    fn reduce_tramp(expr: &mut Term) {
-        let mut temp_term = dummy_term();
-        let mut todo: Vec<&mut Term> = Vec::with_capacity(16);
-        todo.push(expr);
-        while let Some(term) = todo.pop() {
-            let do_swap = match *term {
-                App(ref mut lhs, ref mut rhs) => {
-                    CallByName::<A>::reduce_tramp(lhs);
-                    match **lhs {
-                        Lam(_, _) => {
-                            apply_mut::<A>(lhs, rhs);
-                            mem::swap(&mut temp_term, &mut **lhs);
-                            true
-                        },
-                        _ => false,
-                    }
-                },
-                _ => false,
-            };
-            if do_swap {
-                mem::swap(term, &mut temp_term);
-                todo.push(term);
-            } else {
-                match *term {
-                    Var(_) => {},
-                    Lam(_, ref mut body) => {
-                        todo.push(body);
-                    },
-                    App(ref mut lhs, ref mut rhs) => {
-                        todo.push(rhs);
-                        todo.push(lhs);
-                    },
-                }
-            }
-        }
-    }
-
     #[cfg(test)]
     fn reduce_rec(expr: &mut Term) {
         if let Some(subst_with) = match *expr {
             Lam(_, ref mut body) => {
-                NormalOrder::<A>::reduce_rec(body);
+                Self::reduce_rec(body);
                 None
             },
             App(ref mut lhs, ref mut rhs) => {
@@ -854,14 +866,15 @@ where
                 match **lhs {
                     Lam(_, _) => {
                         apply_mut::<A>(lhs, rhs);
-                        NormalOrder::<A>::reduce_rec(lhs);
+                        Self::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
+                        //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => {
-                        NormalOrder::<A>::reduce_rec(lhs);
-                        NormalOrder::<A>::reduce_rec(rhs);
+                        Self::reduce_rec(lhs);
+                        Self::reduce_rec(rhs);
                         None
                     },
                 }
@@ -869,6 +882,51 @@ where
             _ => None,
         } {
             *expr = subst_with;
+        }
+    }
+
+    fn reduce_n_mut(expr: &mut Term, count: &mut u32, limit: u32) {
+        let mut temp_term = dummy_term();
+        let mut todo: Vec<&mut Term> = Vec::with_capacity(16);
+        todo.push(expr);
+        while *count < limit {
+            if let Some(term) = todo.pop() {
+                let do_swap = match *term {
+                    App(ref mut lhs, ref mut rhs) => {
+                        CallByName::<A>::reduce_n_mut(&mut **lhs, count, limit);
+                        match **lhs {
+                            Lam(_, _) => {
+                                apply_mut::<A>(lhs, rhs);
+                                // defer actual substitution outside match expression
+                                // because of the borrow checker
+                                //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                                mem::swap(&mut temp_term, &mut **lhs);
+                                true
+                            },
+                            _ => false,
+                        }
+                    },
+                    _ => false,
+                };
+                if do_swap {
+                    mem::swap(term, &mut temp_term);
+                    todo.push(term);
+                    *count += 1;
+                } else {
+                    match *term {
+                        Var(_) => {},
+                        Lam(_, ref mut body) => {
+                            todo.push(body);
+                        },
+                        App(ref mut lhs, ref mut rhs) => {
+                            todo.push(rhs);
+                            todo.push(lhs);
+                        },
+                    }
+                }
+            } else {
+                break;
+            }
         }
     }
 }
@@ -895,10 +953,9 @@ impl<A> BetaReduce for CallByValue<A>
 where
     A: AlphaRename,
 {
-    /// Performs β-reduction on a given lambda expression applying a
-    /// call-by-value strategy.
-    fn reduce(mut expr: Term) -> Term {
-        CallByValue::<A>::reduce_tramp(&mut expr);
+    fn reduce_n(mut expr: Term, limit: u32) -> Term {
+        let mut count = 0;
+        Self::reduce_n_mut(&mut expr, &mut count, limit);
         expr
     }
 }
@@ -907,51 +964,19 @@ impl<A> CallByValue<A>
 where
     A: AlphaRename,
 {
-    fn reduce_tramp(expr: &mut Term) {
-        let mut parents: Vec<*mut Term> = Vec::with_capacity(8);
-        let mut todo: Vec<*mut Term> = Vec::with_capacity(16);
-        todo.push(expr);
-        unsafe {
-            while let Some(term) = todo.pop() {
-                match *term {
-                    App(ref mut lhs, ref mut rhs) => match **rhs {
-                        App(_, _) => {
-                            todo.push(&mut **rhs);
-                            parents.push(term);
-                        },
-                        _ => match **lhs {
-                            App(_, _) => {
-                                todo.push(&mut **lhs);
-                                parents.push(term);
-                            },
-                            Lam(_, _) => {
-                                apply_mut::<A>(&mut **lhs, rhs);
-                                mem::swap(&mut *term, &mut **lhs);
-                                todo.extend(parents.iter().cloned());
-                                parents.pop();
-                                todo.push(term);
-                            },
-                            _ => {},
-                        },
-                    },
-                    _ => {},
-                }
-            }
-        }
-    }
-
     #[cfg(test)]
     fn reduce_rec(expr: &mut Term) {
         if let Some(subst_with) = match *expr {
             App(ref mut lhs, ref mut rhs) => {
-                CallByValue::<A>::reduce_rec(lhs);
-                CallByValue::<A>::reduce_rec(rhs);
+                Self::reduce_rec(lhs);
+                Self::reduce_rec(rhs);
                 match **lhs {
                     Lam(_, _) => {
                         apply_mut::<A>(lhs, rhs);
-                        CallByValue::<A>::reduce_rec(lhs);
+                        Self::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
+                        //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => None,
@@ -960,6 +985,70 @@ where
             _ => None,
         } {
             *expr = subst_with;
+        }
+    }
+
+    fn reduce_n_mut(expr: &mut Term, count: &mut u32, limit: u32) {
+        let mut temp_term = dummy_term();
+        let mut parents: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(8);
+        let base_term: Rc<RefCell<*mut Term>> = Rc::new(RefCell::new(expr));
+        unsafe {
+            descend_left_and_right(base_term, &mut parents);
+            while *count < limit {
+                if let Some(term) = parents.pop() {
+                    let do_swap = match **term.borrow_mut() {
+                        App(ref mut lhs, ref mut rhs) => match **lhs {
+                            Lam(_, _) => {
+                                apply_mut::<A>(lhs, rhs);
+                                // defer actual substitution outside match expression
+                                // because of the borrow checker
+                                //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                                mem::swap(&mut temp_term, &mut **lhs);
+                                true
+                            },
+                            _ => false,
+                        },
+                        _ => false,
+                    };
+                    if do_swap {
+                        *count += 1;
+                        term.borrow_mut().swap(&mut temp_term);
+                        parents.push(term.clone());
+                        descend_left_and_right(term.clone(), &mut parents);
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+}
+
+unsafe fn descend_left_and_right(
+    term: Rc<RefCell<*mut Term>>,
+    parents: &mut Vec<Rc<RefCell<*mut Term>>>,
+) {
+    let mut to_check: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(1);
+    to_check.push(term);
+    while let Some(term) = to_check.pop() {
+        match **term.borrow_mut() {
+            App(ref mut lhs, ref mut rhs) => {
+                parents.push(term.clone());
+                match **rhs {
+                    App(_, _) => {
+                        to_check.push(Rc::new(RefCell::new(&mut **rhs)));
+                    },
+                    _ => {},
+                }
+                match **lhs {
+                    App(_, _) => {
+                        parents.push(term.clone());
+                        to_check.push(Rc::new(RefCell::new(&mut **lhs)));
+                    },
+                    _ => {},
+                }
+            },
+            _ => {},
         }
     }
 }
@@ -985,10 +1074,9 @@ impl<A> BetaReduce for ApplicativeOrder<A>
 where
     A: AlphaRename,
 {
-    /// Performs β-reduction on a given lambda expression applying a
-    /// applicative-order strategy.
-    fn reduce(mut expr: Term) -> Term {
-        ApplicativeOrder::<A>::reduce_tramp(&mut expr);
+    fn reduce_n(mut expr: Term, limit: u32) -> Term {
+        let mut count = 0;
+        Self::reduce_n_mut(&mut expr, &mut count, limit);
         expr
     }
 }
@@ -997,58 +1085,23 @@ impl<A> ApplicativeOrder<A>
 where
     A: AlphaRename,
 {
-    fn reduce_tramp(expr: &mut Term) {
-        let mut parents: Vec<*mut Term> = Vec::with_capacity(8);
-        let mut todo: Vec<*mut Term> = Vec::with_capacity(16);
-        todo.push(expr);
-        unsafe {
-            while let Some(term) = todo.pop() {
-                match *term {
-                    Lam(_, ref mut body) => {
-                        todo.push(&mut **body);
-                    },
-                    App(ref mut lhs, ref mut rhs) => match **rhs {
-                        App(_, _) => {
-                            todo.push(&mut **rhs);
-                            parents.push(term);
-                        },
-                        _ => match **lhs {
-                            App(_, _) => {
-                                todo.push(&mut **lhs);
-                                parents.push(term);
-                            },
-                            Lam(_, _) => {
-                                apply_mut::<A>(&mut **lhs, rhs);
-                                mem::swap(&mut *term, &mut **lhs);
-                                todo.extend(parents.iter().cloned());
-                                parents.pop();
-                                todo.push(term);
-                            },
-                            _ => {},
-                        },
-                    },
-                    _ => {},
-                }
-            }
-        }
-    }
-
     #[cfg(test)]
     fn reduce_rec(expr: &mut Term) {
         if let Some(subst_with) = match *expr {
             Lam(_, ref mut body) => {
-                ApplicativeOrder::<A>::reduce_rec(body);
+                Self::reduce_rec(body);
                 None
             },
             App(ref mut lhs, ref mut rhs) => {
-                ApplicativeOrder::<A>::reduce_rec(lhs);
-                ApplicativeOrder::<A>::reduce_rec(rhs);
+                Self::reduce_rec(lhs);
+                Self::reduce_rec(rhs);
                 match **lhs {
                     Lam(_, _) => {
                         apply_mut::<A>(lhs, rhs);
-                        ApplicativeOrder::<A>::reduce_rec(lhs);
+                        Self::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
+                        //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => None,
@@ -1057,6 +1110,79 @@ where
             _ => None,
         } {
             *expr = subst_with;
+        }
+    }
+
+    fn reduce_n_mut(expr: &mut Term, count: &mut u32, limit: u32) {
+        let mut temp_term = dummy_term();
+        let mut parents: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(8);
+        let base_term: Rc<RefCell<*mut Term>> = Rc::new(RefCell::new(expr));
+        unsafe {
+            descend_left_and_right_and_body(base_term, &mut parents);
+            while *count < limit {
+                if let Some(term) = parents.pop() {
+                    let do_swap = match **term.borrow_mut() {
+                        App(ref mut lhs, ref rhs) => match **lhs {
+                            Lam(_, _) => {
+                                apply_mut::<A>(lhs, rhs);
+                                // defer actual substitution outside match expression
+                                // because of the borrow checker
+                                //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                                mem::swap(&mut temp_term, &mut **lhs);
+                                true
+                            },
+                            _ => false,
+                        },
+                        _ => false,
+                    };
+                    if do_swap {
+                        *count += 1;
+                        term.borrow_mut().swap(&mut temp_term);
+                        parents.push(term.clone());
+                        descend_left_and_right_and_body(term, &mut parents);
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+}
+
+unsafe fn descend_left_and_right_and_body(
+    term: Rc<RefCell<*mut Term>>,
+    parents: &mut Vec<Rc<RefCell<*mut Term>>>,
+) {
+    let mut to_check: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(1);
+    to_check.push(term);
+    while let Some(term) = to_check.pop() {
+        match **term.borrow_mut() {
+            Lam(_, ref mut body) => {
+                to_check.push(Rc::new(RefCell::new(&mut **body)));
+            },
+            App(ref mut lhs, ref mut rhs) => {
+                parents.push(term.clone());
+                match **rhs {
+                    App(_, _) => {
+                        to_check.push(Rc::new(RefCell::new(&mut **rhs)));
+                    },
+                    Lam(_, _) => {
+                        to_check.push(Rc::new(RefCell::new(&mut **rhs)));
+                    },
+                    _ => {},
+                }
+                match **lhs {
+                    App(_, _) => {
+                        parents.push(term.clone());
+                        to_check.push(Rc::new(RefCell::new(&mut **lhs)));
+                    },
+                    Lam(_, _) => {
+                        to_check.push(Rc::new(RefCell::new(&mut **lhs)));
+                    },
+                    _ => {},
+                }
+            },
+            _ => {},
         }
     }
 }
@@ -1085,10 +1211,9 @@ impl<A> BetaReduce for HybridApplicativeOrder<A>
 where
     A: AlphaRename,
 {
-    /// Performs β-reduction on a given lambda expression applying a
-    /// applicative-order strategy.
-    fn reduce(mut expr: Term) -> Term {
-        HybridApplicativeOrder::<A>::reduce_tramp(&mut expr);
+    fn reduce_n(mut expr: Term, limit: u32) -> Term {
+        let mut count = 0;
+        Self::reduce_n_mut(&mut expr, &mut count, limit);
         expr
     }
 }
@@ -1097,65 +1222,27 @@ impl<A> HybridApplicativeOrder<A>
 where
     A: AlphaRename,
 {
-    fn reduce_tramp(expr: &mut Term) {
-        let mut parents: Vec<*mut Term> = Vec::with_capacity(8);
-        let mut todo: Vec<*mut Term> = Vec::with_capacity(16);
-        todo.push(expr);
-        unsafe {
-            while let Some(term) = todo.pop() {
-                match *term {
-                    Lam(_, ref mut body) => {
-                        todo.push(&mut **body);
-                    },
-                    App(ref mut lhs, ref mut rhs) => match **rhs {
-                        App(_, _) => {
-                            todo.push(&mut **rhs);
-                            parents.push(term);
-                        },
-                        _ => {
-                            CallByValue::<A>::reduce_tramp(&mut **lhs);
-                            match **lhs {
-                                App(_, _) => {
-                                    todo.push(&mut **lhs);
-                                    parents.push(term);
-                                },
-                                Lam(_, _) => {
-                                    apply_mut::<A>(&mut **lhs, rhs);
-                                    mem::swap(&mut *term, &mut **lhs);
-                                    todo.extend(parents.iter().cloned());
-                                    parents.pop();
-                                    todo.push(term);
-                                },
-                                _ => {},
-                            }
-                        },
-                    },
-                    _ => {},
-                }
-            }
-        }
-    }
-
     #[cfg(test)]
     fn reduce_rec(expr: &mut Term) {
         if let Some(subst_with) = match *expr {
             Lam(_, ref mut body) => {
-                HybridApplicativeOrder::<A>::reduce_rec(body);
+                Self::reduce_rec(body);
                 None
             },
             App(ref mut lhs, ref mut rhs) => {
-                CallByValue::<A>::reduce_tramp(lhs);
-                HybridApplicativeOrder::<A>::reduce_rec(rhs);
+                CallByValue::<A>::reduce_rec(lhs);
+                Self::reduce_rec(rhs);
                 match **lhs {
                     Lam(_, _) => {
                         apply_mut::<A>(lhs, rhs);
-                        HybridApplicativeOrder::<A>::reduce_rec(lhs);
+                        Self::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
+                        //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => {
-                        HybridApplicativeOrder::<A>::reduce_rec(lhs);
+                        Self::reduce_rec(lhs);
                         None
                     },
                 }
@@ -1163,6 +1250,72 @@ where
             _ => None,
         } {
             *expr = subst_with;
+        }
+    }
+
+    fn reduce_n_mut(expr: &mut Term, count: &mut u32, limit: u32) {
+        let mut temp_term = dummy_term();
+        let mut parents: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(8);
+        let base_term: Rc<RefCell<*mut Term>> = Rc::new(RefCell::new(expr));
+        unsafe {
+            descend_right_and_body(base_term, &mut parents);
+            while *count < limit {
+                if let Some(term) = parents.pop() {
+                    let do_swap = match **term.borrow_mut() {
+                        App(ref mut lhs, ref rhs) => {
+                            CallByValue::<A>::reduce_n_mut(lhs, count, limit);
+                            match **lhs {
+                                Lam(_, _) => {
+                                    apply_mut::<A>(lhs, rhs);
+                                    // defer actual substitution outside match expression
+                                    // because of the borrow checker
+                                    //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                                    mem::swap(&mut temp_term, &mut **lhs);
+                                    true
+                                },
+                                _ => false,
+                            }
+                        },
+                        _ => false,
+                    };
+                    if do_swap {
+                        *count += 1;
+                        term.borrow_mut().swap(&mut temp_term);
+                        parents.push(term.clone());
+                        descend_right_and_body(term, &mut parents);
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+}
+
+unsafe fn descend_right_and_body(
+    term: Rc<RefCell<*mut Term>>,
+    parents: &mut Vec<Rc<RefCell<*mut Term>>>,
+) {
+    let mut to_check: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(1);
+    to_check.push(term);
+    while let Some(term) = to_check.pop() {
+        match **term.borrow_mut() {
+            Lam(_, ref mut body) => {
+                to_check.push(Rc::new(RefCell::new(&mut **body)));
+            },
+            App(_, ref mut rhs) => {
+                parents.push(term.clone());
+                match **rhs {
+                    App(_, _) => {
+                        to_check.push(Rc::new(RefCell::new(&mut **rhs)));
+                    },
+                    Lam(_, _) => {
+                        to_check.push(Rc::new(RefCell::new(&mut **rhs)));
+                    },
+                    _ => {},
+                }
+            },
+            _ => {},
         }
     }
 }
@@ -1185,10 +1338,9 @@ impl<A> BetaReduce for HeadSpine<A>
 where
     A: AlphaRename,
 {
-    /// Performs β-reduction on a given lambda expression applying a
-    /// applicative-order strategy.
-    fn reduce(mut expr: Term) -> Term {
-        HeadSpine::<A>::reduce_tramp(&mut expr);
+    fn reduce_n(mut expr: Term, limit: u32) -> Term {
+        let mut count = 0;
+        Self::reduce_n_mut(&mut expr, &mut count, limit);
         expr
     }
 }
@@ -1197,51 +1349,22 @@ impl<A> HeadSpine<A>
 where
     A: AlphaRename,
 {
-    fn reduce_tramp(expr: &mut Term) {
-        let mut parents: Vec<*mut Term> = Vec::with_capacity(8);
-        let mut todo: Vec<*mut Term> = Vec::with_capacity(16);
-        todo.push(expr);
-        unsafe {
-            while let Some(term) = todo.pop() {
-                match *term {
-                    Lam(_, ref mut body) => {
-                        todo.push(&mut **body);
-                    },
-                    App(ref mut lhs, ref mut rhs) => match **lhs {
-                        App(_, _) => {
-                            todo.push(&mut **lhs);
-                            parents.push(term);
-                        },
-                        Lam(_, _) => {
-                            apply_mut::<A>(&mut **lhs, rhs);
-                            mem::swap(&mut *term, &mut **lhs);
-                            todo.extend(parents.iter().cloned());
-                            parents.pop();
-                            todo.push(term);
-                        },
-                        _ => {},
-                    },
-                    _ => {},
-                }
-            }
-        }
-    }
-
     #[cfg(test)]
     fn reduce_rec(expr: &mut Term) {
         if let Some(subst_with) = match *expr {
             Lam(_, ref mut body) => {
-                HeadSpine::<A>::reduce_rec(body);
+                Self::reduce_rec(body);
                 None
             },
             App(ref mut lhs, ref rhs) => {
-                HeadSpine::<A>::reduce_rec(lhs);
+                Self::reduce_rec(lhs);
                 match **lhs {
                     Lam(_, _) => {
                         apply_mut::<A>(lhs, rhs);
-                        HeadSpine::<A>::reduce_rec(lhs);
+                        Self::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
+                        //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => None,
@@ -1250,6 +1373,61 @@ where
             _ => None,
         } {
             *expr = subst_with;
+        }
+    }
+
+    fn reduce_n_mut(expr: &mut Term, count: &mut u32, limit: u32) {
+        let mut temp_term = dummy_term();
+        let mut parents: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(8);
+        let base_term: Rc<RefCell<*mut Term>> = Rc::new(RefCell::new(expr));
+        unsafe {
+            descend_left_and_body(base_term, &mut parents);
+            while *count < limit {
+                if let Some(term) = parents.pop() {
+                    let do_swap = match **term.borrow_mut() {
+                        App(ref mut lhs, ref rhs) => match **lhs {
+                            Lam(_, _) => {
+                                apply_mut::<A>(lhs, rhs);
+                                // defer actual substitution outside match expression
+                                // because of the borrow checker
+                                //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                                mem::swap(&mut temp_term, &mut **lhs);
+                                true
+                            },
+                            _ => false,
+                        },
+                        _ => false,
+                    };
+                    if do_swap {
+                        *count += 1;
+                        term.borrow_mut().swap(&mut temp_term);
+                        parents.push(term.clone());
+                        descend_left_and_body(term, &mut parents);
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+}
+
+unsafe fn descend_left_and_body(
+    term: Rc<RefCell<*mut Term>>,
+    parents: &mut Vec<Rc<RefCell<*mut Term>>>,
+) {
+    let mut to_check: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(1);
+    to_check.push(term);
+    while let Some(term) = to_check.pop() {
+        match **term.borrow_mut() {
+            Lam(_, ref mut body) => {
+                to_check.push(Rc::new(RefCell::new(&mut **body)));
+            },
+            App(ref mut lhs, _) => {
+                parents.push(term.clone());
+                to_check.push(Rc::new(RefCell::new(&mut **lhs)));
+            },
+            _ => {},
         }
     }
 }
@@ -1277,10 +1455,9 @@ impl<A> BetaReduce for HybridNormalOrder<A>
 where
     A: AlphaRename,
 {
-    /// Performs β-reduction on a given lambda expression applying a
-    /// applicative-order strategy.
-    fn reduce(mut expr: Term) -> Term {
-        HybridNormalOrder::<A>::reduce_tramp(&mut expr);
+    fn reduce_n(mut expr: Term, limit: u32) -> Term {
+        let mut count = 0;
+        Self::reduce_n_mut(&mut expr, &mut count, limit);
         expr
     }
 }
@@ -1289,67 +1466,27 @@ impl<A> HybridNormalOrder<A>
 where
     A: AlphaRename,
 {
-    fn reduce_tramp(expr: &mut Term) {
-        let mut parents: Vec<*mut Term> = Vec::with_capacity(8);
-        let mut todo: Vec<*mut Term> = Vec::with_capacity(16);
-        todo.push(expr);
-        unsafe {
-            while let Some(term) = todo.pop() {
-                match *term {
-                    Lam(_, ref mut body) => {
-                        todo.push(&mut **body);
-                    },
-                    App(ref mut lhs, ref mut rhs) => match **lhs {
-                        Lam(_, _) => {
-                            apply_mut::<A>(&mut **lhs, rhs);
-                            mem::swap(&mut *term, &mut **lhs);
-                            todo.extend(parents.iter().cloned());
-                            parents.pop();
-                            todo.push(term);
-                        },
-                        _ => {
-                            match **rhs {
-                                App(_, _) => {
-                                    todo.push(&mut **rhs);
-                                    parents.push(term);
-                                },
-                                _ => {},
-                            }
-                            match **lhs {
-                                App(_, _) => {
-                                    todo.push(&mut **lhs);
-                                    parents.push(term);
-                                },
-                                _ => {},
-                            }
-                        },
-                    },
-                    _ => {},
-                }
-            }
-        }
-    }
-
     #[cfg(test)]
     fn reduce_rec(expr: &mut Term) {
         if let Some(subst_with) = match *expr {
             Lam(_, ref mut body) => {
-                HybridNormalOrder::<A>::reduce_rec(body);
+                Self::reduce_rec(body);
                 None
             },
             App(ref mut lhs, ref mut rhs) => {
-                HeadSpine::<A>::reduce_tramp(lhs);
+                HeadSpine::<A>::reduce_rec(lhs);
                 match **lhs {
                     Lam(_, _) => {
                         apply_mut::<A>(lhs, rhs);
-                        HybridNormalOrder::<A>::reduce_rec(lhs);
+                        Self::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
+                        //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => {
-                        HybridNormalOrder::<A>::reduce_rec(lhs);
-                        HybridNormalOrder::<A>::reduce_rec(rhs);
+                        Self::reduce_rec(lhs);
+                        Self::reduce_rec(rhs);
                         None
                     },
                 }
@@ -1357,6 +1494,54 @@ where
             _ => None,
         } {
             *expr = subst_with;
+        }
+    }
+
+    fn reduce_n_mut(expr: &mut Term, count: &mut u32, limit: u32) {
+        let mut temp_term = dummy_term();
+        let mut parents: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(8);
+        let base_term: Rc<RefCell<*mut Term>> = Rc::new(RefCell::new(expr));
+        unsafe {
+            descend_left_and_body(base_term, &mut parents);
+            while *count < limit {
+                if let Some(term) = parents.pop() {
+                    let do_swap = match **term.borrow_mut() {
+                        App(ref mut lhs, ref mut rhs) => {
+                            HeadSpine::<A>::reduce_n_mut(lhs, count, limit);
+                            match **lhs {
+                                Lam(_, _) => {
+                                    apply_mut::<A>(lhs, rhs);
+                                    // defer actual substitution outside match expression
+                                    // because of the borrow checker
+                                    //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                                    mem::swap(&mut temp_term, &mut **lhs);
+                                    true
+                                },
+                                _ => {
+                                    descend_left_and_right_and_body(
+                                        Rc::new(RefCell::new(&mut **rhs)),
+                                        &mut parents,
+                                    );
+                                    descend_left_and_right_and_body(
+                                        Rc::new(RefCell::new(&mut **lhs)),
+                                        &mut parents,
+                                    );
+                                    false
+                                },
+                            }
+                        },
+                        _ => false,
+                    };
+                    if do_swap {
+                        *count += 1;
+                        term.borrow_mut().swap(&mut temp_term);
+                        parents.push(term.clone());
+                        descend_left_and_right_and_body(term, &mut parents);
+                    }
+                } else {
+                    break;
+                }
+            }
         }
     }
 }
