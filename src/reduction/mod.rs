@@ -62,7 +62,7 @@ impl Term {
                 },
             }
         }
-        return false;
+        false
     }
 
     /// Returns whether this `Term` is a [beta normal form].
@@ -806,17 +806,11 @@ unsafe fn descend_left(term: Rc<RefCell<*mut Term>>, parents: &mut Vec<Rc<RefCel
     let mut to_check: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(1);
     to_check.push(term);
     while let Some(term) = to_check.pop() {
-        match **term.borrow_mut() {
-            App(ref mut lhs, _) => {
-                parents.push(term.clone());
-                match **lhs {
-                    App(_, _) => {
-                        to_check.push(Rc::new(RefCell::new(&mut **lhs)));
-                    },
-                    _ => {},
-                }
-            },
-            _ => {},
+        if let App(ref mut lhs, _) = **term.borrow_mut() {
+            parents.push(term.clone());
+            if let App(_, _) = **lhs {
+                to_check.push(Rc::new(RefCell::new(&mut **lhs)));
+            }
         }
     }
 }
@@ -1031,24 +1025,15 @@ unsafe fn descend_left_and_right(
     let mut to_check: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(1);
     to_check.push(term);
     while let Some(term) = to_check.pop() {
-        match **term.borrow_mut() {
-            App(ref mut lhs, ref mut rhs) => {
+        if let App(ref mut lhs, ref mut rhs) = **term.borrow_mut() {
+            parents.push(term.clone());
+            if let App(_, _) = **rhs {
+                to_check.push(Rc::new(RefCell::new(&mut **rhs)));
+            }
+            if let App(_, _) = **lhs {
                 parents.push(term.clone());
-                match **rhs {
-                    App(_, _) => {
-                        to_check.push(Rc::new(RefCell::new(&mut **rhs)));
-                    },
-                    _ => {},
-                }
-                match **lhs {
-                    App(_, _) => {
-                        parents.push(term.clone());
-                        to_check.push(Rc::new(RefCell::new(&mut **lhs)));
-                    },
-                    _ => {},
-                }
-            },
-            _ => {},
+                to_check.push(Rc::new(RefCell::new(&mut **lhs)));
+            }
         }
     }
 }
