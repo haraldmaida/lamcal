@@ -810,6 +810,8 @@ unsafe fn descend_left(term: Rc<RefCell<*mut Term>>, parents: &mut Vec<Rc<RefCel
             parents.push(term.clone());
             if let App(_, _) = **lhs {
                 to_check.push(Rc::new(RefCell::new(&mut **lhs)));
+            } else {
+                break;
             }
         }
     }
@@ -1022,7 +1024,7 @@ unsafe fn descend_left_and_right(
     term: Rc<RefCell<*mut Term>>,
     parents: &mut Vec<Rc<RefCell<*mut Term>>>,
 ) {
-    let mut to_check: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(1);
+    let mut to_check: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(2);
     to_check.push(term);
     while let Some(term) = to_check.pop() {
         if let App(ref mut lhs, ref mut rhs) = **term.borrow_mut() {
@@ -1138,7 +1140,7 @@ unsafe fn descend_left_and_right_and_body(
     term: Rc<RefCell<*mut Term>>,
     parents: &mut Vec<Rc<RefCell<*mut Term>>>,
 ) {
-    let mut to_check: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(1);
+    let mut to_check: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(2);
     to_check.push(term);
     while let Some(term) = to_check.pop() {
         match **term.borrow_mut() {
@@ -1297,10 +1299,10 @@ unsafe fn descend_right_and_body(
                     Lam(_, _) => {
                         to_check.push(Rc::new(RefCell::new(&mut **rhs)));
                     },
-                    _ => {},
+                    _ => break,
                 }
             },
-            _ => {},
+            _ => break,
         }
     }
 }
@@ -1412,7 +1414,7 @@ unsafe fn descend_left_and_body(
                 parents.push(term.clone());
                 to_check.push(Rc::new(RefCell::new(&mut **lhs)));
             },
-            _ => {},
+            _ => break,
         }
     }
 }
