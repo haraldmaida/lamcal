@@ -3,9 +3,6 @@
 //! [evaluation strategies]: https://en.wikipedia.org/wiki/Evaluation_strategy
 //! [reduction strategies]: https://en.wikipedia.org/wiki/Lambda_calculus#Reduction_strategies
 
-#[cfg(test)]
-mod tests;
-
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::iter::FromIterator;
@@ -14,6 +11,7 @@ use std::mem;
 use std::rc::Rc;
 
 use environment::Environment;
+use inspect::{Inspect, Limit, NoOp, Stop};
 use term::{Term, Term::*, VarName};
 
 fn dummy_term() -> Term {
@@ -47,7 +45,7 @@ impl Term {
     ///
     /// [beta redex]: https://en.wikipedia.org/wiki/Beta_normal_form#Beta_reduction
     pub fn is_beta_redex(&self) -> bool {
-        let mut to_check = Vec::with_capacity(16);
+        let mut to_check = Vec::with_capacity(2);
         to_check.push(self);
         while let Some(term) = to_check.pop() {
             match *term {
@@ -162,10 +160,28 @@ impl Term {
         *self = <B as BetaReduce>::reduce(expr);
     }
 
+    /// Performs a [β-reduction] on this `Term` with inspection.
+    ///
+    /// The given inspection is called before each contraction (reduction step).
+    /// See the documentation of the [`inspect`](mod.inspect.html) module for
+    /// information on how to define an inspection and the implementations that
+    /// are provided.
+    ///
+    /// The reduction strategy to be used must be given as the type parameter
+    /// `B`.
+    pub fn reduce_inspected<B, I>(&mut self, inspect: &mut I)
+    where
+        B: BetaReduce,
+        I: Inspect,
+    {
+        let expr = mem::replace(self, dummy_term());
+        *self = <B as BetaReduce>::reduce_inspected(expr, inspect)
+    }
+
     /// Replaces free variables with the term bound to the variable's name in
     /// the given environment.
     ///
-    /// This method walks through this whole term and replaces any variable
+    /// This method walks through the whole term and replaces any free variable
     /// with the term bound to the variable's name in the given environment.
     /// Bound variables are not replaced.
     ///
@@ -204,7 +220,82 @@ impl Term {
     /// # }
     /// ```
     pub fn expand(&mut self, env: &Environment) {
-        expand_tramp(self, HashSet::new(), env)
+        expand_tramp_inspected(self, env, &mut NoOp)
+    }
+
+    /// Replaces free variables with the term bound to the variable's name in
+    /// the given environment with inspection.
+    ///
+    /// This method walks through the whole term and replaces any free variable
+    /// with the term bound to the variable's name in the given environment.
+    /// Bound variables are not replaced.
+    ///
+    /// Before each substitution of a variable with its bound term from the
+    /// environment the given inspection is called. See the documentation
+    /// of the [`inspect`](mod.inspect.html) module for information on how to
+    /// define an inspection and the implementations that are provided.
+    ///
+    /// This method modifies this `Term` in place. If you want to expand named
+    /// constants and get the result as a new `Term` while keeping the original
+    /// `Term` unchanged use the standalone function
+    /// [`expand`](fn.expand_inspected.html) instead.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[macro_use]
+    /// # extern crate lamcal;
+    /// # use lamcal::{app, expand_inspected, lam, var, Environment};
+    /// # use lamcal::inspect::Collect;
+    /// # fn main() {
+    /// let env = Environment::default();
+    ///
+    /// let mut expr = app![
+    ///     var("C"),
+    ///     lam("a", app(var("K"), var("I"))),
+    ///     var("e"),
+    ///     var("f")
+    /// ];
+    ///
+    /// let mut collected = Collect::new();
+    /// expr.expand_inspected(&env, &mut collected);
+    ///
+    /// assert_eq!(
+    ///     collected.terms(),
+    ///     &vec![
+    ///         app![
+    ///             var("C"),
+    ///             lam("a", app(var("K"), var("I"))),
+    ///             var("e"),
+    ///             var("f")
+    ///         ],
+    ///         app![
+    ///             lam("a", lam("b", lam("c", app![var("a"), var("c"), var("b")]))),
+    ///             lam("a", app(var("K"), var("I"))),
+    ///             var("e"),
+    ///             var("f")
+    ///         ],
+    ///         app![
+    ///             lam("a", lam("b", lam("c", app![var("a"), var("c"), var("b")]))),
+    ///             lam("a", app(lam("a", lam("b", var("a"))), var("I"))),
+    ///             var("e"),
+    ///             var("f")
+    ///         ],
+    ///     ][..],
+    /// );
+    /// assert_eq!(
+    ///     expr,
+    ///     app![
+    ///         lam("a", lam("b", lam("c", app![var("a"), var("c"), var("b")]))),
+    ///         lam("a", app(lam("a", lam("b", var("a"))), lam("a", var("a")))),
+    ///         var("e"),
+    ///         var("f")
+    ///     ]
+    /// );
+    /// # }
+    /// ```
+    pub fn expand_inspected(&mut self, env: &Environment, inspect: &mut impl Inspect) {
+        expand_tramp_inspected(self, env, inspect)
     }
 
     /// Evaluates this lambda expression in the given environment.
@@ -250,8 +341,101 @@ impl Term {
     where
         B: BetaReduce,
     {
-        self.expand(env);
-        self.reduce::<B>();
+        expand_tramp_inspected(self, env, &mut NoOp);
+        let expr = mem::replace(self, dummy_term());
+        *self = <B as BetaReduce>::reduce(expr);
+    }
+
+    /// Evaluates this lambda expression with inspection in the given
+    /// environment.
+    ///
+    /// For the β-reduction step a reduction strategy is required. Therefore the
+    /// reduction strategy must be specified as the type parameter `B`.
+    ///
+    /// The given inspection is called before each substitution of a free
+    /// variable with its bound term and before each contraction (reduction
+    /// step). See the documentation of the [`inspect`](mod.inspect.html)
+    /// for information on how to define an inspection and the implementations
+    /// that are provided.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[macro_use]
+    /// # extern crate lamcal;
+    /// # use lamcal::{app, evaluate, lam, var, Enumerate, Environment, NormalOrder};
+    /// # use lamcal::inspect::{Collect};
+    /// # fn main() {
+    /// let env = Environment::default();
+    ///
+    /// let mut expr = app![
+    ///     var("C"),
+    ///     lam("x", lam("y", app(var("x"), var("y")))),
+    ///     var("e"),
+    ///     var("f")
+    /// ];
+    ///
+    /// let mut collected = Collect::new();
+    ///
+    /// expr.evaluate_inspected::<NormalOrder<Enumerate>, _>(&env, &mut collected);
+    ///
+    /// assert_eq!(
+    ///     collected.terms(),
+    ///     &vec![
+    ///         app![
+    ///             var("C"),
+    ///             lam("x", lam("y", app(var("x"), var("y")))),
+    ///             var("e"),
+    ///             var("f")
+    ///         ],
+    ///         app![
+    ///             lam("a", lam("b", lam("c", app![var("a"), var("c"), var("b")]))),
+    ///             lam("x", lam("y", app(var("x"), var("y")))),
+    ///             var("e"),
+    ///             var("f")
+    ///         ],
+    ///         app![
+    ///             lam(
+    ///                 "b",
+    ///                 lam(
+    ///                     "c",
+    ///                     app![
+    ///                         lam("x", lam("y", app(var("x"), var("y")))),
+    ///                         var("c"),
+    ///                         var("b")
+    ///                     ]
+    ///                 )
+    ///             ),
+    ///             var("e"),
+    ///             var("f")
+    ///         ],
+    ///         app![
+    ///             lam(
+    ///                 "b",
+    ///                 lam("c", app![lam("y", app(var("c"), var("y"))), var("b")])
+    ///             ),
+    ///             var("e"),
+    ///             var("f")
+    ///         ],
+    ///         app![
+    ///             lam("b", lam("c", app(var("c"), var("b")),)),
+    ///             var("e"),
+    ///             var("f")
+    ///         ],
+    ///         app![lam("c", app(var("c"), var("e"))), var("f")],
+    ///     ][..],
+    /// );
+    /// assert_eq!(expr, app(var("f"), var("e")));
+    /// # }
+    /// ```
+    pub fn evaluate_inspected<B, I>(&mut self, env: &Environment, inspect: &mut I)
+    where
+        B: BetaReduce,
+        I: Inspect,
+    {
+        expand_tramp_inspected(self, env, inspect);
+        let expr = mem::replace(self, dummy_term());
+        *self = <B as BetaReduce>::reduce_inspected(expr, inspect);
     }
 }
 
@@ -301,8 +485,102 @@ where
     B: BetaReduce,
 {
     let mut expr2 = expr.clone();
-    expr2.evaluate::<B>(env);
-    expr2
+    expand_tramp_inspected(&mut expr2, env, &mut NoOp);
+    <B as BetaReduce>::reduce(expr2)
+}
+
+/// Evaluates a lambda expression with inspection in the given environment.
+///
+/// This function takes the given expression by reference and returns a new
+/// `Term` with the evaluation applied. The given `Term` remains unchanged.
+///
+/// For the β-reduction step a reduction strategy is required. Therefore the
+/// reduction strategy must be specified as the type parameter `B`.
+///
+/// The given inspection is called before each substitution of a free variable
+/// with its bound term from the environment and before each contraction
+/// (reduction step). See the documentation of the
+/// [`inspect`](mod.inspect.html) for information on how to define an
+/// inspection and the implementations that are provided.
+///
+/// # Examples
+///
+/// ```
+/// # #[macro_use]
+/// # extern crate lamcal;
+/// # use lamcal::{app, evaluate_inspected, lam, var, Enumerate, Environment, NormalOrder};
+/// # use lamcal::inspect::{Collect};
+/// # fn main() {
+/// let env = Environment::default();
+///
+/// let expr = app![
+///     var("C"),
+///     lam("x", lam("y", app(var("x"), var("y")))),
+///     var("e"),
+///     var("f")
+/// ];
+///
+/// let mut collected = Collect::new();
+///
+/// let result = evaluate_inspected::<NormalOrder<Enumerate>, _>(&expr, &env, &mut collected);
+///
+/// assert_eq!(
+///     collected.terms(),
+///     &vec![
+///         app![
+///             var("C"),
+///             lam("x", lam("y", app(var("x"), var("y")))),
+///             var("e"),
+///             var("f")
+///         ],
+///         app![
+///             lam("a", lam("b", lam("c", app![var("a"), var("c"), var("b")]))),
+///             lam("x", lam("y", app(var("x"), var("y")))),
+///             var("e"),
+///             var("f")
+///         ],
+///         app![
+///             lam(
+///                 "b",
+///                 lam(
+///                     "c",
+///                     app![
+///                         lam("x", lam("y", app(var("x"), var("y")))),
+///                         var("c"),
+///                         var("b")
+///                     ]
+///                 )
+///             ),
+///             var("e"),
+///             var("f")
+///         ],
+///         app![
+///             lam(
+///                 "b",
+///                 lam("c", app![lam("y", app(var("c"), var("y"))), var("b")])
+///             ),
+///             var("e"),
+///             var("f")
+///         ],
+///         app![
+///             lam("b", lam("c", app(var("c"), var("b")),)),
+///             var("e"),
+///             var("f")
+///         ],
+///         app![lam("c", app(var("c"), var("e"))), var("f")],
+///     ][..],
+/// );
+/// assert_eq!(result, app(var("f"), var("e")));
+/// # }
+/// ```
+pub fn evaluate_inspected<B, I>(expr: &Term, env: &Environment, inspect: &mut I) -> Term
+where
+    B: BetaReduce,
+    I: Inspect,
+{
+    let mut expr2 = expr.clone();
+    expand_tramp_inspected(&mut expr2, env, inspect);
+    <B as BetaReduce>::reduce_inspected(expr2, inspect)
 }
 
 /// Replaces free variables in a term with the term that is bound to the
@@ -364,22 +642,92 @@ where
 /// ```
 pub fn expand(expr: &Term, env: &Environment) -> Term {
     let mut expr2 = expr.clone();
-    expand_tramp(&mut expr2, HashSet::new(), env);
+    expand_tramp_inspected(&mut expr2, env, &mut NoOp);
     expr2
 }
 
-fn expand_tramp(expr: &mut Term, bound_vars: HashSet<VarName>, env: &Environment) {
-    let mut todo: Vec<(&mut Term, HashSet<VarName>)> = Vec::with_capacity(16);
-    todo.push((expr, bound_vars));
+/// Replaces free variables in a term with the term that is bound to the
+/// variable's name in the given environment.
+///
+/// This function walks through the whole term and replaces any free variable
+/// with the term bound to the variable's name in the given environment. Bound
+/// variables are not replaced.
+///
+/// Before each substitution of a variable with its bound term from the
+/// environment the given inspection is called. See the documentation
+/// of the [`inspect`](mod.inspect.html) module for information on how to
+/// define an inspection and the implementations that are provided.
+///
+/// The result is returned as a new `Term`. The given term remains unchanged. If
+/// you want to expand named constants in a term in place use the associated
+/// function [`Term::expand`](enum.Term.html#method.expand) instead.
+///
+/// # Examples
+///
+/// ```
+/// # #[macro_use]
+/// # extern crate lamcal;
+/// # use lamcal::{app, expand_inspected, lam, var, Environment};
+/// # use lamcal::inspect::Collect;
+/// # fn main() {
+/// let env = Environment::default();
+///
+/// let expr = app![
+///     var("C"),
+///     lam("a", app(var("K"), var("I"))),
+///     var("e"),
+///     var("f")
+/// ];
+///
+/// let mut collected = Collect::new();
+/// let result = expand_inspected(&expr, &env, &mut collected);
+///
+/// assert_eq!(
+///     collected.terms(),
+///     &vec![
+///         app![
+///             var("C"),
+///             lam("a", app(var("K"), var("I"))),
+///             var("e"),
+///             var("f")
+///         ],
+///         app![
+///             lam("a", lam("b", lam("c", app![var("a"), var("c"), var("b")]))),
+///             lam("a", app(var("K"), var("I"))),
+///             var("e"),
+///             var("f")
+///         ],
+///         app![
+///             lam("a", lam("b", lam("c", app![var("a"), var("c"), var("b")]))),
+///             lam("a", app(lam("a", lam("b", var("a"))), var("I"))),
+///             var("e"),
+///             var("f")
+///         ],
+///     ][..],
+/// );
+/// assert_eq!(
+///     result,
+///     app![
+///         lam("a", lam("b", lam("c", app![var("a"), var("c"), var("b")]))),
+///         lam("a", app(lam("a", lam("b", var("a"))), lam("a", var("a")))),
+///         var("e"),
+///         var("f")
+///     ]
+/// );
+/// # }
+/// ```
+pub fn expand_inspected(expr: &Term, env: &Environment, inspect: &mut impl Inspect) -> Term {
+    let mut expr2 = expr.clone();
+    expand_tramp_inspected(&mut expr2, env, inspect);
+    expr2
+}
+
+fn expand_tramp(expr: &mut Term, env: &Environment) {
+    let mut todo: Vec<(&mut Term, HashSet<VarName>)> = Vec::with_capacity(2);
+    todo.push((expr, HashSet::with_capacity(4)));
     while let Some((term, mut bound_vars)) = todo.pop() {
         let maybe_expand_with = match term {
-            Var(ref name) => {
-                if !bound_vars.contains(name) {
-                    env.lookup_term(name).cloned()
-                } else {
-                    None
-                }
-            },
+            Var(ref name) if !bound_vars.contains(name) => env.lookup_term(name).cloned(),
             _ => None,
         };
         if let Some(mut expand_with) = maybe_expand_with {
@@ -396,6 +744,38 @@ fn expand_tramp(expr: &mut Term, bound_vars: HashSet<VarName>, env: &Environment
                     todo.push((&mut **rhs, bound_vars.clone()));
                     todo.push((&mut **lhs, bound_vars));
                 },
+            }
+        }
+    }
+}
+
+fn expand_tramp_inspected(expr: &mut Term, env: &Environment, inspect: &mut impl Inspect) {
+    let mut todo: Vec<(RefCell<*mut Term>, HashSet<VarName>)> = Vec::with_capacity(2);
+    todo.push((RefCell::new(expr), HashSet::with_capacity(4)));
+    while let Some((term, mut bound_vars)) = todo.pop() {
+        unsafe {
+            let maybe_expand_with = match **term.borrow() {
+                Var(ref name) if !bound_vars.contains(name) => env.lookup_term(name).cloned(),
+                _ => None,
+            };
+            if let Some(mut expand_with) = maybe_expand_with {
+                if Stop::Yes == inspect.inspect(expr) {
+                    break;
+                }
+                **term.borrow_mut() = expand_with;
+                todo.push((term, bound_vars));
+            } else {
+                match **term.borrow() {
+                    Var(_) => {},
+                    Lam(ref param, ref mut body) => {
+                        bound_vars.insert(param.to_owned());
+                        todo.push((RefCell::new(&mut **body), bound_vars));
+                    },
+                    App(ref mut lhs, ref mut rhs) => {
+                        todo.push((RefCell::new(&mut **rhs), bound_vars.clone()));
+                        todo.push((RefCell::new(&mut **lhs), bound_vars));
+                    },
+                }
             }
         }
     }
@@ -432,13 +812,15 @@ where
             .cloned()
             .chain(expr.free_vars().into_iter().cloned()),
     );
-    let mut todo = Vec::with_capacity(16);
-    todo.push((expr, HashSet::<VarName>::with_capacity(8)));
+    let mut todo = Vec::with_capacity(2);
+    todo.push((expr, HashSet::<VarName>::with_capacity(4)));
     while let Some((term, mut bound_vars)) = todo.pop() {
         match *term {
-            Var(ref mut name) => if bound_vars.contains(name) {
-                while free_vars.contains(name) {
-                    <A as AlphaRename>::rename(&mut **name);
+            Var(ref mut name) => {
+                if bound_vars.contains(name) {
+                    while free_vars.contains(name) {
+                        <A as AlphaRename>::rename(&mut **name);
+                    }
                 }
             },
             Lam(ref mut name, ref mut body) => {
@@ -542,7 +924,7 @@ where
 }
 
 fn substitute_tramp(expr: &mut Term, var: &VarName, subst: &Term) {
-    let mut todo: Vec<&mut Term> = Vec::with_capacity(8);
+    let mut todo: Vec<&mut Term> = Vec::with_capacity(2);
     todo.push(expr);
     while let Some(term) = todo.pop() {
         let do_subst = match term {
@@ -684,6 +1066,27 @@ where
     <B as BetaReduce>::reduce(expr.clone())
 }
 
+/// Performs a [β-reduction] on a given lambda expression with inspection
+/// applying the given reduction strategy and inspection.
+///
+/// The reduction strategy to be used must be given as the type parameter `B`.
+///
+/// The given inspection is called before each contraction (reduction step).
+/// See the documentation of the [`inspect`](mod.inspect.html) for how to
+/// define an inspection and the provided implementations.
+///
+/// This function returns the result as a new `Term`. The given `Term` remains
+/// unchanged. If you want to apply a β-reduction modifying the term in place
+/// use the associated function
+/// [`Term::reduce_inspected`](enum.Term.html#method.reduce_inspected) instead.
+pub fn reduce_inspected<B, I>(expr: &Term, inspect: &mut I) -> Term
+where
+    B: BetaReduce,
+    I: Inspect,
+{
+    <B as BetaReduce>::reduce_inspected(expr.clone(), inspect)
+}
+
 /// Defines a strategy for [β-reduction] of terms.
 ///
 /// Possible implementations may follow the strategies described in the
@@ -694,21 +1097,27 @@ where
 pub trait BetaReduce {
     /// Performs β-reduction on the given `Term` and returns the result.
     ///
-    /// The default implementation limits the reduction to `u32::MAX` reduction
-    /// steps to prevent endless loops on diverging expressions.
+    /// The default implementation limits the reduction to `Limit::default()`
+    /// reduction steps to prevent endless loops on diverging expressions.
     fn reduce(expr: Term) -> Term {
-        Self::reduce_n(expr, ::std::u32::MAX)
+        Self::reduce_inspected(expr, &mut Limit::default())
     }
 
     /// Performs one step of β-reduction on the given `Term` and returns the
     /// result.
     fn reduce_once(expr: Term) -> Term {
-        Self::reduce_n(expr, 1)
+        Self::reduce_inspected(expr, &mut Limit::new(1))
     }
 
-    /// Performs β-reduction on the given `Term` until the given limit of
-    /// reduction steps is reached and returns the result.
-    fn reduce_n(expr: Term, limit: u32) -> Term;
+    /// Performs β-reduction allowing to inspect the current term before
+    /// each contraction.
+    ///
+    /// Implementations must call the `Inspect::inspect` function of the given
+    /// `Inspect` instance exactly once before each contraction and respect
+    /// their return value. If the `Inspect::inspect` function returns
+    /// `Stop::Yes` the reduction must be stopped immediately, so that no
+    /// further reduction is performed.
+    fn reduce_inspected(expr: Term, inspect: &mut impl Inspect) -> Term;
 }
 
 /// Call-By-Name [β-reduction] to weak head normal form.
@@ -732,9 +1141,8 @@ impl<A> BetaReduce for CallByName<A>
 where
     A: AlphaRename,
 {
-    fn reduce_n(mut expr: Term, limit: u32) -> Term {
-        let mut count = 0;
-        Self::reduce_n_mut(&mut expr, &mut count, limit);
+    fn reduce_inspected(mut expr: Term, inspect: &mut impl Inspect) -> Term {
+        Self::reduce_inspected_mut(&mut expr, inspect);
         expr
     }
 }
@@ -754,7 +1162,7 @@ where
                         Self::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
-                        //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                        //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => None,
@@ -766,36 +1174,40 @@ where
         }
     }
 
-    fn reduce_n_mut(expr: &mut Term, count: &mut u32, limit: u32) {
+    fn reduce_inspected_mut(expr: &mut Term, inspect: &mut impl Inspect) {
         let mut temp_term = dummy_term();
         let mut parents: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(8);
         let base_term: Rc<RefCell<*mut Term>> = Rc::new(RefCell::new(expr));
         unsafe {
-            descend_left(base_term, &mut parents);
-            while *count < limit {
-                if let Some(term) = parents.pop() {
-                    let do_swap = match **term.borrow_mut() {
-                        App(ref mut lhs, ref rhs) => match **lhs {
-                            Lam(_, _) => {
-                                apply_mut::<A>(lhs, rhs);
-                                // defer actual substitution outside match expression
-                                // because of the borrow checker
-                                //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
-                                mem::swap(&mut temp_term, &mut **lhs);
-                                true
-                            },
-                            _ => false,
+            descend_left(base_term.clone(), &mut parents);
+            while let Some(term) = parents.pop() {
+                if Stop::Yes == match **term.borrow() {
+                    App(ref lhs, _) => match **lhs {
+                        Lam(_, _) => inspect.inspect(&**base_term.borrow()),
+                        _ => Stop::No,
+                    },
+                    _ => Stop::No,
+                } {
+                    break;
+                }
+                let do_swap = match **term.borrow_mut() {
+                    App(ref mut lhs, ref rhs) => match **lhs {
+                        Lam(_, _) => {
+                            apply_mut::<A>(lhs, rhs);
+                            // defer actual substitution outside match expression
+                            // because of the borrow checker
+                            //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                            mem::swap(&mut temp_term, &mut **lhs);
+                            true
                         },
                         _ => false,
-                    };
-                    if do_swap {
-                        *count += 1;
-                        term.borrow_mut().swap(&mut temp_term);
-                        parents.push(term.clone());
-                        descend_left(term, &mut parents);
-                    }
-                } else {
-                    break;
+                    },
+                    _ => false,
+                };
+                if do_swap {
+                    term.borrow_mut().swap(&mut temp_term);
+                    parents.push(term.clone());
+                    descend_left(term, &mut parents);
                 }
             }
         }
@@ -839,9 +1251,8 @@ impl<A> BetaReduce for NormalOrder<A>
 where
     A: AlphaRename,
 {
-    fn reduce_n(mut expr: Term, limit: u32) -> Term {
-        let mut count = 0;
-        Self::reduce_n_mut(&mut expr, &mut count, limit);
+    fn reduce_inspected(mut expr: Term, inspect: &mut impl Inspect) -> Term {
+        Self::reduce_inspected_mut(&mut expr, inspect);
         expr
     }
 }
@@ -865,7 +1276,7 @@ where
                         Self::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
-                        //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                        //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => {
@@ -881,47 +1292,54 @@ where
         }
     }
 
-    fn reduce_n_mut(expr: &mut Term, count: &mut u32, limit: u32) {
+    fn reduce_inspected_mut(expr: &mut Term, inspect: &mut impl Inspect) {
         let mut temp_term = dummy_term();
-        let mut todo: Vec<&mut Term> = Vec::with_capacity(16);
-        todo.push(expr);
-        while *count < limit {
-            if let Some(term) = todo.pop() {
-                let do_swap = match *term {
+        let mut parents: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(8);
+        let base_term: Rc<RefCell<*mut Term>> = Rc::new(RefCell::new(expr));
+        unsafe {
+            descend_left_and_body(base_term.clone(), &mut parents);
+            while let Some(term) = parents.pop() {
+                if Stop::Yes == match **term.borrow() {
+                    App(ref lhs, _) => match **lhs {
+                        Lam(_, _) => inspect.inspect(&**base_term.borrow()),
+                        _ => Stop::No,
+                    },
+                    _ => Stop::No,
+                } {
+                    break;
+                }
+                let do_swap = match **term.borrow_mut() {
                     App(ref mut lhs, ref mut rhs) => {
-                        CallByName::<A>::reduce_n_mut(&mut **lhs, count, limit);
+                        CallByName::<A>::reduce_inspected_mut(lhs, inspect);
                         match **lhs {
                             Lam(_, _) => {
                                 apply_mut::<A>(lhs, rhs);
                                 // defer actual substitution outside match expression
                                 // because of the borrow checker
-                                //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                                //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                                 mem::swap(&mut temp_term, &mut **lhs);
                                 true
                             },
-                            _ => false,
+                            _ => {
+                                descend_left_and_right_and_body(
+                                    Rc::new(RefCell::new(&mut **rhs)),
+                                    &mut parents,
+                                );
+                                descend_left_and_right_and_body(
+                                    Rc::new(RefCell::new(&mut **lhs)),
+                                    &mut parents,
+                                );
+                                false
+                            },
                         }
                     },
                     _ => false,
                 };
                 if do_swap {
-                    mem::swap(term, &mut temp_term);
-                    todo.push(term);
-                    *count += 1;
-                } else {
-                    match *term {
-                        Var(_) => {},
-                        Lam(_, ref mut body) => {
-                            todo.push(body);
-                        },
-                        App(ref mut lhs, ref mut rhs) => {
-                            todo.push(rhs);
-                            todo.push(lhs);
-                        },
-                    }
+                    term.borrow_mut().swap(&mut temp_term);
+                    parents.push(term.clone());
+                    descend_left_and_right_and_body(term, &mut parents);
                 }
-            } else {
-                break;
             }
         }
     }
@@ -949,9 +1367,8 @@ impl<A> BetaReduce for CallByValue<A>
 where
     A: AlphaRename,
 {
-    fn reduce_n(mut expr: Term, limit: u32) -> Term {
-        let mut count = 0;
-        Self::reduce_n_mut(&mut expr, &mut count, limit);
+    fn reduce_inspected(mut expr: Term, inspect: &mut impl Inspect) -> Term {
+        Self::reduce_inspected_mut(&mut expr, inspect);
         expr
     }
 }
@@ -972,7 +1389,7 @@ where
                         Self::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
-                        //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                        //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => None,
@@ -984,36 +1401,40 @@ where
         }
     }
 
-    fn reduce_n_mut(expr: &mut Term, count: &mut u32, limit: u32) {
+    fn reduce_inspected_mut(expr: &mut Term, inspect: &mut impl Inspect) {
         let mut temp_term = dummy_term();
         let mut parents: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(8);
         let base_term: Rc<RefCell<*mut Term>> = Rc::new(RefCell::new(expr));
         unsafe {
-            descend_left_and_right(base_term, &mut parents);
-            while *count < limit {
-                if let Some(term) = parents.pop() {
-                    let do_swap = match **term.borrow_mut() {
-                        App(ref mut lhs, ref mut rhs) => match **lhs {
-                            Lam(_, _) => {
-                                apply_mut::<A>(lhs, rhs);
-                                // defer actual substitution outside match expression
-                                // because of the borrow checker
-                                //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
-                                mem::swap(&mut temp_term, &mut **lhs);
-                                true
-                            },
-                            _ => false,
+            descend_left_and_right(base_term.clone(), &mut parents);
+            while let Some(term) = parents.pop() {
+                if Stop::Yes == match **term.borrow() {
+                    App(ref lhs, _) => match **lhs {
+                        Lam(_, _) => inspect.inspect(&**base_term.borrow()),
+                        _ => Stop::No,
+                    },
+                    _ => Stop::No,
+                } {
+                    break;
+                }
+                let do_swap = match **term.borrow_mut() {
+                    App(ref mut lhs, ref mut rhs) => match **lhs {
+                        Lam(_, _) => {
+                            apply_mut::<A>(lhs, rhs);
+                            // defer actual substitution outside match expression
+                            // because of the borrow checker
+                            //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                            mem::swap(&mut temp_term, &mut **lhs);
+                            true
                         },
                         _ => false,
-                    };
-                    if do_swap {
-                        *count += 1;
-                        term.borrow_mut().swap(&mut temp_term);
-                        parents.push(term.clone());
-                        descend_left_and_right(term.clone(), &mut parents);
-                    }
-                } else {
-                    break;
+                    },
+                    _ => false,
+                };
+                if do_swap {
+                    term.borrow_mut().swap(&mut temp_term);
+                    parents.push(term.clone());
+                    descend_left_and_right(term.clone(), &mut parents);
                 }
             }
         }
@@ -1061,9 +1482,8 @@ impl<A> BetaReduce for ApplicativeOrder<A>
 where
     A: AlphaRename,
 {
-    fn reduce_n(mut expr: Term, limit: u32) -> Term {
-        let mut count = 0;
-        Self::reduce_n_mut(&mut expr, &mut count, limit);
+    fn reduce_inspected(mut expr: Term, inspect: &mut impl Inspect) -> Term {
+        Self::reduce_inspected_mut(&mut expr, inspect);
         expr
     }
 }
@@ -1088,7 +1508,7 @@ where
                         Self::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
-                        //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                        //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => None,
@@ -1100,36 +1520,40 @@ where
         }
     }
 
-    fn reduce_n_mut(expr: &mut Term, count: &mut u32, limit: u32) {
+    fn reduce_inspected_mut(expr: &mut Term, inspect: &mut impl Inspect) {
         let mut temp_term = dummy_term();
         let mut parents: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(8);
         let base_term: Rc<RefCell<*mut Term>> = Rc::new(RefCell::new(expr));
         unsafe {
-            descend_left_and_right_and_body(base_term, &mut parents);
-            while *count < limit {
-                if let Some(term) = parents.pop() {
-                    let do_swap = match **term.borrow_mut() {
-                        App(ref mut lhs, ref rhs) => match **lhs {
-                            Lam(_, _) => {
-                                apply_mut::<A>(lhs, rhs);
-                                // defer actual substitution outside match expression
-                                // because of the borrow checker
-                                //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
-                                mem::swap(&mut temp_term, &mut **lhs);
-                                true
-                            },
-                            _ => false,
+            descend_left_and_right_and_body(base_term.clone(), &mut parents);
+            while let Some(term) = parents.pop() {
+                if Stop::Yes == match **term.borrow() {
+                    App(ref lhs, _) => match **lhs {
+                        Lam(_, _) => inspect.inspect(&**base_term.borrow()),
+                        _ => Stop::No,
+                    },
+                    _ => Stop::No,
+                } {
+                    break;
+                }
+                let do_swap = match **term.borrow_mut() {
+                    App(ref mut lhs, ref rhs) => match **lhs {
+                        Lam(_, _) => {
+                            apply_mut::<A>(lhs, rhs);
+                            // defer actual substitution outside match expression
+                            // because of the borrow checker
+                            //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                            mem::swap(&mut temp_term, &mut **lhs);
+                            true
                         },
                         _ => false,
-                    };
-                    if do_swap {
-                        *count += 1;
-                        term.borrow_mut().swap(&mut temp_term);
-                        parents.push(term.clone());
-                        descend_left_and_right_and_body(term, &mut parents);
-                    }
-                } else {
-                    break;
+                    },
+                    _ => false,
+                };
+                if do_swap {
+                    term.borrow_mut().swap(&mut temp_term);
+                    parents.push(term.clone());
+                    descend_left_and_right_and_body(term, &mut parents);
                 }
             }
         }
@@ -1198,9 +1622,8 @@ impl<A> BetaReduce for HybridApplicativeOrder<A>
 where
     A: AlphaRename,
 {
-    fn reduce_n(mut expr: Term, limit: u32) -> Term {
-        let mut count = 0;
-        Self::reduce_n_mut(&mut expr, &mut count, limit);
+    fn reduce_inspected(mut expr: Term, inspect: &mut impl Inspect) -> Term {
+        Self::reduce_inspected_mut(&mut expr, inspect);
         expr
     }
 }
@@ -1225,7 +1648,7 @@ where
                         Self::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
-                        //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                        //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => {
@@ -1240,39 +1663,43 @@ where
         }
     }
 
-    fn reduce_n_mut(expr: &mut Term, count: &mut u32, limit: u32) {
+    fn reduce_inspected_mut(expr: &mut Term, inspect: &mut impl Inspect) {
         let mut temp_term = dummy_term();
         let mut parents: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(8);
         let base_term: Rc<RefCell<*mut Term>> = Rc::new(RefCell::new(expr));
         unsafe {
-            descend_right_and_body(base_term, &mut parents);
-            while *count < limit {
-                if let Some(term) = parents.pop() {
-                    let do_swap = match **term.borrow_mut() {
-                        App(ref mut lhs, ref rhs) => {
-                            CallByValue::<A>::reduce_n_mut(lhs, count, limit);
-                            match **lhs {
-                                Lam(_, _) => {
-                                    apply_mut::<A>(lhs, rhs);
-                                    // defer actual substitution outside match expression
-                                    // because of the borrow checker
-                                    //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
-                                    mem::swap(&mut temp_term, &mut **lhs);
-                                    true
-                                },
-                                _ => false,
-                            }
-                        },
-                        _ => false,
-                    };
-                    if do_swap {
-                        *count += 1;
-                        term.borrow_mut().swap(&mut temp_term);
-                        parents.push(term.clone());
-                        descend_right_and_body(term, &mut parents);
-                    }
-                } else {
+            descend_right_and_body(base_term.clone(), &mut parents);
+            while let Some(term) = parents.pop() {
+                if Stop::Yes == match **term.borrow() {
+                    App(ref lhs, _) => match **lhs {
+                        Lam(_, _) => inspect.inspect(&**base_term.borrow()),
+                        _ => Stop::No,
+                    },
+                    _ => Stop::No,
+                } {
                     break;
+                }
+                let do_swap = match **term.borrow_mut() {
+                    App(ref mut lhs, ref rhs) => {
+                        CallByValue::<A>::reduce_inspected_mut(lhs, inspect);
+                        match **lhs {
+                            Lam(_, _) => {
+                                apply_mut::<A>(lhs, rhs);
+                                // defer actual substitution outside match expression
+                                // because of the borrow checker
+                                //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                                mem::swap(&mut temp_term, &mut **lhs);
+                                true
+                            },
+                            _ => false,
+                        }
+                    },
+                    _ => false,
+                };
+                if do_swap {
+                    term.borrow_mut().swap(&mut temp_term);
+                    parents.push(term.clone());
+                    descend_right_and_body(term, &mut parents);
                 }
             }
         }
@@ -1325,9 +1752,8 @@ impl<A> BetaReduce for HeadSpine<A>
 where
     A: AlphaRename,
 {
-    fn reduce_n(mut expr: Term, limit: u32) -> Term {
-        let mut count = 0;
-        Self::reduce_n_mut(&mut expr, &mut count, limit);
+    fn reduce_inspected(mut expr: Term, inspect: &mut impl Inspect) -> Term {
+        Self::reduce_inspected_mut(&mut expr, inspect);
         expr
     }
 }
@@ -1351,7 +1777,7 @@ where
                         Self::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
-                        //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                        //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => None,
@@ -1363,36 +1789,40 @@ where
         }
     }
 
-    fn reduce_n_mut(expr: &mut Term, count: &mut u32, limit: u32) {
+    fn reduce_inspected_mut(expr: &mut Term, inspect: &mut impl Inspect) {
         let mut temp_term = dummy_term();
         let mut parents: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(8);
         let base_term: Rc<RefCell<*mut Term>> = Rc::new(RefCell::new(expr));
         unsafe {
-            descend_left_and_body(base_term, &mut parents);
-            while *count < limit {
-                if let Some(term) = parents.pop() {
-                    let do_swap = match **term.borrow_mut() {
-                        App(ref mut lhs, ref rhs) => match **lhs {
-                            Lam(_, _) => {
-                                apply_mut::<A>(lhs, rhs);
-                                // defer actual substitution outside match expression
-                                // because of the borrow checker
-                                //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
-                                mem::swap(&mut temp_term, &mut **lhs);
-                                true
-                            },
-                            _ => false,
+            descend_left_and_body(base_term.clone(), &mut parents);
+            while let Some(term) = parents.pop() {
+                if Stop::Yes == match **term.borrow() {
+                    App(ref lhs, _) => match **lhs {
+                        Lam(_, _) => inspect.inspect(&**base_term.borrow()),
+                        _ => Stop::No,
+                    },
+                    _ => Stop::No,
+                } {
+                    break;
+                }
+                let do_swap = match **term.borrow_mut() {
+                    App(ref mut lhs, ref rhs) => match **lhs {
+                        Lam(_, _) => {
+                            apply_mut::<A>(lhs, rhs);
+                            // defer actual substitution outside match expression
+                            // because of the borrow checker
+                            //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                            mem::swap(&mut temp_term, &mut **lhs);
+                            true
                         },
                         _ => false,
-                    };
-                    if do_swap {
-                        *count += 1;
-                        term.borrow_mut().swap(&mut temp_term);
-                        parents.push(term.clone());
-                        descend_left_and_body(term, &mut parents);
-                    }
-                } else {
-                    break;
+                    },
+                    _ => false,
+                };
+                if do_swap {
+                    term.borrow_mut().swap(&mut temp_term);
+                    parents.push(term.clone());
+                    descend_left_and_body(term, &mut parents);
                 }
             }
         }
@@ -1442,9 +1872,8 @@ impl<A> BetaReduce for HybridNormalOrder<A>
 where
     A: AlphaRename,
 {
-    fn reduce_n(mut expr: Term, limit: u32) -> Term {
-        let mut count = 0;
-        Self::reduce_n_mut(&mut expr, &mut count, limit);
+    fn reduce_inspected(mut expr: Term, inspect: &mut impl Inspect) -> Term {
+        Self::reduce_inspected_mut(&mut expr, inspect);
         expr
     }
 }
@@ -1468,7 +1897,7 @@ where
                         Self::reduce_rec(lhs);
                         // defer actual substitution outside match expression
                         // because of the borrow checker
-                        //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                        //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
                     },
                     _ => {
@@ -1484,51 +1913,58 @@ where
         }
     }
 
-    fn reduce_n_mut(expr: &mut Term, count: &mut u32, limit: u32) {
+    fn reduce_inspected_mut(expr: &mut Term, inspect: &mut impl Inspect) {
         let mut temp_term = dummy_term();
         let mut parents: Vec<Rc<RefCell<*mut Term>>> = Vec::with_capacity(8);
         let base_term: Rc<RefCell<*mut Term>> = Rc::new(RefCell::new(expr));
         unsafe {
-            descend_left_and_body(base_term, &mut parents);
-            while *count < limit {
-                if let Some(term) = parents.pop() {
-                    let do_swap = match **term.borrow_mut() {
-                        App(ref mut lhs, ref mut rhs) => {
-                            HeadSpine::<A>::reduce_n_mut(lhs, count, limit);
-                            match **lhs {
-                                Lam(_, _) => {
-                                    apply_mut::<A>(lhs, rhs);
-                                    // defer actual substitution outside match expression
-                                    // because of the borrow checker
-                                    //TODO refactor if non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
-                                    mem::swap(&mut temp_term, &mut **lhs);
-                                    true
-                                },
-                                _ => {
-                                    descend_left_and_right_and_body(
-                                        Rc::new(RefCell::new(&mut **rhs)),
-                                        &mut parents,
-                                    );
-                                    descend_left_and_right_and_body(
-                                        Rc::new(RefCell::new(&mut **lhs)),
-                                        &mut parents,
-                                    );
-                                    false
-                                },
-                            }
-                        },
-                        _ => false,
-                    };
-                    if do_swap {
-                        *count += 1;
-                        term.borrow_mut().swap(&mut temp_term);
-                        parents.push(term.clone());
-                        descend_left_and_right_and_body(term, &mut parents);
-                    }
-                } else {
+            descend_left_and_body(base_term.clone(), &mut parents);
+            while let Some(term) = parents.pop() {
+                if Stop::Yes == match **term.borrow() {
+                    App(ref lhs, _) => match **lhs {
+                        Lam(_, _) => inspect.inspect(&**base_term.borrow()),
+                        _ => Stop::No,
+                    },
+                    _ => Stop::No,
+                } {
                     break;
+                }
+                let do_swap = match **term.borrow_mut() {
+                    App(ref mut lhs, ref mut rhs) => {
+                        HeadSpine::<A>::reduce_inspected_mut(lhs, inspect);
+                        match **lhs {
+                            Lam(_, _) => {
+                                apply_mut::<A>(lhs, rhs);
+                                // defer actual substitution outside match expression
+                                // because of the borrow checker
+                                //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
+                                mem::swap(&mut temp_term, &mut **lhs);
+                                true
+                            },
+                            _ => {
+                                descend_left_and_right_and_body(
+                                    Rc::new(RefCell::new(&mut **rhs)),
+                                    &mut parents,
+                                );
+                                descend_left_and_right_and_body(
+                                    Rc::new(RefCell::new(&mut **lhs)),
+                                    &mut parents,
+                                );
+                                false
+                            },
+                        }
+                    },
+                    _ => false,
+                };
+                if do_swap {
+                    term.borrow_mut().swap(&mut temp_term);
+                    parents.push(term.clone());
+                    descend_left_and_right_and_body(term, &mut parents);
                 }
             }
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

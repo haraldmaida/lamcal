@@ -1,6 +1,7 @@
 use failure::Error;
 
-use lamcal::{parse_str, Binding, Term, VarName};
+use lamcal::{parse_str, Term, VarName};
+use lamcal::environment::Binding;
 
 use command::{cont_output, Command, Continuation};
 use context::Context;

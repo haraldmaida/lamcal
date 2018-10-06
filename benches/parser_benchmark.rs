@@ -5,7 +5,8 @@ extern crate lamcal;
 
 use criterion::Criterion;
 
-use lamcal::{parse_tokens, tokenize, Term};
+use lamcal::parser::{parse_tokens, tokenize};
+use lamcal::Term;
 
 const EXPRESSION_1: &str = r#"
 (\id.id) ((\fun.\first.\second.fun second first) f ((\p.\q.p p q) (\a.\b.a) (\a.\b.b)) \x1.(x1 \x2.x2 x2) x1)

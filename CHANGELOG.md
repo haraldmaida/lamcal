@@ -8,11 +8,19 @@ for Rust libraries in [RFC #1105](https://github.com/rust-lang/rfcs/blob/master/
 
 ### Breaking changes
 
+* redesign trait `BetaReduce` to support inspections
 * remove unwrap_XXX methods from `Term`
+* no longer reexport minor types and functions:
+  `use lamcal::environment::{bind, Binding};` instead of
+  `use lamcal::{bind, Binding};`<br/>
+  `use lamcal::parser::{hint, parse_tokens, pos, tokenize, tokenize_str, CharPosition, Hint, ParseErrorKind, Token};` instead of
+  `use lamcal::{hint, parse_tokens, pos, tokenize, tokenize_str, CharPosition, Hint, ParseErrorKind, Token};`<br/> 
 
 ### Features
 
+* introduce inspections for evaluation and reduction (see documentation of `inspect` module)
 * refactor all methods to use trampolining instead of recursion to support handling of huge terms
+  without stack overflow
 
 ### Bug Fixes
 

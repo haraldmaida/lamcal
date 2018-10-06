@@ -185,7 +185,8 @@ impl From<(VarName, Term)> for Binding {
 /// #[macro_use]
 /// extern crate lamcal;
 /// use lamcal::combinator::I;
-/// use lamcal::{bind, lam, var};
+/// use lamcal::environment::bind;
+/// use lamcal::{lam, var};
 ///
 /// # fn main() {
 /// let binding = bind!(I => I());
@@ -200,7 +201,8 @@ impl From<(VarName, Term)> for Binding {
 /// #[macro_use]
 /// extern crate lamcal;
 /// use lamcal::combinator::I;
-/// use lamcal::{bind, lam, var};
+/// use lamcal::environment::bind;
+/// use lamcal::{lam, var};
 ///
 /// # fn main() {
 /// let binding = bind! {
@@ -222,10 +224,10 @@ impl From<(VarName, Term)> for Binding {
 #[macro_export]
 macro_rules! bind {
     ($name:ident => $term:expr) => {
-        $crate::Binding::new($crate::VarName(String::from(stringify!($name))), $term)
+        $crate::environment::Binding::new($crate::VarName(String::from(stringify!($name))), $term)
     };
     ($name:expr => $term:expr) => {
-        $crate::Binding::new($crate::VarName(String::from($name)), $term)
+        $crate::environment::Binding::new($crate::VarName(String::from($name)), $term)
     };
 }
 
@@ -242,7 +244,8 @@ macro_rules! bind {
 /// #[macro_use]
 /// extern crate lamcal;
 /// use lamcal::combinator::{I, K};
-/// use lamcal::{bind, lam, var};
+/// use lamcal::environment::bind;
+/// use lamcal::{lam, var};
 /// use std::collections::HashSet;
 ///
 /// # fn main() {
@@ -272,7 +275,7 @@ macro_rules! binds {
         {
             let mut binds = HashSet::new();
             $(
-                binds.insert($crate::Binding::new($crate::VarName(String::from(stringify!($name))), $term));
+                binds.insert($crate::environment::Binding::new($crate::VarName(String::from(stringify!($name))), $term));
             )*
             binds
         }
@@ -281,7 +284,7 @@ macro_rules! binds {
         {
             let mut binds = HashSet::new();
             $(
-                binds.insert($crate::Binding::new($crate::VarName(String::from($name)), $term));
+                binds.insert($crate::environment::Binding::new($crate::VarName(String::from($name)), $term));
             )*
             binds
         }

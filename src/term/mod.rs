@@ -131,7 +131,7 @@ impl Display for Term {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::fmt::Write;
         use self::TermFormat::*;
-        let mut to_format = Vec::with_capacity(16);
+        let mut to_format = Vec::with_capacity(7);
         to_format.push(ToFormat(self));
         while let Some(item) = to_format.pop() {
             match item {
@@ -221,8 +221,8 @@ impl From<VarName> for Term {
 impl Term {
     /// Returns a set of references to all free variables in this term.
     pub fn free_vars(&self) -> HashSet<&VarName> {
-        let mut free_vars = HashSet::new();
-        let mut to_check: Vec<(&Term, HashSet<&VarName>)> = Vec::with_capacity(16);
+        let mut free_vars = HashSet::with_capacity(4);
+        let mut to_check: Vec<(&Term, HashSet<&VarName>)> = Vec::with_capacity(2);
         to_check.push((self, HashSet::with_capacity(4)));
         while let Some((term, mut bound_vars)) = to_check.pop() {
             match *term {
@@ -258,7 +258,6 @@ pub fn any_abstraction() -> impl Strategy<Value = Term> {
 }
 
 #[cfg(test)]
-#[allow(dead_code)]
 pub fn any_term() -> impl Strategy<Value = Term> {
     any_short_variable().prop_recursive(23, 500, 3, |inner| {
         prop_oneof!{

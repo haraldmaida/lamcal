@@ -1,8 +1,5 @@
 //! The parser that transform expressions into a `Term`.
 
-#[cfg(test)]
-mod tests;
-
 use std::fmt::{self, Display};
 use std::iter::IntoIterator;
 use std::mem;
@@ -84,20 +81,24 @@ pub fn tokenize(
                 }
                 tokens.push((RParen, position));
             },
-            '_' | '\'' => if name.is_empty() {
-                return Err(ParseError::new(
-                    InvalidCharacter,
-                    position,
-                    format!("{}", chr),
-                    "any unicode alphanumeric character or one of 'λ', `\\`, '.', '(', ')'",
-                    None,
-                ));
-            } else {
-                name.push(chr);
+            '_' | '\'' => {
+                if name.is_empty() {
+                    return Err(ParseError::new(
+                        InvalidCharacter,
+                        position,
+                        format!("{}", chr),
+                        "any unicode alphanumeric character or one of 'λ', `\\`, '.', '(', ')'",
+                        None,
+                    ));
+                } else {
+                    name.push(chr);
+                }
             },
-            chr if chr.is_whitespace() => if !name.is_empty() {
-                tokens.push((Identifier(name), name_pos));
-                name = String::new();
+            chr if chr.is_whitespace() => {
+                if !name.is_empty() {
+                    tokens.push((Identifier(name), name_pos));
+                    name = String::new();
+                }
             },
             chr if chr.is_alphanumeric() => {
                 if name.is_empty() {
@@ -159,7 +160,7 @@ pub fn parse_tokens(
 ) -> Result<Term, ParseError> {
     use self::SubTermIndicator::*;
     let mut last_position = CharPosition::default();
-    let mut subterm_indicators = Vec::with_capacity(16);
+    let mut subterm_indicators = Vec::with_capacity(8);
     let mut term_seq = Vec::with_capacity(16);
     let mut token_iter = tokens.into_iter();
     while let Some((token, position)) = token_iter.next() {
@@ -593,3 +594,6 @@ impl Display for Hint {
 pub fn hint(text: impl Into<String>) -> Option<Hint> {
     Some(Hint(text.into()))
 }
+
+#[cfg(test)]
+mod tests;

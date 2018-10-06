@@ -182,23 +182,21 @@ extern crate failure;
 
 #[macro_use]
 mod term;
-#[macro_use]
-mod environment;
-mod parser;
 mod reduction;
 
+#[macro_use]
+pub mod environment;
 pub mod church_encoded;
 pub mod combinator;
+pub mod inspect;
+pub mod parser;
 
-pub use self::environment::{bind, Binding, Environment};
-pub use self::parser::{
-    hint, parse, parse_str, parse_tokens, pos, tokenize, tokenize_str, CharPosition, Hint,
-    ParseError, ParseErrorKind, Token,
-};
+pub use self::environment::Environment;
+pub use self::parser::{parse, parse_str, ParseError};
 pub use self::reduction::{
-    alpha, apply, evaluate, expand, reduce, substitute, AlphaRename, ApplicativeOrder, BetaReduce,
-    CallByName, CallByValue, Enumerate, HeadSpine, HybridApplicativeOrder, HybridNormalOrder,
-    NormalOrder, Prime,
+    alpha, apply, evaluate, evaluate_inspected, expand, expand_inspected, reduce, reduce_inspected,
+    substitute, AlphaRename, ApplicativeOrder, BetaReduce, CallByName, CallByValue, Enumerate,
+    HeadSpine, HybridApplicativeOrder, HybridNormalOrder, NormalOrder, Prime,
 };
 pub use self::term::{app, lam, var, Term, VarName};
 
