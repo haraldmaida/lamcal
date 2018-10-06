@@ -4,6 +4,11 @@ All user visible changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/), as described
 for Rust libraries in [RFC #1105](https://github.com/rust-lang/rfcs/blob/master/text/1105-api-evolution.md)
 
+## 0.4.0 : 2018-10-06 : No stack overflow and inspected
+
+* Upgrade to lamcal version 0.4
+* Add inspected mode (command `:i`)
+
 ## 0.3.0 : 2018-09-08 : Beautiful environment
 
 * Upgrade to lamcal version 0.3

@@ -141,6 +141,30 @@ To expand bound names without reducing the term we can use the `:x` command:
 (λa.(λf.λa.λb.f b a) a) f x y
 ``` 
 
+### inspected mode
+
+In inspected mode we can follow every single step of expansion and reduction. To switch on the
+inspected mode we type the command `:i`.
+
+```
+λ> :i
+Inspected mode switched on
+```
+
+When we now evaluate an expression we get the intermediate results of every single step printed to
+the terminal:
+
+```
+λ> I x
+I x
+(λa.a) x
+x
+```
+
+First `I` is expanded to the identity term `(λa.a)` and then it is applied to the variable `x` which
+gives as the result of `x`. Cool! Isn't it? To switch off the inspected mode we just type the 
+command `:i` again.
+
 ### Commands
 
 The following commands are available:
@@ -150,6 +174,10 @@ The following commands are available:
     :q or :quit       quits the repl session
 
     :v or :version    prints out the version of lamcali
+
+    :i or :inspected  toggle inspected mode on and off. In inspected mode the
+                      result of each step during evaluation or reduction is
+                      printed to the terminal.
 
     :e <expr> or :eval <expr>
                       evaluates the lambda expression <expr>. This command is
@@ -168,12 +196,6 @@ The following commands are available:
     :p <expr> or :parse <expr>
                       parses the lambda expression <expr> and prints out the
                       abstract syntax tree (AST) of the lambda expression.
-
-    :let <name> = <expr>
-                      defines a new binding of <expr> to <name> and adds it to
-                      the environment. If a binding with the same name
-                      previously existed in the environment it is replaced by
-                      the new binding.
 
     :bs or :beta-strategy
                       prints the current set beta-reduction strategy.
@@ -197,6 +219,12 @@ The following commands are available:
                       <strategy> can be one of:
                       enumerate : appending increasing digits (the default)
                       prime     : appending tick symbols
+
+    :let <name> = <expr>
+                      defines a new binding of <expr> to <name> and adds it to
+                      the environment. If a binding with the same name
+                      previously existed in the environment it is replaced by
+                      the new binding.
 
     :clr-env          clears the environment, all bindings are removed
 

@@ -53,3 +53,31 @@ impl Display for BetaReductionStrategy {
         })
     }
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResultList<T> {
+    elements: Vec<T>,
+}
+
+impl<T> From<Vec<T>> for ResultList<T> {
+    fn from(elements: Vec<T>) -> Self {
+        ResultList { elements }
+    }
+}
+
+impl<T> Display for ResultList<T>
+where
+    T: Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let last = self.elements.len() - 1;
+        for (i, element) in self.elements.iter().enumerate() {
+            if i < last {
+                writeln!(f, "{}", element)?;
+            } else {
+                write!(f, "{}", element)?;
+            }
+        }
+        Ok(())
+    }
+}

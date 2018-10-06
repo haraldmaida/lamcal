@@ -1,6 +1,6 @@
 //! A command line repl (read-evaluate-print loop) for lambda calculus.
 
-#![doc(html_root_url = "https://docs.rs/lamcal-repl/0.3.0/lamcali")]
+#![doc(html_root_url = "https://docs.rs/lamcal-repl/0.4.0/lamcali")]
 #![warn(
     bare_trait_objects,
     missing_copy_implementations,
@@ -65,8 +65,10 @@ fn main() {
         .build();
     let mut rl = Editor::<()>::with_config(config);
     match history_file() {
-        Ok(history_file) => if let Err(err) = rl.load_history(&history_file) {
-            print_warning(err);
+        Ok(history_file) => {
+            if let Err(err) = rl.load_history(&history_file) {
+                print_warning(err);
+            }
         },
         Err(err) => print_warning(err),
     }
@@ -97,8 +99,10 @@ fn main() {
         }
     }
     match history_file() {
-        Ok(history_file) => if let Err(err) = rl.save_history(&history_file) {
-            print_error(err);
+        Ok(history_file) => {
+            if let Err(err) = rl.save_history(&history_file) {
+                print_error(err);
+            }
         },
         Err(err) => print_error(err),
     };
@@ -215,6 +219,7 @@ enum LciCommand<'a> {
     Help(Help),
     Quit(Quit),
     Version(Version),
+    ToggleInspectedMode(ToggleInspectedMode),
     PrintAlphaRenamingStrategy(PrintAlphaRenamingStrategy),
     PrintBetaReductionStrategy(PrintBetaReductionStrategy),
     SetAlphaRenamingStrategy(SetAlphaRenamingStrategy),
@@ -235,6 +240,7 @@ impl<'a> LciCommand<'a> {
             LciCommand::Help(cmd) => handle_continuation(cmd.execute(ctx)),
             LciCommand::Quit(cmd) => handle_continuation(cmd.execute(ctx)),
             LciCommand::Version(cmd) => handle_continuation(cmd.execute(ctx)),
+            LciCommand::ToggleInspectedMode(cmd) => handle_continuation(cmd.execute(ctx)),
             LciCommand::PrintAlphaRenamingStrategy(cmd) => handle_continuation(cmd.execute(ctx)),
             LciCommand::PrintBetaReductionStrategy(cmd) => handle_continuation(cmd.execute(ctx)),
             LciCommand::SetAlphaRenamingStrategy(cmd) => handle_continuation(cmd.execute(ctx)),
@@ -266,6 +272,12 @@ impl<'a> From<Quit> for LciCommand<'a> {
 impl<'a> From<Version> for LciCommand<'a> {
     fn from(cmd: Version) -> Self {
         LciCommand::Version(cmd)
+    }
+}
+
+impl<'a> From<ToggleInspectedMode> for LciCommand<'a> {
+    fn from(cmd: ToggleInspectedMode) -> Self {
+        LciCommand::ToggleInspectedMode(cmd)
     }
 }
 
@@ -406,6 +418,7 @@ fn parse_command(line: &str) -> Result<LciCommand, Error> {
         ":h" | ":help" => Ok(Help.into()),
         ":q" | ":quit" => Ok(Quit.into()),
         ":v" | ":version" => Ok(Version.into()),
+        ":i" | ":inspected" => Ok(ToggleInspectedMode.into()),
         ":as" | ":alpha-strategy" => Ok(PrintAlphaRenamingStrategy.into()),
         ":bs" | ":beta-strategy" => Ok(PrintBetaReductionStrategy.into()),
         ":clr-env" => Ok(ClearEnvironment.into()),
@@ -486,6 +499,10 @@ Commands:
 
     :v or :version    prints out the version of lamcali
 
+    :i or :inspected  toggle inspected mode on and off. In inspected mode the
+                      result of each step during evaluation or reduction is
+                      printed to the terminal.
+
     :e <expr> or :eval <expr>
                       evaluates the lambda expression <expr>. This command is
                       equivalent to just typing a lambda expression and
@@ -503,12 +520,6 @@ Commands:
     :p <expr> or :parse <expr>
                       parses the lambda expression <expr> and prints out the
                       abstract syntax tree (AST) of the lambda expression.
-
-    :let <name> = <expr>
-                      defines a new binding of <expr> to <name> and adds it to
-                      the environment. If a binding with the same name
-                      previously existed in the environment it is replaced by
-                      the new binding.
 
     :bs or :beta-strategy
                       prints the current set beta-reduction strategy.
@@ -533,6 +544,12 @@ Commands:
                       enumerate : appending increasing digits (the default)
                       prime     : appending tick symbols
 
+    :let <name> = <expr>
+                      defines a new binding of <expr> to <name> and adds it to
+                      the environment. If a binding with the same name
+                      previously existed in the environment it is replaced by
+                      the new binding.
+
     :clr-env          clears the environment, all bindings are removed
 
     :ld-env default   loads the default set of predefined bindings into the
@@ -548,5 +565,6 @@ Commands:
 
     the [arrow-up] and [arrow-down] keys lets you navigate through the
     history of typed commands and expressions and recall them.
-    "###.to_string()
+    "###
+    .to_string()
 }

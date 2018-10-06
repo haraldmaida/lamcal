@@ -9,6 +9,7 @@ pub struct Context {
     env: Environment,
     alpha_renaming_strategy: AlphaRenamingStrategy,
     beta_reduction_strategy: BetaReductionStrategy,
+    inspected_mode: bool,
 }
 
 impl Context {
@@ -34,5 +35,13 @@ impl Context {
 
     pub fn set_beta_reduction_strategy(&mut self, strategy: BetaReductionStrategy) {
         self.beta_reduction_strategy = strategy;
+    }
+
+    pub fn inspected_mode(&self) -> bool {
+        self.inspected_mode
+    }
+
+    pub fn set_inspected_mode(&mut self, inspected_mode: bool) {
+        self.inspected_mode = inspected_mode
     }
 }

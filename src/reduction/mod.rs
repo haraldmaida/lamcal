@@ -722,33 +722,6 @@ pub fn expand_inspected(expr: &Term, env: &Environment, inspect: &mut impl Inspe
     expr2
 }
 
-fn expand_tramp(expr: &mut Term, env: &Environment) {
-    let mut todo: Vec<(&mut Term, HashSet<VarName>)> = Vec::with_capacity(2);
-    todo.push((expr, HashSet::with_capacity(4)));
-    while let Some((term, mut bound_vars)) = todo.pop() {
-        let maybe_expand_with = match term {
-            Var(ref name) if !bound_vars.contains(name) => env.lookup_term(name).cloned(),
-            _ => None,
-        };
-        if let Some(mut expand_with) = maybe_expand_with {
-            *term = expand_with;
-            todo.push((term, bound_vars));
-        } else {
-            match term {
-                Var(_) => {},
-                Lam(ref param, ref mut body) => {
-                    bound_vars.insert(param.to_owned());
-                    todo.push((&mut **body, bound_vars));
-                },
-                App(ref mut lhs, ref mut rhs) => {
-                    todo.push((&mut **rhs, bound_vars.clone()));
-                    todo.push((&mut **lhs, bound_vars));
-                },
-            }
-        }
-    }
-}
-
 fn expand_tramp_inspected(expr: &mut Term, env: &Environment, inspect: &mut impl Inspect) {
     let mut todo: Vec<(RefCell<*mut Term>, HashSet<VarName>)> = Vec::with_capacity(2);
     todo.push((RefCell::new(expr), HashSet::with_capacity(4)));

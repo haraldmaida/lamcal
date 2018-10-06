@@ -2,7 +2,7 @@
 //!
 //! Based on the [`lamcal`](https://docs.rs/crate/lamcal) crate.
 
-#![doc(html_root_url = "https://docs.rs/lamcal-repl/0.3.0")]
+#![doc(html_root_url = "https://docs.rs/lamcal-repl/0.4.0")]
 #![warn(
     bare_trait_objects,
     missing_copy_implementations,

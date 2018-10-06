@@ -65,6 +65,8 @@ Features:
   term unchanged and returns the result as a new term.
 * Strategies for α-conversion and β-reduction are defined as traits to easily implement custom
   strategies and use it with the functionality of this library.
+* Inspection system to inspect every single intermediate state of a term during evaluation and 
+  reduction and to stop processing depending on arbitrary conditions.
 * No recursion in any of the functions dealing with the recursive data structure of `Term` to avoid
   stack overflow errors when applied on huge terms. Instead all functions follow the trampolining
   pattern.
@@ -78,7 +80,7 @@ To use [lamcal] as a library in your project add this to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
-lamcal = "0.3"
+lamcal = "0.4"
 ```
 
 and this to your crate root:
@@ -94,7 +96,7 @@ feature. To enable it add the dependency to your `Cargo.toml` like so:
 
 ```toml
 [dependencies]
-lamcal = { version = "0.3", features = ["failure"] }
+lamcal = { version = "0.4", features = ["failure"] }
 ```
 
 ## License
