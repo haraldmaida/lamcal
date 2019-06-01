@@ -178,7 +178,7 @@ impl Command for LoadBindings {
             "default" => {
                 ctx.env_mut().extend(Environment::default().into_bindings());
                 cont_output(format!("Loaded default bindings into environment"), "")
-            }
+            },
             _ => cont_err(
                 format!("No predefined binding set with name `{}` found", &self.name),
                 "",
@@ -321,7 +321,7 @@ impl<'a> Command for ExpandLambdaExpression<'a> {
                 let mut terms = collected.unwrap();
                 terms.push(expr);
                 cont_output(terms.into(), "")
-            }
+            },
             Err(err) => cont_err(err, ""),
         }
     }
@@ -351,50 +351,50 @@ impl<'a> Command for BetaReduceLambdaExpression<'a> {
                                 .reduce_inspected::<ApplicativeOrder<Enumerate>, _>(&mut collected),
                             BetaReductionStrategy::CallByName => {
                                 expr.reduce_inspected::<CallByName<Enumerate>, _>(&mut collected)
-                            }
+                            },
                             BetaReductionStrategy::CallByValue => {
                                 expr.reduce_inspected::<CallByValue<Enumerate>, _>(&mut collected)
-                            }
+                            },
                             BetaReductionStrategy::HeadSpine => {
                                 expr.reduce_inspected::<HeadSpine<Enumerate>, _>(&mut collected)
-                            }
+                            },
                             BetaReductionStrategy::HybridApplicativeOrder => {
                                 expr.reduce_inspected::<HybridApplicativeOrder<Enumerate>, _>(
                                     &mut collected,
                                 )
-                            }
+                            },
                             BetaReductionStrategy::HybridNormalOrder => expr
                                 .reduce_inspected::<HybridNormalOrder<Enumerate>, _>(
                                     &mut collected,
                                 ),
                             BetaReductionStrategy::NormalOrder => {
                                 expr.reduce_inspected::<NormalOrder<Enumerate>, _>(&mut collected)
-                            }
+                            },
                         },
                         AlphaRenamingStrategy::Prime => match ctx.beta_reduction_strategy() {
                             BetaReductionStrategy::ApplicativeOrder => {
                                 expr.reduce_inspected::<ApplicativeOrder<Prime>, _>(&mut collected)
-                            }
+                            },
                             BetaReductionStrategy::CallByName => {
                                 expr.reduce_inspected::<CallByName<Prime>, _>(&mut collected)
-                            }
+                            },
                             BetaReductionStrategy::CallByValue => {
                                 expr.reduce_inspected::<CallByValue<Prime>, _>(&mut collected)
-                            }
+                            },
                             BetaReductionStrategy::HeadSpine => {
                                 expr.reduce_inspected::<HeadSpine<Prime>, _>(&mut collected)
-                            }
+                            },
                             BetaReductionStrategy::HybridApplicativeOrder => {
                                 expr.reduce_inspected::<HybridApplicativeOrder<Prime>, _>(
                                     &mut collected,
                                 )
-                            }
+                            },
                             BetaReductionStrategy::HybridNormalOrder => {
                                 expr.reduce_inspected::<HybridNormalOrder<Prime>, _>(&mut collected)
-                            }
+                            },
                             BetaReductionStrategy::NormalOrder => {
                                 expr.reduce_inspected::<NormalOrder<Prime>, _>(&mut collected)
-                            }
+                            },
                         },
                     }
                 } else {
@@ -402,51 +402,51 @@ impl<'a> Command for BetaReduceLambdaExpression<'a> {
                         AlphaRenamingStrategy::Enumerate => match ctx.beta_reduction_strategy() {
                             BetaReductionStrategy::ApplicativeOrder => {
                                 expr.reduce::<ApplicativeOrder<Enumerate>>()
-                            }
+                            },
                             BetaReductionStrategy::CallByName => {
                                 expr.reduce::<CallByName<Enumerate>>()
-                            }
+                            },
                             BetaReductionStrategy::CallByValue => {
                                 expr.reduce::<CallByValue<Enumerate>>()
-                            }
+                            },
                             BetaReductionStrategy::HeadSpine => {
                                 expr.reduce::<HeadSpine<Enumerate>>()
-                            }
+                            },
                             BetaReductionStrategy::HybridApplicativeOrder => {
                                 expr.reduce::<HybridApplicativeOrder<Enumerate>>()
-                            }
+                            },
                             BetaReductionStrategy::HybridNormalOrder => {
                                 expr.reduce::<HybridNormalOrder<Enumerate>>()
-                            }
+                            },
                             BetaReductionStrategy::NormalOrder => {
                                 expr.reduce::<NormalOrder<Enumerate>>()
-                            }
+                            },
                         },
                         AlphaRenamingStrategy::Prime => match ctx.beta_reduction_strategy() {
                             BetaReductionStrategy::ApplicativeOrder => {
                                 expr.reduce::<ApplicativeOrder<Prime>>()
-                            }
+                            },
                             BetaReductionStrategy::CallByName => expr.reduce::<CallByName<Prime>>(),
                             BetaReductionStrategy::CallByValue => {
                                 expr.reduce::<CallByValue<Prime>>()
-                            }
+                            },
                             BetaReductionStrategy::HeadSpine => expr.reduce::<HeadSpine<Prime>>(),
                             BetaReductionStrategy::HybridApplicativeOrder => {
                                 expr.reduce::<HybridApplicativeOrder<Prime>>()
-                            }
+                            },
                             BetaReductionStrategy::HybridNormalOrder => {
                                 expr.reduce::<HybridNormalOrder<Prime>>()
-                            }
+                            },
                             BetaReductionStrategy::NormalOrder => {
                                 expr.reduce::<NormalOrder<Prime>>()
-                            }
+                            },
                         },
                     }
                 }
                 let mut terms = collected.unwrap();
                 terms.push(expr);
                 cont_output(terms.into(), "")
-            }
+            },
             Err(err) => cont_err(err, ""),
         }
     }
@@ -497,7 +497,7 @@ impl<'a> Command for EvaluateLambdaExpression<'a> {
                                     ctx.env(),
                                     &mut collected,
                                 )
-                            }
+                            },
                             BetaReductionStrategy::HybridNormalOrder => expr
                                 .evaluate_inspected::<HybridNormalOrder<Enumerate>, _>(
                                     ctx.env(),
@@ -535,7 +535,7 @@ impl<'a> Command for EvaluateLambdaExpression<'a> {
                                     ctx.env(),
                                     &mut collected,
                                 )
-                            }
+                            },
                             BetaReductionStrategy::HybridNormalOrder => expr
                                 .evaluate_inspected::<HybridNormalOrder<Prime>, _>(
                                     ctx.env(),
@@ -553,55 +553,55 @@ impl<'a> Command for EvaluateLambdaExpression<'a> {
                         AlphaRenamingStrategy::Enumerate => match ctx.beta_reduction_strategy() {
                             BetaReductionStrategy::ApplicativeOrder => {
                                 expr.evaluate::<ApplicativeOrder<Enumerate>>(ctx.env())
-                            }
+                            },
                             BetaReductionStrategy::CallByName => {
                                 expr.evaluate::<CallByName<Enumerate>>(ctx.env())
-                            }
+                            },
                             BetaReductionStrategy::CallByValue => {
                                 expr.evaluate::<CallByValue<Enumerate>>(ctx.env())
-                            }
+                            },
                             BetaReductionStrategy::HeadSpine => {
                                 expr.evaluate::<HeadSpine<Enumerate>>(ctx.env())
-                            }
+                            },
                             BetaReductionStrategy::HybridApplicativeOrder => {
                                 expr.evaluate::<HybridApplicativeOrder<Enumerate>>(ctx.env())
-                            }
+                            },
                             BetaReductionStrategy::HybridNormalOrder => {
                                 expr.evaluate::<HybridNormalOrder<Enumerate>>(ctx.env())
-                            }
+                            },
                             BetaReductionStrategy::NormalOrder => {
                                 expr.evaluate::<NormalOrder<Enumerate>>(ctx.env())
-                            }
+                            },
                         },
                         AlphaRenamingStrategy::Prime => match ctx.beta_reduction_strategy() {
                             BetaReductionStrategy::ApplicativeOrder => {
                                 expr.evaluate::<ApplicativeOrder<Prime>>(ctx.env())
-                            }
+                            },
                             BetaReductionStrategy::CallByName => {
                                 expr.evaluate::<CallByName<Prime>>(ctx.env())
-                            }
+                            },
                             BetaReductionStrategy::CallByValue => {
                                 expr.evaluate::<CallByValue<Prime>>(ctx.env())
-                            }
+                            },
                             BetaReductionStrategy::HeadSpine => {
                                 expr.evaluate::<HeadSpine<Prime>>(ctx.env())
-                            }
+                            },
                             BetaReductionStrategy::HybridApplicativeOrder => {
                                 expr.evaluate::<HybridApplicativeOrder<Prime>>(ctx.env())
-                            }
+                            },
                             BetaReductionStrategy::HybridNormalOrder => {
                                 expr.evaluate::<HybridNormalOrder<Prime>>(ctx.env())
-                            }
+                            },
                             BetaReductionStrategy::NormalOrder => {
                                 expr.evaluate::<NormalOrder<Prime>>(ctx.env())
-                            }
+                            },
                         },
                     }
                 }
                 let mut terms = collected.unwrap();
                 terms.push(expr);
                 cont_output(terms.into(), "")
-            }
+            },
             Err(err) => cont_err(err, ""),
         }
     }

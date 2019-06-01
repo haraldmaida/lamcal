@@ -66,21 +66,21 @@ pub fn parse_let_statement(line: &str) -> Result<LetStatement, Error> {
         match chr {
             '=' => {
                 part = LetStatementPart::Expression;
-            }
+            },
             _ => match part {
                 LetStatementPart::Identifier => {
                     if !chr.is_whitespace() {
                         identifier.push(chr);
                     }
-                }
+                },
                 LetStatementPart::Expression => {
                     expression.push(chr);
-                }
+                },
                 LetStatementPart::Undefined => {
                     if !chr.is_whitespace() {
                         return Err(format_err!("Character not allowed: {}", chr));
                     }
-                }
+                },
             },
         }
     }
