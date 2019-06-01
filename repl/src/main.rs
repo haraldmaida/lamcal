@@ -15,32 +15,27 @@
     unused_qualifications,
 )]
 
-extern crate colored;
-extern crate dirs;
 #[macro_use]
 extern crate failure;
-extern crate rustyline;
-
-extern crate lamcal_repl;
 
 mod build {
     pub const NAME: &str = env!("CARGO_PKG_NAME");
     pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 }
 
-use std::fmt::Display;
-use std::fs;
-use std::path::PathBuf;
+use std::{fmt::Display, fs, path::PathBuf};
 
 use colored::*;
 use failure::{err_msg, Error};
 use rustyline::Editor;
 
-use lamcal_repl::command::*;
-use lamcal_repl::context::Context;
-use lamcal_repl::let_stmt::{parse_let_statement, LetStatement};
-use lamcal_repl::model::{AlphaRenamingStrategy, BetaReductionStrategy};
-use lamcal_repl::settings::Settings;
+use lamcal_repl::{
+    command::*,
+    context::Context,
+    let_stmt::{parse_let_statement, LetStatement},
+    model::{AlphaRenamingStrategy, BetaReductionStrategy},
+    settings::Settings,
+};
 
 const PROMPT_HEAD: &str = "λ> ";
 
@@ -52,7 +47,7 @@ fn main() {
             Err(err) => {
                 print_error(err);
                 return;
-            },
+            }
         }
     } else {
         Settings::default()
@@ -69,7 +64,7 @@ fn main() {
             if let Err(err) = rl.load_history(&history_file) {
                 print_warning(err);
             }
-        },
+        }
         Err(err) => print_warning(err),
     }
     let mut ctx = Context::default();
@@ -83,19 +78,19 @@ fn main() {
                     Err(err) => {
                         print_error(err);
                         next("")
-                    },
+                    }
                 };
                 prompt = PROMPT_HEAD.to_owned() + &continuation.prompt;
                 use self::Processing::*;
                 match continuation.processing {
-                    Continue => {},
+                    Continue => {}
                     Stop => break,
                 }
-            },
+            }
             Err(err) => {
                 print_error(err);
                 break;
-            },
+            }
         }
     }
     match history_file() {
@@ -103,7 +98,7 @@ fn main() {
             if let Err(err) = rl.save_history(&history_file) {
                 print_error(err);
             }
-        },
+        }
         Err(err) => print_error(err),
     };
 }
@@ -431,7 +426,7 @@ fn parse_command(line: &str) -> Result<LciCommand, Error> {
             } else {
                 Err(err_msg(format!("unknown command `{}`", cmd)))
             }
-        },
+        }
         cmd if cmd.starts_with(":bs ") || cmd.starts_with(":beta-strategy ") => {
             if let Some(index) = cmd.find(char::is_whitespace) {
                 parse_beta_reduction_strategy(&cmd[index + 1..])
@@ -440,42 +435,42 @@ fn parse_command(line: &str) -> Result<LciCommand, Error> {
             } else {
                 Err(err_msg(format!("unknown command `{}`", cmd)))
             }
-        },
+        }
         cmd if cmd.starts_with(":e ") || cmd.starts_with(":eval ") => {
             if let Some(index) = cmd.find(char::is_whitespace) {
                 Ok(EvaluateLambdaExpression::with_input(&cmd[index + 1..]).into())
             } else {
                 Err(err_msg(format!("unknown command `{}`", cmd)))
             }
-        },
+        }
         cmd if cmd.starts_with(":b ") || cmd.starts_with(":beta ") => {
             if let Some(index) = cmd.find(char::is_whitespace) {
                 Ok(BetaReduceLambdaExpression::with_input(&cmd[index + 1..]).into())
             } else {
                 Err(err_msg(format!("unknown command `{}`", cmd)))
             }
-        },
+        }
         cmd if cmd.starts_with(":x ") || cmd.starts_with(":expand ") => {
             if let Some(index) = cmd.find(char::is_whitespace) {
                 Ok(ExpandLambdaExpression::with_input(&cmd[index + 1..]).into())
             } else {
                 Err(err_msg(format!("unknown command `{}`", cmd)))
             }
-        },
+        }
         cmd if cmd.starts_with(":p ") || cmd.starts_with(":parse ") => {
             if let Some(index) = cmd.find(char::is_whitespace) {
                 Ok(ParseLambdaExpression::with_input(&cmd[index + 1..]).into())
             } else {
                 Err(err_msg(format!("unknown command `{}`", cmd)))
             }
-        },
+        }
         cmd if cmd.starts_with(":let ") => parse_let_statement(cmd).map(Into::into),
         cmd if cmd.starts_with(":ls-env ") => {
             Ok(PrintEnvironment::with_input(cmd[8..].trim().to_owned()).into())
-        },
+        }
         cmd if cmd.starts_with(":ld-env ") => {
             Ok(LoadBindings::with_input(cmd[8..].trim().to_owned()).into())
-        },
+        }
         cmd if cmd.starts_with(':') => Err(err_msg(format!("unknown command `{}`", cmd))),
         cmd => Ok(EvaluateLambdaExpression::with_input(cmd).into()),
     }

@@ -14,10 +14,9 @@ pub mod numeral;
 
 use std::collections::HashSet;
 
-use environment::Binding;
+use crate::environment::Binding;
 
-pub use self::boolean::default_bindings as boolean_set;
-pub use self::numeral::default_bindings as numeral_set;
+use self::{boolean::default_bindings as boolean_set, numeral::default_bindings as numeral_set};
 
 /// Creates a set of bindings for all data types, data structures and operators
 /// implemented in this module and its submodules.

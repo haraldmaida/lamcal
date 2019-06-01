@@ -12,9 +12,11 @@
 
 use std::collections::HashSet;
 
-use church_encoded::boolean::{False, True};
-use environment::Binding;
-use term::{app, lam, var, Term};
+use crate::{
+    church_encoded::boolean::{False, True},
+    environment::Binding,
+    term::{app, lam, var, Term},
+};
 
 /// Creates a set of bindings for all data types, data structures and operators
 /// implemented in this module.

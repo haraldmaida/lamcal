@@ -1,6 +1,6 @@
 use super::*;
 
-use term::any_identifier;
+use crate::term::any_identifier;
 
 mod var_name {
 

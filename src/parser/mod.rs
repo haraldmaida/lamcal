@@ -1,13 +1,14 @@
 //! The parser that transform expressions into a `Term`.
 
-use std::fmt::{self, Display};
-use std::iter::IntoIterator;
-use std::mem;
+use std::{
+    fmt::{self, Display},
+    iter::IntoIterator,
+    mem,
+};
 
-use term::{app, lam, var, Term};
+use crate::term::{app, lam, var, Term};
 
-use self::ParseErrorKind::*;
-use self::Token::*;
+use self::{ParseErrorKind::*, Token::*};
 
 /// Parses a `str` slice into `Term`.
 ///
@@ -59,28 +60,28 @@ pub fn tokenize(
                     name = String::new();
                 }
                 tokens.push((Lambda, position));
-            },
+            }
             '.' => {
                 if !name.is_empty() {
                     tokens.push((Identifier(name), name_pos));
                     name = String::new();
                 }
                 tokens.push((BodySeparator, position));
-            },
+            }
             '(' => {
                 if !name.is_empty() {
                     tokens.push((Identifier(name), name_pos));
                     name = String::new();
                 }
                 tokens.push((LParen, position));
-            },
+            }
             ')' => {
                 if !name.is_empty() {
                     tokens.push((Identifier(name), name_pos));
                     name = String::new();
                 }
                 tokens.push((RParen, position));
-            },
+            }
             '_' | '\'' => {
                 if name.is_empty() {
                     return Err(ParseError::new(
@@ -93,19 +94,19 @@ pub fn tokenize(
                 } else {
                     name.push(chr);
                 }
-            },
+            }
             chr if chr.is_whitespace() => {
                 if !name.is_empty() {
                     tokens.push((Identifier(name), name_pos));
                     name = String::new();
                 }
-            },
+            }
             chr if chr.is_alphanumeric() => {
                 if name.is_empty() {
                     name_pos = position;
                 }
                 name.push(chr);
-            },
+            }
             _ => {
                 if name.is_empty() {
                     return Err(ParseError::new(
@@ -124,7 +125,7 @@ pub fn tokenize(
                         None,
                     ));
                 }
-            },
+            }
         };
     }
     if !name.is_empty() {
@@ -179,7 +180,7 @@ pub fn parse_tokens(
                             "an identifier",
                             hint("a lambda abstraction must define a bound variable in its head"),
                         ));
-                    },
+                    }
                     None => {
                         return Err(ParseError::new(
                             UnexpectedEndOfInput,
@@ -188,7 +189,7 @@ pub fn parse_tokens(
                             "an identifier",
                             hint("a lambda abstraction must define a bound variable in its head"),
                         ))
-                    },
+                    }
                 };
                 let token_opt = token_iter.next();
                 match token_opt {
@@ -216,13 +217,13 @@ pub fn parse_tokens(
                     param,
                     mem::replace(&mut term_seq, Vec::with_capacity(8)),
                 ));
-            },
+            }
             LParen => {
                 subterm_indicators.push(LeftParen(
                     position,
                     mem::replace(&mut term_seq, Vec::with_capacity(8)),
                 ));
-            },
+            }
             RParen => loop {
                 if let Some(indicator) = subterm_indicators.pop() {
                     let (subterm, lparen) =
@@ -249,7 +250,7 @@ pub fn parse_tokens(
                     "a variable, a lambda abstraction or an application",
                     None,
                 ))
-            },
+            }
         }
     }
     while let Some(indicator) = subterm_indicators.pop() {
@@ -299,7 +300,7 @@ fn build_sub_term(
                 None,
             ))?;
             Ok((lam(param, body), false))
-        },
+        }
         LeftParen(position, parent_seq) => build_term(mem::replace(term_seq, parent_seq))
             .map(|term| (term, true))
             .ok_or_else(|| {
@@ -567,10 +568,10 @@ impl ParseErrorKind {
             InvalidCharacter => "invalid character found",
             AbstractionBodyExpected => {
                 "expected a '.' character as start of the body of the lambda abstraction"
-            },
+            }
             AbstractionHeadExpected => {
                 "expected an identifier as bound variable in the lambda abstraction"
-            },
+            }
             EmptyAbstractionBody => "the lambda abstraction body is empty",
             MissingClosingParen => "opening parenthesis without a matching closing one",
             MissingOpeningParen => "closing parenthesis without a matching opening one",

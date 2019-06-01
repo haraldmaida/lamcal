@@ -30,11 +30,13 @@
 //! To construct the combinator inspections in a more concise syntax the
 //! functions [`and`](fn.and.html) and [`or`](fn.or.html) are provided.
 
-use std::iter::IntoIterator;
-use std::ops::{BitAnd, BitOr};
-use std::vec;
+use std::{
+    iter::IntoIterator,
+    ops::{BitAnd, BitOr},
+    vec,
+};
 
-use term::Term;
+use crate::term::Term;
 
 /// The inspect trait allows to inspect the current term before each step
 /// during processing of a term and conditionally stop further processing.

@@ -13,6 +13,8 @@ keywords = ["lambda-calculus", "repl", "evalute", "interpret", "parse"]
 categories = ["science"]
 license = "Apache-2.0"
 
+edition = "2018"
+
 [lib]
 name = "lamcal_repl"
 path = "src/lib.rs"

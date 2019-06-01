@@ -1,10 +1,12 @@
 //! The environment is the context in which a lambda term is evaluated.
 
-use std::collections::HashMap;
-use std::fmt::{self, Display};
-use std::iter::FromIterator;
+use std::{
+    collections::HashMap,
+    fmt::{self, Display},
+    iter::FromIterator,
+};
 
-use term::{Term, VarName};
+use crate::term::{Term, VarName};
 
 /// Constructs a new `Binding` with the given term bound to the given name.
 pub fn bind(name: impl Into<String>, term: impl Into<Term>) -> Binding {

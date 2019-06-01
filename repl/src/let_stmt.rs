@@ -1,10 +1,11 @@
 use failure::Error;
 
-use lamcal::{parse_str, Term, VarName};
-use lamcal::environment::Binding;
+use lamcal::{environment::Binding, parse_str, Term, VarName};
 
-use command::{cont_output, Command, Continuation};
-use context::Context;
+use crate::{
+    command::{cont_output, Command, Continuation},
+    context::Context,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LetStatementPart {
@@ -65,21 +66,21 @@ pub fn parse_let_statement(line: &str) -> Result<LetStatement, Error> {
         match chr {
             '=' => {
                 part = LetStatementPart::Expression;
-            },
+            }
             _ => match part {
                 LetStatementPart::Identifier => {
                     if !chr.is_whitespace() {
                         identifier.push(chr);
                     }
-                },
+                }
                 LetStatementPart::Expression => {
                     expression.push(chr);
-                },
+                }
                 LetStatementPart::Undefined => {
                     if !chr.is_whitespace() {
                         return Err(format_err!("Character not allowed: {}", chr));
                     }
-                },
+                }
             },
         }
     }

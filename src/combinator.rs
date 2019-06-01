@@ -28,8 +28,10 @@
 
 use std::collections::HashSet;
 
-use environment::Binding;
-use term::{app, lam, var, Term};
+use crate::{
+    environment::Binding,
+    term::{app, lam, var, Term},
+};
 
 /// Creates a set of bindings for all combinators implemented in this module.
 pub fn default_bindings() -> HashSet<Binding> {

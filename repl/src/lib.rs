@@ -17,19 +17,11 @@
     unused_qualifications,
 )]
 
-#[cfg(feature = "config")]
-extern crate config;
-
-#[cfg(feature = "rustyline")]
-extern crate rustyline;
-
 #[macro_use]
 extern crate failure;
 
-extern crate lamcal;
-
 pub mod command;
 pub mod context;
+pub mod let_stmt;
 pub mod model;
 pub mod settings;
-pub mod let_stmt;

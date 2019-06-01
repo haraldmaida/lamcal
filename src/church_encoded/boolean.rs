@@ -15,8 +15,10 @@
 
 use std::collections::HashSet;
 
-use environment::Binding;
-use term::{app, lam, var, Term};
+use crate::{
+    environment::Binding,
+    term::{app, lam, var, Term},
+};
 
 /// Creates a set of bindings for all data types, data structures and operators
 /// implemented in this module.

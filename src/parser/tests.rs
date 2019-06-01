@@ -1,6 +1,6 @@
 use super::*;
 
-use term::{any_identifier, any_term};
+use crate::term::{any_identifier, any_term};
 
 mod token {
 
@@ -320,7 +320,7 @@ mod parse {
 
     use super::*;
 
-    use term::{app, lam, var};
+    use crate::term::{app, lam, var};
 
     proptest! {
 

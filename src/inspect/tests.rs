@@ -54,7 +54,7 @@ mod limit {
 
     use super::*;
 
-    use term::any_term;
+    use crate::term::any_term;
 
     proptest! {
 
@@ -88,8 +88,10 @@ mod trace {
 
     use super::*;
 
-    use reduction::{Enumerate, NormalOrder};
-    use term::{any_term, app, lam, var};
+    use crate::{
+        reduction::{Enumerate, NormalOrder},
+        term::{any_term, app, lam, var},
+    };
 
     proptest! {
 
@@ -122,7 +124,7 @@ mod collect {
 
     use super::*;
 
-    use term::any_term;
+    use crate::term::any_term;
 
     proptest! {
 

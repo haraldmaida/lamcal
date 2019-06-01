@@ -4,7 +4,7 @@ mod alpha {
 
     use super::*;
 
-    use term::{app, lam, var};
+    use crate::term::{app, lam, var};
 
     #[test]
     fn renames_bound_x_in_second_level_lambda_abstraction() {
@@ -134,7 +134,7 @@ mod apply {
 
     use super::*;
 
-    use term::{app, lam, var};
+    use crate::term::{app, lam, var};
 
     #[test]
     fn applying_variable_returns_the_variable() {
@@ -202,7 +202,7 @@ mod apply {
 
 mod beta_reduction_properties {
 
-    use term::{app, lam, var};
+    use crate::term::{app, lam, var};
 
     #[test]
     fn test_for_beta_redex_on_variable() {
@@ -307,7 +307,7 @@ mod beta_call_by_name {
 
     use super::*;
 
-    use term::{any_term, app, lam, var};
+    use crate::term::{any_term, app, lam, var};
 
     proptest! {
         #[test]
@@ -421,7 +421,7 @@ mod beta_normal_order {
 
     use super::*;
 
-    use term::{any_term, app, lam, var};
+    use crate::term::{any_term, app, lam, var};
 
     proptest! {
         #[test]
@@ -521,7 +521,7 @@ mod beta_call_by_value {
 
     use super::*;
 
-    use term::{any_term, app, lam, var};
+    use crate::term::{any_term, app, lam, var};
 
     proptest! {
         #[test]
@@ -648,7 +648,7 @@ mod beta_applicative_order {
 
     use super::*;
 
-    use term::{any_term, app, lam, var};
+    use crate::term::{any_term, app, lam, var};
 
     proptest! {
         #[test]
@@ -762,7 +762,7 @@ mod beta_hybrid_applicative_order {
 
     use super::*;
 
-    use term::{any_term, app, lam, var};
+    use crate::term::{any_term, app, lam, var};
 
     proptest! {
         #[test]
@@ -863,7 +863,7 @@ mod beta_head_spine_order {
 
     use super::*;
 
-    use term::{any_term, app, lam, var};
+    use crate::term::{any_term, app, lam, var};
 
     proptest! {
         #[test]
@@ -967,7 +967,7 @@ mod beta_hybrid_normal_order {
 
     use super::*;
 
-    use term::{any_term, app, lam, var};
+    use crate::term::{any_term, app, lam, var};
 
     proptest! {
         #[test]

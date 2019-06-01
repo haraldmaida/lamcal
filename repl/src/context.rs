@@ -1,6 +1,6 @@
 use lamcal::Environment;
 
-use model::{AlphaRenamingStrategy, BetaReductionStrategy};
+use crate::model::{AlphaRenamingStrategy, BetaReductionStrategy};
 
 /// Context of the REPL.
 #[allow(missing_copy_implementations)]

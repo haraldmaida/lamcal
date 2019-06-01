@@ -191,14 +191,17 @@ pub mod combinator;
 pub mod inspect;
 pub mod parser;
 
-pub use self::environment::Environment;
-pub use self::parser::{parse, parse_str, ParseError};
-pub use self::reduction::{
-    alpha, apply, evaluate, evaluate_inspected, expand, expand_inspected, reduce, reduce_inspected,
-    substitute, AlphaRename, ApplicativeOrder, BetaReduce, CallByName, CallByValue, Enumerate,
-    HeadSpine, HybridApplicativeOrder, HybridNormalOrder, NormalOrder, Prime,
+pub use self::{
+    environment::Environment,
+    parser::{parse, parse_str, ParseError},
+    reduction::{
+        alpha, apply, evaluate, evaluate_inspected, expand, expand_inspected, reduce,
+        reduce_inspected, substitute, AlphaRename, ApplicativeOrder, BetaReduce, CallByName,
+        CallByValue, Enumerate, HeadSpine, HybridApplicativeOrder, HybridNormalOrder, NormalOrder,
+        Prime,
+    },
+    term::{app, lam, var, Term, VarName},
 };
-pub use self::term::{app, lam, var, Term, VarName};
 
 impl Default for Environment {
     /// Creates an `Environment` containing predefined bindings to all the
