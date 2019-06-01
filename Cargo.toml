@@ -18,8 +18,8 @@ failure = { version = "0.1", optional = true }
 
 [dev-dependencies]
 criterion = "0.2"
-proptest = "0.8"
-version-sync = "0.5"
+proptest = "0.9"
+version-sync = "0.8"
 
 [package.metadata.docs.rs]
 features = [

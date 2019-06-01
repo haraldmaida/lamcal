@@ -1,0 +1,3 @@
+#
+xs 1479200765 2525500447 4040466454 675030011 # shrinks to expr = App(App(App(Var(VarName("A")), Var(VarName("A"))), Lam(VarName("A"), App(Lam(VarName("a"), Var(VarName("0"))), Var(VarName("a"))))), Var(VarName("a")))
+xs 158695774 3633365405 589382269 3455493434 # shrinks to expr = App(App(Var(VarName("a")), Lam(VarName("A"), App(Lam(VarName("A"), Var(VarName("A"))), Var(VarName("0"))))), Var(VarName("A")))
