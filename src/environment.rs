@@ -1,10 +1,11 @@
 //! The environment is the context in which a lambda term is evaluated.
 
 use std::{
-    collections::HashMap,
     fmt::{self, Display},
     iter::FromIterator,
 };
+
+use hashbrown::HashMap;
 
 use crate::term::{Term, VarName};
 
@@ -236,7 +237,7 @@ macro_rules! bind {
 /// Constructs a set of `Binding`s from identifier to `Term`.
 ///
 /// The binds! macro can be used to conveniently construct multiple `Binding`s.
-/// The resulting set of bindings is returned as a `std::collections::HashSet`.
+/// The resulting set of bindings is returned as a `hashbrown::HashSet`.
 ///
 /// # Examples
 ///
@@ -248,7 +249,7 @@ macro_rules! bind {
 /// use lamcal::combinator::{I, K};
 /// use lamcal::environment::bind;
 /// use lamcal::{lam, var};
-/// use std::collections::HashSet;
+/// use hashbrown::HashSet;
 ///
 /// # fn main() {
 /// let bindings = binds! {

@@ -3,9 +3,9 @@
 //! [evaluation strategies]: https://en.wikipedia.org/wiki/Evaluation_strategy
 //! [reduction strategies]: https://en.wikipedia.org/wiki/Lambda_calculus#Reduction_strategies
 
-use std::{
-    cell::RefCell, collections::HashSet, iter::FromIterator, marker::PhantomData, mem, rc::Rc,
-};
+use std::{cell::RefCell, iter::FromIterator, marker::PhantomData, mem, rc::Rc};
+
+use hashbrown::HashSet;
 
 use crate::{
     environment::Environment,
@@ -48,14 +48,14 @@ impl Term {
         to_check.push(self);
         while let Some(term) = to_check.pop() {
             match *term {
-                Var(_) => {},
+                Var(_) => {}
                 Lam(_, ref body) => to_check.push(body),
                 App(ref lhs, ref rhs) => match **lhs {
                     Lam(_, _) => return true,
                     _ => {
                         to_check.push(rhs);
                         to_check.push(lhs);
-                    },
+                    }
                 },
             }
         }
@@ -730,7 +730,7 @@ fn expand_tramp_inspected(expr: &mut Term, env: &Environment, inspect: &mut impl
                 Var(ref name) if !bound_vars.contains(name) => env.lookup_term(name).cloned(),
                 _ => None,
             };
-            if let Some(mut expand_with) = maybe_expand_with {
+            if let Some(expand_with) = maybe_expand_with {
                 if Stop::Yes == inspect.inspect(expr) {
                     break;
                 }
@@ -738,15 +738,15 @@ fn expand_tramp_inspected(expr: &mut Term, env: &Environment, inspect: &mut impl
                 todo.push((term, bound_vars));
             } else {
                 match **term.borrow() {
-                    Var(_) => {},
+                    Var(_) => {}
                     Lam(ref param, ref mut body) => {
                         bound_vars.insert(param.to_owned());
                         todo.push((RefCell::new(&mut **body), bound_vars));
-                    },
+                    }
                     App(ref mut lhs, ref mut rhs) => {
                         todo.push((RefCell::new(&mut **rhs), bound_vars.clone()));
                         todo.push((RefCell::new(&mut **lhs), bound_vars));
-                    },
+                    }
                 }
             }
         }
@@ -794,18 +794,18 @@ where
                         <A as AlphaRename>::rename(&mut **name);
                     }
                 }
-            },
+            }
             Lam(ref mut name, ref mut body) => {
                 bound_vars.insert(name.to_owned());
                 while free_vars.contains(name) {
                     <A as AlphaRename>::rename(&mut **name);
                 }
                 todo.push((body, bound_vars));
-            },
+            }
             App(ref mut lhs, ref mut rhs) => {
                 todo.push((rhs, bound_vars.clone()));
                 todo.push((lhs, bound_vars));
-            },
+            }
         }
     }
 }
@@ -907,16 +907,16 @@ fn substitute_tramp(expr: &mut Term, var: &VarName, subst: &Term) {
             *term = subst.clone();
         } else {
             match term {
-                Var(_) => {},
+                Var(_) => {}
                 Lam(ref mut param, ref mut body) => {
                     if param != var {
                         todo.push(body);
                     }
-                },
+                }
                 App(ref mut lhs, ref mut rhs) => {
                     todo.push(rhs);
                     todo.push(lhs);
-                },
+                }
             }
         }
     }
@@ -992,7 +992,7 @@ where
             alpha_tramp::<A>(body, &subst.free_vars());
             substitute_tramp(body, param, subst);
             Some(mem::replace(&mut **body, dummy_term()))
-        },
+        }
         _ => None,
     } {
         *expr = replace_with;
@@ -1136,10 +1136,10 @@ where
                         // because of the borrow checker
                         //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
-                    },
+                    }
                     _ => None,
                 }
-            },
+            }
             _ => None,
         } {
             *expr = subst_with;
@@ -1173,7 +1173,7 @@ where
                             //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                             mem::swap(&mut temp_term, &mut **lhs);
                             true
-                        },
+                        }
                         _ => false,
                     },
                     _ => false,
@@ -1241,7 +1241,7 @@ where
             Lam(_, ref mut body) => {
                 Self::reduce_rec(body);
                 None
-            },
+            }
             App(ref mut lhs, ref mut rhs) => {
                 CallByName::<A>::reduce_rec(lhs);
                 match **lhs {
@@ -1252,14 +1252,14 @@ where
                         // because of the borrow checker
                         //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
-                    },
+                    }
                     _ => {
                         Self::reduce_rec(lhs);
                         Self::reduce_rec(rhs);
                         None
-                    },
+                    }
                 }
-            },
+            }
             _ => None,
         } {
             *expr = subst_with;
@@ -1295,7 +1295,7 @@ where
                                 //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                                 mem::swap(&mut temp_term, &mut **lhs);
                                 true
-                            },
+                            }
                             _ => {
                                 descend_left_and_right_and_body(
                                     Rc::new(RefCell::new(&mut **rhs)),
@@ -1306,9 +1306,9 @@ where
                                     &mut parents,
                                 );
                                 false
-                            },
+                            }
                         }
-                    },
+                    }
                     _ => false,
                 };
                 if do_swap {
@@ -1367,10 +1367,10 @@ where
                         // because of the borrow checker
                         //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
-                    },
+                    }
                     _ => None,
                 }
-            },
+            }
             _ => None,
         } {
             *expr = subst_with;
@@ -1404,7 +1404,7 @@ where
                             //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                             mem::swap(&mut temp_term, &mut **lhs);
                             true
-                        },
+                        }
                         _ => false,
                     },
                     _ => false,
@@ -1476,7 +1476,7 @@ where
             Lam(_, ref mut body) => {
                 Self::reduce_rec(body);
                 None
-            },
+            }
             App(ref mut lhs, ref mut rhs) => {
                 Self::reduce_rec(lhs);
                 Self::reduce_rec(rhs);
@@ -1488,10 +1488,10 @@ where
                         // because of the borrow checker
                         //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
-                    },
+                    }
                     _ => None,
                 }
-            },
+            }
             _ => None,
         } {
             *expr = subst_with;
@@ -1525,7 +1525,7 @@ where
                             //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                             mem::swap(&mut temp_term, &mut **lhs);
                             true
-                        },
+                        }
                         _ => false,
                     },
                     _ => false,
@@ -1550,30 +1550,30 @@ unsafe fn descend_left_and_right_and_body(
         match **term.borrow_mut() {
             Lam(_, ref mut body) => {
                 to_check.push(Rc::new(RefCell::new(&mut **body)));
-            },
+            }
             App(ref mut lhs, ref mut rhs) => {
                 parents.push(term.clone());
                 match **rhs {
                     App(_, _) => {
                         to_check.push(Rc::new(RefCell::new(&mut **rhs)));
-                    },
+                    }
                     Lam(_, _) => {
                         to_check.push(Rc::new(RefCell::new(&mut **rhs)));
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
                 match **lhs {
                     App(_, _) => {
                         parents.push(term.clone());
                         to_check.push(Rc::new(RefCell::new(&mut **lhs)));
-                    },
+                    }
                     Lam(_, _) => {
                         to_check.push(Rc::new(RefCell::new(&mut **lhs)));
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
     }
 }
@@ -1618,7 +1618,7 @@ where
             Lam(_, ref mut body) => {
                 Self::reduce_rec(body);
                 None
-            },
+            }
             App(ref mut lhs, ref mut rhs) => {
                 CallByValue::<A>::reduce_rec(lhs);
                 Self::reduce_rec(rhs);
@@ -1630,13 +1630,13 @@ where
                         // because of the borrow checker
                         //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
-                    },
+                    }
                     _ => {
                         Self::reduce_rec(lhs);
                         None
-                    },
+                    }
                 }
-            },
+            }
             _ => None,
         } {
             *expr = subst_with;
@@ -1672,10 +1672,10 @@ where
                                 //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                                 mem::swap(&mut temp_term, &mut **lhs);
                                 true
-                            },
+                            }
                             _ => false,
                         }
-                    },
+                    }
                     _ => false,
                 };
                 if do_swap {
@@ -1698,19 +1698,19 @@ unsafe fn descend_right_and_body(
         match **term.borrow_mut() {
             Lam(_, ref mut body) => {
                 to_check.push(Rc::new(RefCell::new(&mut **body)));
-            },
+            }
             App(_, ref mut rhs) => {
                 parents.push(term.clone());
                 match **rhs {
                     App(_, _) => {
                         to_check.push(Rc::new(RefCell::new(&mut **rhs)));
-                    },
+                    }
                     Lam(_, _) => {
                         to_check.push(Rc::new(RefCell::new(&mut **rhs)));
-                    },
+                    }
                     _ => break,
                 }
-            },
+            }
             _ => break,
         }
     }
@@ -1750,7 +1750,7 @@ where
             Lam(_, ref mut body) => {
                 Self::reduce_rec(body);
                 None
-            },
+            }
             App(ref mut lhs, ref rhs) => {
                 Self::reduce_rec(lhs);
                 match **lhs {
@@ -1761,10 +1761,10 @@ where
                         // because of the borrow checker
                         //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
-                    },
+                    }
                     _ => None,
                 }
-            },
+            }
             _ => None,
         } {
             *expr = subst_with;
@@ -1798,7 +1798,7 @@ where
                             //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                             mem::swap(&mut temp_term, &mut **lhs);
                             true
-                        },
+                        }
                         _ => false,
                     },
                     _ => false,
@@ -1823,11 +1823,11 @@ unsafe fn descend_left_and_body(
         match **term.borrow_mut() {
             Lam(_, ref mut body) => {
                 to_check.push(Rc::new(RefCell::new(&mut **body)));
-            },
+            }
             App(ref mut lhs, _) => {
                 parents.push(term.clone());
                 to_check.push(Rc::new(RefCell::new(&mut **lhs)));
-            },
+            }
             _ => break,
         }
     }
@@ -1872,7 +1872,7 @@ where
             Lam(_, ref mut body) => {
                 Self::reduce_rec(body);
                 None
-            },
+            }
             App(ref mut lhs, ref mut rhs) => {
                 HeadSpine::<A>::reduce_rec(lhs);
                 match **lhs {
@@ -1883,14 +1883,14 @@ where
                         // because of the borrow checker
                         //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                         Some(mem::replace(&mut **lhs, dummy_term()))
-                    },
+                    }
                     _ => {
                         Self::reduce_rec(lhs);
                         Self::reduce_rec(rhs);
                         None
-                    },
+                    }
                 }
-            },
+            }
             _ => None,
         } {
             *expr = subst_with;
@@ -1926,7 +1926,7 @@ where
                                 //TODO refactor when non-lexical-lifetimes are stabilized, see [issue 43234](https://github.com/rust-lang/rust/issues/43234)
                                 mem::swap(&mut temp_term, &mut **lhs);
                                 true
-                            },
+                            }
                             _ => {
                                 descend_left_and_right_and_body(
                                     Rc::new(RefCell::new(&mut **rhs)),
@@ -1937,9 +1937,9 @@ where
                                     &mut parents,
                                 );
                                 false
-                            },
+                            }
                         }
-                    },
+                    }
                     _ => false,
                 };
                 if do_swap {

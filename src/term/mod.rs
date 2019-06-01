@@ -7,10 +7,11 @@
 use proptest::strategy::Strategy;
 
 use std::{
-    collections::HashSet,
     fmt::{self, Display},
     ops::{Deref, DerefMut},
 };
+
+use hashbrown::HashSet;
 
 use self::Term::*;
 
@@ -145,7 +146,7 @@ impl Display for Term {
                     Lam(param, body) => {
                         write!(f, "λ{}.", &param)?;
                         to_format.push(ToFormat(&**body));
-                    },
+                    }
                     App(lhs, rhs) => match (&**lhs, &**rhs) {
                         (App(_, _), App(_, _)) => {
                             to_format.push(RParen);
@@ -155,7 +156,7 @@ impl Display for Term {
                             to_format.push(RParen);
                             to_format.push(ToFormat(&**lhs));
                             to_format.push(LParen);
-                        },
+                        }
                         (Lam(_, _), App(_, _)) => {
                             to_format.push(RParen);
                             to_format.push(ToFormat(&**rhs));
@@ -164,7 +165,7 @@ impl Display for Term {
                             to_format.push(RParen);
                             to_format.push(ToFormat(&**lhs));
                             to_format.push(LParen);
-                        },
+                        }
                         (Lam(_, _), Lam(_, _)) => {
                             to_format.push(RParen);
                             to_format.push(ToFormat(&**rhs));
@@ -173,33 +174,33 @@ impl Display for Term {
                             to_format.push(RParen);
                             to_format.push(ToFormat(&**lhs));
                             to_format.push(LParen);
-                        },
+                        }
                         (_, App(_, _)) => {
                             to_format.push(RParen);
                             to_format.push(ToFormat(&**rhs));
                             to_format.push(LParen);
                             to_format.push(Space);
                             to_format.push(ToFormat(&**lhs));
-                        },
+                        }
                         (_, Lam(_, _)) => {
                             to_format.push(RParen);
                             to_format.push(ToFormat(&**rhs));
                             to_format.push(LParen);
                             to_format.push(Space);
                             to_format.push(ToFormat(&**lhs));
-                        },
+                        }
                         (Lam(_, _), _) => {
                             to_format.push(ToFormat(&**rhs));
                             to_format.push(Space);
                             to_format.push(RParen);
                             to_format.push(ToFormat(&**lhs));
                             to_format.push(LParen);
-                        },
+                        }
                         (_, _) => {
                             to_format.push(ToFormat(&**rhs));
                             to_format.push(Space);
                             to_format.push(ToFormat(&**lhs));
-                        },
+                        }
                     },
                 },
             }
@@ -232,15 +233,15 @@ impl Term {
                     if !bound_vars.contains(name) {
                         free_vars.insert(name);
                     }
-                },
+                }
                 Lam(ref param, ref body) => {
                     bound_vars.insert(param);
                     to_check.push((&*body, bound_vars));
-                },
+                }
                 App(ref lhs, ref rhs) => {
                     to_check.push((&*rhs, bound_vars.clone()));
                     to_check.push((&*lhs, bound_vars));
-                },
+                }
             }
         }
         free_vars

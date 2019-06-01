@@ -26,7 +26,7 @@
 
 #![allow(non_snake_case)]
 
-use std::collections::HashSet;
+use hashbrown::HashSet;
 
 use crate::{
     environment::Binding,

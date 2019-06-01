@@ -12,7 +12,7 @@
 pub mod boolean;
 pub mod numeral;
 
-use std::collections::HashSet;
+use hashbrown::HashSet;
 
 use crate::environment::Binding;
 

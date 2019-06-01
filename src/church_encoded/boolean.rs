@@ -13,7 +13,7 @@
 //!
 //! [Church Booleans]: https://en.wikipedia.org/wiki/Church_encoding#Church_Booleans
 
-use std::collections::HashSet;
+use hashbrown::HashSet;
 
 use crate::{
     environment::Binding,

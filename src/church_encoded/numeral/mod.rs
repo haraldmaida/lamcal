@@ -10,7 +10,7 @@
 //!
 //! [Church numerals]: https://en.wikipedia.org/wiki/Church_encoding#Church_numerals
 
-use std::collections::HashSet;
+use hashbrown::HashSet;
 
 use crate::{
     church_encoded::boolean::{False, True},
