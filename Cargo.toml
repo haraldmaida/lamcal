@@ -20,7 +20,7 @@ failure = { version = "0.1", optional = true }
 hashbrown = "0.5"
 
 [dev-dependencies]
-criterion = "0.2"
+criterion = { version = "0.2", default-features = false }
 proptest = "0.9"
 version-sync = "0.8"
 
