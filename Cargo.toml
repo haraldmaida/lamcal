@@ -34,6 +34,9 @@ members = [
     "repl"
 ]
 
+[lib]
+bench = false
+
 [[bench]]
 name = "parser_benchmark"
 harness = false
