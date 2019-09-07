@@ -53,9 +53,10 @@ install:
   - docker -v
   - docker-compose -v
 
-build: off
+build: false
 
 test_script:
   - pwd
-  - cargo build --all --verbose %cargoflags%
-  - cargo test --all --all-features --verbose %cargoflags%
+  - cargo build --lib --all-features --verbose %cargoflags%
+  - cargo build --all --all-targets --verbose %cargoflags%
+  - cargo test --all --verbose %cargoflags%
