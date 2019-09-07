@@ -28,9 +28,11 @@ before_cache: |
   fi
 
 script:
+  - cargo build --verbose
+  - cargo test --verbose
   - cargo build --lib --all-features --verbose
+  - cargo test --all-features --verbose
   - cargo build --all --all-targets --verbose
-  - cargo test --all --verbose
 
 after_success: |
   if [[ "$TRAVIS_RUST_VERSION" == beta && "$TRAVIS_OS_NAME" == "linux" ]]; then

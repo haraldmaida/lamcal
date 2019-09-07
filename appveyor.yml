@@ -57,6 +57,8 @@ build: false
 
 test_script:
   - pwd
+  - cargo build --verbose %cargoflags%
+  - cargo test --verbose %cargoflags%
   - cargo build --lib --all-features --verbose %cargoflags%
+  - cargo test --all-features --verbose %cargoflags%
   - cargo build --all --all-targets --verbose %cargoflags%
-  - cargo test --all --verbose %cargoflags%
