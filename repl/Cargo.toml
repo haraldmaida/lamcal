@@ -30,11 +30,11 @@ no-color = ["colored/no-color"]
 
 [dependencies]
 lamcal = { version = "0.4", path = "../", features = ["failure"] }
-colored = "1.8"
+colored = "1"
 config = { version = "0.9", default-features = false, features = ["toml"], optional = true }
-dirs = "2.0"
+dirs = "2"
 failure = "0.1"
-rustyline = { version = "5.0", optional = true }
+rustyline = { version = "6", optional = true }
 
 [dev-dependencies]
 version-sync = "0.9"
