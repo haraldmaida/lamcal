@@ -4,6 +4,11 @@ All user visible changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/), as described
 for Rust libraries in [RFC #1105](https://github.com/rust-lang/rfcs/blob/master/text/1105-api-evolution.md)
 
+## 0.5.0 : [unreleased] : Do the maintenance
+
+* bump versions of dependencies
+
+
 ## 0.4.0 : 2018-10-06 : No stack overflow and inspected
 
 ### Breaking changes
@@ -25,6 +30,7 @@ for Rust libraries in [RFC #1105](https://github.com/rust-lang/rfcs/blob/master/
 ### Bug Fixes
 
 * missing parenthesis in implementation of Display for Term 
+
 
 ## 0.3.0 : 2018-09-08 : Beautiful environment
 
@@ -50,6 +56,7 @@ for Rust libraries in [RFC #1105](https://github.com/rust-lang/rfcs/blob/master/
 * required parenthesis omitted in display string of `Term`
 * macro app! needs to many manually import required elements
 
+
 ## 0.2.0 : 2018-08-26 : More reduction strategies
 
 ### Bug Fixes
@@ -68,9 +75,11 @@ for Rust libraries in [RFC #1105](https://github.com/rust-lang/rfcs/blob/master/
 
 * Improve documentation of reduction strategies
 
+
 ## 0.1.1 : 2018-08-25 : Documentation
 
 * Add homepage link to Cargo.toml  
+
 
 ## 0.1.0 : 2018-08-25 : Newborn
 
