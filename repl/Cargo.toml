@@ -30,9 +30,9 @@ no-color = ["colored/no-color"]
 
 [dependencies]
 lamcal = { version = "0.4", path = "../", features = ["failure"] }
-colored = "1"
-config = { version = "0.9", default-features = false, features = ["toml"], optional = true }
-dirs = "2"
+colored = "2"
+config = { version = "0.10", default-features = false, features = ["toml"], optional = true }
+dirs = "3"
 failure = "0.1"
 rustyline = { version = "6", optional = true }
 

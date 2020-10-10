@@ -17,11 +17,11 @@ edition = "2018"
 
 [dependencies]
 failure = { version = "0.1", optional = true }
-hashbrown = "0.7"
+hashbrown = "0.9"
 
 [dev-dependencies]
 criterion = { version = "0.3", default-features = false }
-proptest = "0.9"
+proptest = "0.10"
 version-sync = "0.9"
 
 [package.metadata.docs.rs]
